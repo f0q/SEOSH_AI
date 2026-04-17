@@ -246,6 +246,14 @@ body {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
 }
 
+.label-text {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-surface-300);
+  margin-bottom: 0.375rem;
+}
+
 /* ─── Animations ───────────────────────────────────────────────────────── */
 
 @keyframes fade-in {
