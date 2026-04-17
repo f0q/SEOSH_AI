@@ -1,58 +1,89 @@
 /**
  * @module @seosh/publisher
- * @description CMS Publishing service.
- * 
- * Connectors architecture:
- *   PublisherService → CMSConnector (interface)
- *     ├── WordPressConnector (REST API) — implemented first
- *     ├── TildaConnector — planned
- *     ├── BitrixConnector — planned
- *     ├── OwnCMSConnector — static site generator, planned
- *     └── CustomAPIConnector — generic REST, planned
+ * @description Content publishing service with CMS connectors.
+ * Supported CMS: WordPress (first), Tilda/Bitrix (planned).
  */
 
-import type { PublishRequest, PublishResult, ConnectorType } from '@seosh/shared/types';
-
-/** CMS connector interface — all connectors must implement this */
-export interface CMSConnector {
-  readonly type: ConnectorType;
-  readonly name: string;
-
-  /** Test the connection to the CMS */
-  testConnection(): Promise<boolean>;
-
-  /** Publish a content item to the CMS */
-  publish(request: PublishRequest & { title: string; htmlBody: string; slug: string }): Promise<PublishResult>;
-
-  /** Update an already-published content item */
-  update(externalId: string, updates: { title?: string; htmlBody?: string }): Promise<PublishResult>;
-
-  /** Delete a published content item */
-  delete(externalId: string): Promise<boolean>;
+export interface PublisherConfig {
+  type: "wordpress" | "tilda" | "bitrix" | "custom";
+  url: string;      // Website URL or API endpoint
+  auth: string;     // API Key, Bearer Token, or App Password
 }
 
-/** Publisher service managing multiple CMS connectors */
-export class PublisherService {
-  private connectors: Map<string, CMSConnector> = new Map();
-
-  register(id: string, connector: CMSConnector): void {
-    this.connectors.set(id, connector);
-  }
-
-  getConnector(id: string): CMSConnector {
-    const connector = this.connectors.get(id);
-    if (!connector) throw new Error(`CMS connector "${id}" not found`);
-    return connector;
-  }
-
-  list(): Array<{ id: string; type: ConnectorType; name: string }> {
-    return Array.from(this.connectors.entries()).map(([id, c]) => ({
-      id,
-      type: c.type,
-      name: c.name,
-    }));
-  }
+export interface PublishResult {
+  success: boolean;
+  url?: string;
+  postId?: string | number;
+  error?: string;
 }
 
-// WordPress connector will be the first implementation
-export { PublisherService as default };
+/**
+ * Publish content to a specified CMS.
+ */
+export async function publishContent(
+  title: string,
+  htmlContent: string,
+  config: PublisherConfig,
+  options?: { status?: "publish" | "draft" | "future"; date?: string }
+): Promise<PublishResult> {
+  if (config.type === "wordpress") {
+    return publishToWordPress(title, htmlContent, config, options);
+  }
+
+  throw new Error(`CMS type "${config.type}" is not supported yet.`);
+}
+
+/**
+ * WordPress REST API Connector
+ */
+async function publishToWordPress(
+  title: string,
+  content: string,
+  config: PublisherConfig,
+  options?: { status?: "publish" | "draft" | "future"; date?: string }
+): Promise<PublishResult> {
+  try {
+    // Note: WordPress REST API usually available at /wp-json/wp/v2/posts
+    // url should be the base site URL like https://example.com
+    const baseUrl = config.url.replace(/\/$/, "");
+    const apiUrl = `${baseUrl}/wp-json/wp/v2/posts`;
+
+    // Auth can be "username:application_password" encoded in base64
+    const credentials = Buffer.from(config.auth).toString("base64");
+
+    const payload = {
+      title,
+      content,
+      status: options?.status || "publish",
+      ...(options?.date && { date: options.date }),
+    };
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Basic ${credentials}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`WP API Error: ${response.status} - ${errorData.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      url: data.link,
+      postId: data.id,
+    };
+  } catch (error: any) {
+    console.error("WordPress publish error:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
