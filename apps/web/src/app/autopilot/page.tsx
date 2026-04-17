@@ -3,11 +3,12 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
-  Bot, Send, Clock, Settings2, Zap, Globe,
+  Bot, Send, Globe,
   Calendar, CheckCircle2, XCircle, Edit3,
   ToggleLeft, ToggleRight, Sparkles, Bell,
-  Play, Pause, ChevronRight,
+  Play, Pause, ChevronRight, Clock,
 } from "lucide-react";
+
 
 const SCHEDULE_OPTIONS = [
   { label: "1 article / day",   value: "1d" },
@@ -48,12 +49,25 @@ export default function AutopilotPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all ${
+              enabled
+                ? "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20"
+                : "bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/20"
+            }`}>
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-surface-50">Autopilot</h1>
-              <p className="text-sm text-surface-400">Automated content generation & publishing</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className={`inline-block w-2 h-2 rounded-full ${
+                  enabled ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" : "bg-surface-600"
+                }`} />
+                <p className={`text-sm ${
+                  enabled ? "text-emerald-400" : "text-surface-500"
+                }`}>
+                  {enabled ? "Running — publishing automatically" : "Paused — connect integrations and enable"}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -62,28 +76,15 @@ export default function AutopilotPage() {
             onClick={() => setEnabled(e => !e)}
             className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl border font-medium text-sm transition-all ${
               enabled
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                : "bg-surface-800/30 border-surface-700/30 text-surface-400"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-red-500/8 hover:border-red-500/20 hover:text-red-400"
+                : "bg-brand-500/10 border-brand-500/30 text-brand-400 hover:bg-brand-500/15"
             }`}
           >
-            {enabled ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-            {enabled ? "Running" : "Paused"}
+            {enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            {enabled ? "Running" : "Enable"}
           </button>
         </div>
 
-        {/* Status banner */}
-        {!enabled && (
-          <div className="p-4 rounded-xl bg-amber-500/8 border border-amber-500/20 flex items-center gap-3 animate-fade-in">
-            <Zap className="w-5 h-5 text-amber-400 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-300">Autopilot is paused</p>
-              <p className="text-xs text-surface-400 mt-0.5">Connect WordPress and Telegram, then turn it on to start publishing automatically.</p>
-            </div>
-            <button onClick={() => setEnabled(true)} className="ml-auto btn-primary text-sm gap-1.5 flex-shrink-0">
-              <Play className="w-3.5 h-3.5" /> Enable
-            </button>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
