@@ -1,0 +1,481 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// SEOSH.AI — Unified Prisma Schema
+// ─────────────────────────────────────────────────────────────────────────────
+// This schema covers all modules of the platform:
+//   - Auth & Users
+//   - Projects & Onboarding
+//   - Semantic Core (ex SEO_classify)
+//   - Content Management
+//   - Publishing
+//   - Analytics
+//   - Billing & Tokens
+//   - AI Provider Configuration
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTH & USERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Platform user — can be entrepreneur, SEO specialist, or admin
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          UserRole @default(USER)
+  locale        String   @default("en") // "en" | "ru"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  tokenBalance  TokenBalance?
+  transactions  TokenTransaction[]
+  projects      Project[]
+  aiPreferences UserAIPreferences?
+
+  @@map("users")
+}
+
+/// Auth session
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+/// OAuth / credentials account
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("accounts")
+}
+
+/// Email verification tokens
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verifications")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI PROVIDER CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Global AI configuration (superadmin-level)
+model AIProviderConfig {
+  id           String   @id @default(uuid())
+  provider     String   // "openrouter" | "openai" | "anthropic" | "ollama"
+  isDefault    Boolean  @default(false)
+  apiKey       String?  @db.Text // encrypted
+  baseUrl      String?  // for ollama or custom endpoints
+  models       Json     // available models list: [{ id, name, purpose }]
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("ai_provider_configs")
+}
+
+/// Per-user AI model preferences
+model UserAIPreferences {
+  id             String  @id @default(uuid())
+  userId         String  @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modelCategorize String? // model for semantic categorization
+  modelContent    String? // model for content generation
+  modelAnalyze    String? // model for analysis tasks
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_ai_preferences")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROJECTS & ONBOARDING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// A project represents one website/business being optimized
+model Project {
+  id        String        @id @default(uuid())
+  name      String
+  url       String?       // Main website URL
+  status    ProjectStatus @default(ONBOARDING)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  companyProfile CompanyProfile?
+  dataSources    DataSource[]
+  semanticCores  SemanticCore[]
+  contentPlans   ContentPlan[]
+  sitemapPages   SitemapPage[]
+
+  @@map("projects")
+}
+
+/// Detailed company information gathered during onboarding
+model CompanyProfile {
+  id               String   @id @default(uuid())
+  projectId        String   @unique
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  companyName      String
+  industry         String?
+  description      String?  @db.Text
+  productsServices Json?    // [{ name, description, priceRange }]
+  targetAudience   Json?    // { segments: [], painPoints: [], cjm: {} }
+  competitors      Json?    // [{ url, name, notes }]
+  usp              String?  @db.Text // Unique Selling Proposition
+  geography        String?  // Target geography
+  existingChannels Json?    // { website, socials: [], other: [] }
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("company_profiles")
+}
+
+/// Data source for a project (website, social media, file upload)
+model DataSource {
+  id          String           @id @default(uuid())
+  projectId   String
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type        DataSourceType
+  url         String?
+  parsedData  Json?            // Raw parsed data
+  status      DataSourceStatus @default(PENDING)
+  lastParsed  DateTime?
+  errorMessage String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("data_sources")
+}
+
+enum ProjectStatus {
+  ONBOARDING
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum DataSourceType {
+  WEBSITE
+  SOCIAL_VK
+  SOCIAL_TELEGRAM
+  SOCIAL_INSTAGRAM
+  MANUAL_FILE
+}
+
+enum DataSourceStatus {
+  PENDING
+  PARSING
+  COMPLETED
+  ERROR
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEMANTIC CORE (migrated from SEO_classify)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// A semantic core analysis session for a project
+model SemanticCore {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  siteUrl     String   // URL being analyzed
+  status      String   @default("draft") // draft | analyzing | completed
+  siteStructure Json?  // AI-generated site structure tree
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  queries       Query[]
+  lexicalGroups LexicalGroup[]
+  categories    Category[]
+
+  @@map("semantic_cores")
+}
+
+/// Sitemap page extracted from website
+model SitemapPage {
+  id        String  @id @default(uuid())
+  url       String
+  title     String?
+  h1        String?
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("sitemap_pages")
+}
+
+/// Lexical group of similar queries
+model LexicalGroup {
+  id                  String       @id @default(uuid())
+  representativeQuery String
+  semanticCoreId      String
+  semanticCore        SemanticCore @relation(fields: [semanticCoreId], references: [id], onDelete: Cascade)
+  queries             Query[]
+
+  @@map("lexical_groups")
+}
+
+/// SEO category for grouping queries
+model Category {
+  id             String       @id @default(uuid())
+  name           String
+  approved       Boolean      @default(false)
+  semanticCoreId String
+  semanticCore   SemanticCore @relation(fields: [semanticCoreId], references: [id], onDelete: Cascade)
+  queries        Query[]
+
+  @@map("categories")
+}
+
+/// Individual search query / keyword
+model Query {
+  id             String        @id @default(uuid())
+  text           String
+  normalizedText String
+  semanticCoreId String
+  semanticCore   SemanticCore  @relation(fields: [semanticCoreId], references: [id], onDelete: Cascade)
+
+  groupId        String?
+  group          LexicalGroup? @relation(fields: [groupId], references: [id])
+
+  categoryId     String?
+  category       Category?     @relation(fields: [categoryId], references: [id])
+
+  pageUrl        String?       // Matched or manually selected page
+  hasContent     Boolean       @default(false) // Content exists for this keyword?
+
+  @@map("queries")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONTENT MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Content plan for a project
+model ContentPlan {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String   @default("Default Plan")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items ContentItem[]
+
+  @@map("content_plans")
+}
+
+/// Individual content piece (article, page, etc.)
+model ContentItem {
+  id            String        @id @default(uuid())
+  contentPlanId String
+  contentPlan   ContentPlan   @relation(fields: [contentPlanId], references: [id], onDelete: Cascade)
+  
+  title         String
+  slug          String?
+  targetKeywords String[]     // Keywords this content targets
+  pageType      String?       // blog_post, service_page, landing, etc.
+  status        ContentStatus @default(DRAFT)
+  priority      Int           @default(3) // 1-5
+
+  // Content
+  markdownBody  String?       @db.Text
+  htmlBody      String?       @db.Text
+  metaTitle     String?
+  metaDesc      String?
+  h1            String?
+
+  // SEO Analysis results
+  seoScore      Int?          // 0-100
+  uniqueness    Float?        // 0-100%
+  seoAnalysis   Json?         // Full analysis from SEO tools
+
+  // Media
+  media         ContentMedia[]
+
+  // Scheduling
+  scheduledAt   DateTime?
+  publishedAt   DateTime?
+  publishedUrl  String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("content_items")
+}
+
+/// Media attached to content
+model ContentMedia {
+  id            String      @id @default(uuid())
+  contentItemId String
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  type          MediaType
+  url           String      // S3/MinIO URL
+  originalName  String?
+  altText       String?
+  caption       String?
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+
+  @@map("content_media")
+}
+
+enum ContentStatus {
+  DRAFT          // Initial — user adding materials
+  GENERATING     // AI generating content
+  GENERATED      // AI draft ready
+  ANALYZING      // SEO analysis in progress
+  RECOMMENDATIONS // SEO recommendations ready
+  OPTIMIZING     // Applying recommendations
+  OPTIMIZED      // SEO-optimized draft ready
+  SCHEDULED      // Scheduled for publishing
+  PUBLISHING     // Publishing in progress
+  PUBLISHED      // Successfully published
+  FAILED         // Publishing failed
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO_LINK
+  DOCUMENT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUBLISHING CONNECTORS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// CMS connector configuration (WordPress, Tilda, Bitrix, Own)
+model PublisherConnector {
+  id         String        @id @default(uuid())
+  projectId  String
+  type       ConnectorType
+  name       String        // User-friendly name
+  config     Json          // { url, authToken, ... } — encrypted fields
+  isActive   Boolean       @default(true)
+  lastSync   DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@map("publisher_connectors")
+}
+
+enum ConnectorType {
+  WORDPRESS
+  TILDA       // Future
+  BITRIX      // Future
+  OWN_CMS     // Built-in static site generator (future)
+  CUSTOM_API  // Generic REST API
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEO TOOLS (MODULAR)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Registered SEO analysis module
+/// Modules can be enabled/disabled; new ones can be added
+model SeoToolModule {
+  id          String   @id @default(uuid())
+  slug        String   @unique // "textru", "pixeltools", "advego", etc.
+  name        String   // Display name
+  description String?
+  apiKeyField String?  // env var name for key, e.g. "TEXTRU_API_KEY"
+  enabled     Boolean  @default(true)
+  config      Json?    // Module-specific config
+  // Data format spec — what data this module requires and returns
+  inputFormat  Json?   // { required: [...], optional: [...] }
+  outputFormat Json?   // { fields: [...] }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("seo_tool_modules")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BILLING & TOKEN ECONOMY
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// User token balance
+model TokenBalance {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens    Int      @default(200) // Free tier initial tokens
+  updatedAt DateTime @updatedAt
+
+  @@map("token_balances")
+}
+
+/// Token transaction log
+model TokenTransaction {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int               // negative = spend, positive = purchase
+  reason    TransactionReason
+  details   String?           // Human-readable description
+  createdAt DateTime          @default(now())
+
+  @@map("token_transactions")
+}
+
+enum TransactionReason {
+  AI_CATEGORIES
+  AI_CLASSIFY
+  AI_CONTENT_GENERATE
+  AI_CONTENT_OPTIMIZE
+  AI_IMAGE_GENERATE
+  SEO_ANALYSIS
+  PURCHASE
+  SIGNUP_BONUS
+  REFUND
+}

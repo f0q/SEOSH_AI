@@ -1,0 +1,8 @@
+{
+  "name": "@seosh/onboarding",
+  "version": "0.1.0",
+  "private": true,
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {},
+  "devDependencies": { "typescript": "^5.7.0" }
+}

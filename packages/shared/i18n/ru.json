@@ -1,0 +1,113 @@
+{
+  "app": {
+    "name": "SEOSH.AI",
+    "tagline": "Комплексная SEO-платформа",
+    "description": "Автоматизируйте SEO: от семантического ядра до публикации контента"
+  },
+  "nav": {
+    "dashboard": "Панель управления",
+    "projects": "Проекты",
+    "semanticCore": "Семантическое ядро",
+    "content": "Контент",
+    "analytics": "Аналитика",
+    "settings": "Настройки",
+    "billing": "Баланс",
+    "newProject": "Новый проект",
+    "logout": "Выход"
+  },
+  "auth": {
+    "signIn": "Войти",
+    "signUp": "Регистрация",
+    "email": "Электронная почта",
+    "password": "Пароль",
+    "confirmPassword": "Подтвердите пароль",
+    "name": "Имя",
+    "forgotPassword": "Забыли пароль?",
+    "noAccount": "Нет аккаунта?",
+    "hasAccount": "Уже есть аккаунт?",
+    "orContinueWith": "Или продолжить через"
+  },
+  "onboarding": {
+    "title": "Настроим ваш проект",
+    "subtitle": "Расскажите о вашем бизнесе, чтобы мы помогли вам расти",
+    "steps": {
+      "company": "О компании",
+      "products": "Продукты и услуги",
+      "audience": "Целевая аудитория",
+      "dataSources": "Источники данных",
+      "competitors": "Конкуренты"
+    },
+    "companyName": "Название компании",
+    "companyNamePlaceholder": "например, ООО «Рога и Копыта»",
+    "industry": "Отрасль",
+    "industryPlaceholder": "например, Интернет-магазин, SaaS, Локальные услуги",
+    "description": "Описание бизнеса",
+    "descriptionPlaceholder": "Расскажите о вашем бизнесе, чем вы уникальны...",
+    "geography": "География",
+    "geographyPlaceholder": "например, Москва, Санкт-Петербург, Россия",
+    "websiteUrl": "URL сайта",
+    "websiteUrlPlaceholder": "https://ваш-сайт.ru",
+    "addProduct": "Добавить продукт/услугу",
+    "addCompetitor": "Добавить конкурента",
+    "next": "Далее",
+    "back": "Назад",
+    "finish": "Завершить настройку",
+    "aiSuggestion": "Подсказка ИИ"
+  },
+  "semanticCore": {
+    "title": "Семантическое ядро",
+    "subtitle": "Анализ и кластеризация ключевых запросов",
+    "addKeywords": "Добавить запросы",
+    "generateCategories": "Генерировать категории",
+    "classify": "Классифицировать",
+    "results": "Результаты",
+    "exportCsv": "Экспорт CSV",
+    "hasContent": "Контент есть",
+    "needsContent": "Нужен контент",
+    "query": "Запрос",
+    "category": "Категория",
+    "group": "Группа",
+    "page": "Страница"
+  },
+  "content": {
+    "title": "Управление контентом",
+    "createNew": "Создать контент",
+    "editor": "Редактор контента",
+    "materials": "Материалы",
+    "uploadImages": "Загрузить изображения",
+    "addNotes": "Добавить заметки",
+    "addVideoLink": "Добавить ссылку на видео",
+    "generate": "Сгенерировать с ИИ",
+    "seoAnalysis": "SEO-анализ",
+    "analyzing": "Анализируем...",
+    "recommendations": "Рекомендации",
+    "applyRecommendations": "Применить рекомендации",
+    "schedule": "Запланировать",
+    "publishNow": "Опубликовать сейчас",
+    "seoScore": "SEO-оценка",
+    "uniqueness": "Уникальность",
+    "preview": "Предпросмотр"
+  },
+  "analytics": {
+    "title": "Аналитика",
+    "positions": "Позиции по ключевым словам",
+    "traffic": "Поисковый трафик",
+    "indexation": "Индексация",
+    "performance": "Эффективность контента"
+  },
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "search": "Поиск",
+    "filter": "Фильтр",
+    "loading": "Загрузка...",
+    "error": "Что-то пошло не так",
+    "success": "Успешно",
+    "confirm": "Вы уверены?",
+    "noData": "Нет данных",
+    "tokens": "Токены",
+    "language": "Язык"
+  }
+}

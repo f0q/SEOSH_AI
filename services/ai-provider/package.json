@@ -1,0 +1,14 @@
+{
+  "name": "@seosh/ai-provider",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "openai": "^4.80.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

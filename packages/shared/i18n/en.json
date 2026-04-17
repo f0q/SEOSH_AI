@@ -1,0 +1,113 @@
+{
+  "app": {
+    "name": "SEOSH.AI",
+    "tagline": "All-in-One SEO Platform",
+    "description": "Automate your SEO: from semantic core to content publishing"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "semanticCore": "Semantic Core",
+    "content": "Content",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "billing": "Billing",
+    "newProject": "New Project",
+    "logout": "Log out"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "name": "Full Name",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "orContinueWith": "Or continue with"
+  },
+  "onboarding": {
+    "title": "Let's set up your project",
+    "subtitle": "Tell us about your business so we can help you grow",
+    "steps": {
+      "company": "About Your Company",
+      "products": "Products & Services",
+      "audience": "Target Audience",
+      "dataSources": "Data Sources",
+      "competitors": "Competitors"
+    },
+    "companyName": "Company Name",
+    "companyNamePlaceholder": "e.g., Acme Corp",
+    "industry": "Industry",
+    "industryPlaceholder": "e.g., E-commerce, SaaS, Local Services",
+    "description": "Business Description",
+    "descriptionPlaceholder": "Tell us about your business, what makes you unique...",
+    "geography": "Target Geography",
+    "geographyPlaceholder": "e.g., United States, New York, Global",
+    "websiteUrl": "Website URL",
+    "websiteUrlPlaceholder": "https://your-website.com",
+    "addProduct": "Add Product/Service",
+    "addCompetitor": "Add Competitor",
+    "next": "Continue",
+    "back": "Back",
+    "finish": "Complete Setup",
+    "aiSuggestion": "AI Suggestion"
+  },
+  "semanticCore": {
+    "title": "Semantic Core",
+    "subtitle": "Analyze and cluster your keywords",
+    "addKeywords": "Add Keywords",
+    "generateCategories": "Generate Categories",
+    "classify": "Classify",
+    "results": "Results",
+    "exportCsv": "Export CSV",
+    "hasContent": "Has Content",
+    "needsContent": "Needs Content",
+    "query": "Query",
+    "category": "Category",
+    "group": "Group",
+    "page": "Page"
+  },
+  "content": {
+    "title": "Content Manager",
+    "createNew": "Create Content",
+    "editor": "Content Editor",
+    "materials": "Materials",
+    "uploadImages": "Upload Images",
+    "addNotes": "Add Notes",
+    "addVideoLink": "Add Video Link",
+    "generate": "Generate with AI",
+    "seoAnalysis": "SEO Analysis",
+    "analyzing": "Analyzing...",
+    "recommendations": "Recommendations",
+    "applyRecommendations": "Apply Recommendations",
+    "schedule": "Schedule",
+    "publishNow": "Publish Now",
+    "seoScore": "SEO Score",
+    "uniqueness": "Uniqueness",
+    "preview": "Preview"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "positions": "Keyword Positions",
+    "traffic": "Search Traffic",
+    "indexation": "Indexation",
+    "performance": "Content Performance"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "success": "Success",
+    "confirm": "Are you sure?",
+    "noData": "No data available",
+    "tokens": "Tokens",
+    "language": "Language"
+  }
+}

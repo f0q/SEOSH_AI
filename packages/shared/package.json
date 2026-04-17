@@ -1,0 +1,13 @@
+{
+  "name": "@seosh/shared",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./types": "./types/index.ts",
+    "./i18n": "./i18n/index.ts",
+    "./utils": "./utils/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
