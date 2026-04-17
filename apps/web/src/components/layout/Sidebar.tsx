@@ -14,6 +14,7 @@ import {
   Brain,
   FileText,
   BarChart3,
+  Bot,
   Settings,
   Coins,
   Sparkles,
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/projects", icon: FolderKanban, label: "Projects", labelRu: "Проекты" },
   { href: "/semantic-core", icon: Brain, label: "Semantic Core", labelRu: "Сем. ядро" },
   { href: "/content", icon: FileText, label: "Content", labelRu: "Контент" },
+  { href: "/autopilot", icon: Bot, label: "Autopilot", labelRu: "Автопилот" },
   { href: "/analytics", icon: BarChart3, label: "Analytics", labelRu: "Аналитика" },
 ];
 
