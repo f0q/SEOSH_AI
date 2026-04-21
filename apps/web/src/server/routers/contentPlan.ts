@@ -75,8 +75,8 @@ export const contentPlanRouter = router({
         },
       });
       if (!core) return { keywords: [], total: 0 };
-      const keywords = core.queries.map((q) => q.text);
-      return { keywords, total: core._count.queries };
+      const uniqueKeywords = Array.from(new Set(core.queries.map((q) => q.text)));
+      return { keywords: uniqueKeywords, total: uniqueKeywords.length };
     }),
 
   /** Add a new row */

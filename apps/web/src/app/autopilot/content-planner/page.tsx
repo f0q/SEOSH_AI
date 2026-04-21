@@ -758,9 +758,9 @@ export default function ContentPlannerPage() {
                     />
                   </div>
                   <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                    {filteredKeywords.slice(0, 200).map((kw) => (
+                    {filteredKeywords.slice(0, 200).map((kw, idx) => (
                       <span
-                        key={kw}
+                        key={`${kw}-${idx}`}
                         title={kw}
                         className="px-2 py-1 rounded-lg bg-surface-800/60 border border-surface-700/30 text-xs text-surface-300 hover:border-cyan-500/40 hover:text-cyan-300 cursor-default transition-colors truncate max-w-[180px]"
                       >
