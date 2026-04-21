@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Better Auth models ───────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  plan          Plan     @default(FREE)
+
+  accounts      Account[]
+  sessions      Session[]
+  tokenBalance  TokenBalance?
+  transactions  TokenTransaction[]
+  appSessions   AppSession[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("verification")
+}
+
+// ─── Token economy ────────────────────────────────────────────────────────────
+
+model TokenBalance {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens    Int      @default(200)
+  updatedAt DateTime @updatedAt
+}
+
+model TokenTransaction {
+  id        String          @id @default(uuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int             // negative = spend, positive = purchase
+  reason    TransactionReason
+  createdAt DateTime        @default(now())
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  BUSINESS
+}
+
+enum TransactionReason {
+  AI_CATEGORIES
+  AI_CLASSIFY
+  PURCHASE
+  SIGNUP_BONUS
+}
+
+// ─── SEO workflow (AppSession = бывший Session) ───────────────────────────────
+
+model AppSession {
+  id        String   @id @default(uuid())
+  url       String
+  createdAt DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  sitemapPages  SitemapPage[]
+  queries       Query[]
+  lexicalGroups LexicalGroup[]
+  categories    Category[]
+  siteStructureResult Json?
+  @@map("app_session")
+}
+
+model SitemapPage {
+  id           String     @id @default(uuid())
+  url          String
+  title        String?
+  h1           String?
+  appSessionId String
+  appSession   AppSession @relation(fields: [appSessionId], references: [id], onDelete: Cascade)
+
+  @@map("sitemap_page")
+}
+
+model LexicalGroup {
+  id                  String     @id @default(uuid())
+  representativeQuery String
+  appSessionId        String
+  appSession          AppSession @relation(fields: [appSessionId], references: [id], onDelete: Cascade)
+
+  queries Query[]
+
+  @@map("lexical_group")
+}
+
+model Category {
+  id           String     @id @default(uuid())
+  name         String
+  approved     Boolean    @default(false)
+  appSessionId String
+  appSession   AppSession @relation(fields: [appSessionId], references: [id], onDelete: Cascade)
+
+  queries Query[]
+
+  @@map("category")
+}
+
+model Query {
+  id             String     @id @default(uuid())
+  text           String
+  normalizedText String
+  appSessionId   String
+  appSession     AppSession @relation(fields: [appSessionId], references: [id], onDelete: Cascade)
+
+  groupId    String?
+  group      LexicalGroup? @relation(fields: [groupId], references: [id])
+
+  categoryId String?
+  category   Category?     @relation(fields: [categoryId], references: [id])
+
+  pageUrl    String?       // Manually selected page URL (overrides auto-match)
+
+  @@map("query")
+}
