@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
@@ -225,6 +225,7 @@ export default function ContentPlannerPage() {
   const { activeProject } = useProject();
   const [showInvite, setShowInvite] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [rowError, setRowError] = useState<string | null>(null);
   const utils = trpc.useUtils();
 
   const projectId = activeProject?.id ?? "";
@@ -235,7 +236,11 @@ export default function ContentPlannerPage() {
   );
 
   const createItem = trpc.contentPlan.createItem.useMutation({
-    onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
+    onSuccess: () => {
+      setRowError(null);
+      utils.contentPlan.getByProject.invalidate({ projectId });
+    },
+    onError: (err) => setRowError(err.message),
   });
 
   const updateItem = trpc.contentPlan.updateItem.useMutation({
@@ -265,9 +270,11 @@ export default function ContentPlannerPage() {
   );
 
   const addRow = () => {
+    if (!projectId) return;
+    setRowError(null);
     createItem.mutate({
       projectId,
-      data: { url: "", section: "", pageType: "blog_post", priority: 1, status: "DRAFT" },
+      data: { url: "", section: "", pageType: "blog_post", priority: 1 },
     });
   };
 
@@ -376,6 +383,16 @@ export default function ContentPlannerPage() {
             </button>
           </div>
         </div>
+
+        {/* ── Error banner ──────────────────────────────────────────────── */}
+        {rowError && (
+          <div className="glass-card px-4 py-3 border-red-500/20 bg-red-500/5 flex items-center gap-3">
+            <span className="text-xs text-red-400 flex-1">{rowError}</span>
+            <button onClick={() => setRowError(null)} className="text-surface-500 hover:text-surface-300">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* ── Team shares strip ──────────────────────────────────────────── */}
         {activeShares.length > 0 && (

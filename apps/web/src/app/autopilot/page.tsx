@@ -93,6 +93,27 @@ export default function AutopilotPage() {
           {/* ── LEFT: Config ───────────────────────── */}
           <div className="space-y-4">
 
+            {/* Content Planner — top of section */}
+            <button
+              onClick={() => router.push("/autopilot/content-planner")}
+              className="glass-card p-5 w-full text-left group hover:border-emerald-500/30 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <LayoutList className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-surface-100 group-hover:text-white transition-colors">
+                      Content Planner
+                    </p>
+                    <p className="text-xs text-surface-500 mt-0.5">Plan & track all pages</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-surface-600 group-hover:text-emerald-400 transition-colors" />
+              </div>
+            </button>
+
             {/* Schedule */}
             <div className="glass-card p-5 space-y-4">
               <div className="flex items-center gap-2">
@@ -201,27 +222,6 @@ export default function AutopilotPage() {
                 </p>
               )}
             </div>
-
-            {/* Content Planner */}
-            <button
-              onClick={() => router.push("/autopilot/content-planner")}
-              className="glass-card p-5 w-full text-left group hover:border-indigo-500/30 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <LayoutList className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-surface-100 group-hover:text-white transition-colors">
-                      Content Planner
-                    </p>
-                    <p className="text-xs text-surface-500 mt-0.5">Plan & track all pages</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-surface-600 group-hover:text-indigo-400 transition-colors" />
-              </div>
-            </button>
           </div>
 
           {/* ── RIGHT: Queue ────────────────────────── */}
