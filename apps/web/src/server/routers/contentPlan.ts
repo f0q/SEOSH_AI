@@ -62,6 +62,23 @@ export const contentPlanRouter = router({
       return { plan, items };
     }),
 
+  /** Fetch all unique keywords from the project's most recent semantic core */
+  getKeywordsByProject: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ input }) => {
+      const core = await prisma.semanticCore.findFirst({
+        where: { projectId: input.projectId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          queries: { select: { text: true }, orderBy: { text: "asc" } },
+          _count: { select: { queries: true } },
+        },
+      });
+      if (!core) return { keywords: [], total: 0 };
+      const keywords = core.queries.map((q) => q.text);
+      return { keywords, total: core._count.queries };
+    }),
+
   /** Add a new row */
   createItem: protectedProcedure
     .input(

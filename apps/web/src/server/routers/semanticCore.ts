@@ -80,8 +80,14 @@ export const semanticCoreRouter = router({
     .mutation(async ({ input }) => {
       const groups = groupQueriesLexically(input.queries);
       
-      // Save everything to DB inside a transaction for safety
+      // Save everything to DB inside a transaction for safety.
+      // ⚠️  Delete existing data first to prevent doubling on re-submit.
       await prisma.$transaction(async (tx: any) => {
+        // Clear old lexical groups (queries cascade via FK)
+        await tx.lexicalGroup.deleteMany({ where: { semanticCoreId: input.semanticCoreId } });
+        // Clear orphaned queries (in case any exist without a group)
+        await tx.query.deleteMany({ where: { semanticCoreId: input.semanticCoreId } });
+
         for (const g of groups) {
           const dbGroup = await tx.lexicalGroup.create({
             data: {

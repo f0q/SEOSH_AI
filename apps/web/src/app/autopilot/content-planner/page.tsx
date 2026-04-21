@@ -8,7 +8,7 @@ import { useProject } from "@/lib/project-context";
 import {
   LayoutList, Plus, Trash2, ChevronLeft, Users, Mail,
   Sparkles, ShieldCheck, Lightbulb, X, Check, Loader2,
-  ExternalLink, Copy, CheckCheck,
+  ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown,
 } from "lucide-react";
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -226,6 +226,8 @@ export default function ContentPlannerPage() {
   const [showInvite, setShowInvite] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [rowError, setRowError] = useState<string | null>(null);
+  const [kwSearch, setKwSearch] = useState("");
+  const [kwOpen, setKwOpen] = useState(true);
   const utils = trpc.useUtils();
 
   const projectId = activeProject?.id ?? "";
@@ -255,6 +257,15 @@ export default function ContentPlannerPage() {
     { projectId },
     { enabled: !!projectId }
   );
+
+  const { data: kwData } = trpc.contentPlan.getKeywordsByProject.useQuery(
+    { projectId },
+    { enabled: !!projectId }
+  );
+  const allKeywords = kwData?.keywords ?? [];
+  const filteredKeywords = kwSearch
+    ? allKeywords.filter((k) => k.toLowerCase().includes(kwSearch.toLowerCase()))
+    : allKeywords;
 
   const revokeShare = trpc.contentPlan.revokeShare.useMutation({
     onSuccess: () => utils.contentPlan.listShares.invalidate({ projectId }),
@@ -702,6 +713,74 @@ export default function ContentPlannerPage() {
             )}
             Click any cell to edit · H2 headings separated by <code className="bg-surface-800 px-1 rounded">|</code> · Keywords separated by <code className="bg-surface-800 px-1 rounded">,</code>
           </span>
+        </div>
+
+        {/* ── Keywords panel (from Semantic Core) ───────────────────────── */}
+        <div className="glass-card overflow-hidden">
+          <button
+            onClick={() => setKwOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-surface-800/20 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-cyan-400" />
+              <span className="text-sm font-semibold text-surface-200">Semantic Core Keywords</span>
+              {allKeywords.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-400">
+                  {allKeywords.length}
+                </span>
+              )}
+            </div>
+            <ChevronDown className={`w-4 h-4 text-surface-500 transition-transform ${kwOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {kwOpen && (
+            <div className="border-t border-surface-700/30 p-4 space-y-3">
+              {allKeywords.length === 0 ? (
+                <p className="text-sm text-surface-500 text-center py-4">
+                  No keywords found. Run the{" "}
+                  <button
+                    onClick={() => router.push("/semantic-core")}
+                    className="text-cyan-400 hover:underline"
+                  >
+                    Semantic Core
+                  </button>{" "}
+                  wizard and link it to this project first.
+                </p>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-surface-500" />
+                    <input
+                      value={kwSearch}
+                      onChange={(e) => setKwSearch(e.target.value)}
+                      placeholder={`Search ${allKeywords.length} keywords...`}
+                      className="input-field !py-2 !pl-9 !text-xs w-full max-w-xs"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                    {filteredKeywords.slice(0, 200).map((kw) => (
+                      <span
+                        key={kw}
+                        title={kw}
+                        className="px-2 py-1 rounded-lg bg-surface-800/60 border border-surface-700/30 text-xs text-surface-300 hover:border-cyan-500/40 hover:text-cyan-300 cursor-default transition-colors truncate max-w-[180px]"
+                      >
+                        {kw}
+                      </span>
+                    ))}
+                    {filteredKeywords.length > 200 && (
+                      <span className="text-xs text-surface-500 self-center">
+                        +{filteredKeywords.length - 200} more
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-surface-600">
+                    Keywords from your project&apos;s semantic core — use as reference when filling the{" "}
+                    <strong className="text-surface-400">Keywords</strong> column above.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
