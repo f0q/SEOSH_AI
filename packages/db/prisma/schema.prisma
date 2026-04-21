@@ -311,47 +311,61 @@ model ContentPlan {
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name        String   @default("Default Plan")
+  description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  items ContentItem[]
+  items  ContentItem[]
+  shares ContentPlanShare[]
 
   @@map("content_plans")
 }
 
-/// Individual content piece (article, page, etc.)
+/// Individual content piece (article, page, etc.) — columns map 1:1 to the Excel Контент-план sheet
 model ContentItem {
   id            String        @id @default(uuid())
   contentPlanId String
   contentPlan   ContentPlan   @relation(fields: [contentPlanId], references: [id], onDelete: Cascade)
-  
-  title         String
-  slug          String?
-  targetKeywords String[]     // Keywords this content targets
-  pageType      String?       // blog_post, service_page, landing, etc.
-  status        ContentStatus @default(DRAFT)
-  priority      Int           @default(3) // 1-5
 
-  // Content
+  // ── Excel columns ────────────────────────────────────────────────────────
+  url            String?       // Column: URL
+  section        String?       // Column: Раздел
+  pageType       String?       // Column: Тип страницы
+  priority       Int           @default(1)   // Column: Приоритет (1-5)
+  status         ContentStatus @default(DRAFT) // Column: Статус
+
+  metaTitle      String?       // Column: Title
+  titleLength    Int?          // Column: Длина title (auto-computed)
+  metaDesc       String?       @db.Text // Column: Meta Description
+  metaDescLength Int?          // Column: Длина meta desc (auto-computed)
+  h1             String?       // Column: H1
+  targetWordCount Int?         // Column: Целевой объём (слов)
+  h2Headings     String[]      // Column: H2-1..H2-4 (stored as array)
+  targetKeywords String[]      // Column: Ключевые слова
+  schemaType     String?       // Column: Schema (LocalBusiness, Article, etc.)
+  internalLinks  String?       @db.Text // Column: Внутренние ссылки
+  notes          String?       @db.Text // Column: Примечания
+
+  // ── Content body ────────────────────────────────────────────────────────
+  title         String        @default("Untitled")
+  slug          String?
   markdownBody  String?       @db.Text
   htmlBody      String?       @db.Text
-  metaTitle     String?
-  metaDesc      String?
-  h1            String?
 
-  // SEO Analysis results
+  // ── SEO Analysis results ─────────────────────────────────────────────────
   seoScore      Int?          // 0-100
   uniqueness    Float?        // 0-100%
   seoAnalysis   Json?         // Full analysis from SEO tools
 
-  // Media
+  // ── Media ────────────────────────────────────────────────────────────────
   media         ContentMedia[]
 
-  // Scheduling
+  // ── Scheduling ───────────────────────────────────────────────────────────
   scheduledAt   DateTime?
   publishedAt   DateTime?
   publishedUrl  String?
 
+  sortOrder     Int           @default(0)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -375,17 +389,50 @@ model ContentMedia {
 }
 
 enum ContentStatus {
-  DRAFT          // Initial — user adding materials
-  GENERATING     // AI generating content
-  GENERATED      // AI draft ready
-  ANALYZING      // SEO analysis in progress
+  DRAFT           // Не начато — not started
+  IN_PROGRESS     // В работе — in progress
+  GENERATING      // AI generating content
+  GENERATED       // AI draft ready
+  ANALYZING       // SEO analysis in progress
   RECOMMENDATIONS // SEO recommendations ready
-  OPTIMIZING     // Applying recommendations
-  OPTIMIZED      // SEO-optimized draft ready
-  SCHEDULED      // Scheduled for publishing
-  PUBLISHING     // Publishing in progress
-  PUBLISHED      // Successfully published
-  FAILED         // Publishing failed
+  OPTIMIZING      // Applying recommendations
+  OPTIMIZED       // SEO-optimized draft ready
+  REVIEW          // На проверке — under review
+  SCHEDULED       // Scheduled for publishing
+  PUBLISHING      // Publishing in progress
+  PUBLISHED       // Successfully published
+  FAILED          // Publishing failed
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONTENT PLAN SHARING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Invite record — grants a team member access to a specific content plan
+model ContentPlanShare {
+  id            String      @id @default(uuid())
+  contentPlanId String
+  contentPlan   ContentPlan @relation(fields: [contentPlanId], references: [id], onDelete: Cascade)
+
+  email         String      // Invitee email
+  invitedBy     String      // userId of the admin who sent the invite
+  status        ShareStatus @default(PENDING)
+
+  // Temporary credentials for first-time access (cleared after first login)
+  accessToken   String?     @unique // random URL token for share link
+  tempPassword  String?     // bcrypt-hashed temp password (cleared post-login)
+
+  createdAt     DateTime    @default(now())
+  acceptedAt    DateTime?
+
+  @@unique([contentPlanId, email])
+  @@map("content_plan_shares")
+}
+
+enum ShareStatus {
+  PENDING  // Invite sent, not yet accepted
+  ACTIVE   // User has accepted and logged in
+  REVOKED  // Admin revoked access
 }
 
 enum MediaType {

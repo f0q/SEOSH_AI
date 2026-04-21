@@ -9,6 +9,7 @@ import { aiRouter } from "./routers/ai";
 import { semanticCoreRouter } from "./routers/semanticCore";
 import { autopilotRouter } from "./routers/autopilot";
 import { contentRouter } from "./routers/content";
+import { contentPlanRouter } from "./routers/contentPlan";
 import { dashboardRouter } from "./routers/dashboard";
 
 export const appRouter = router({
@@ -17,6 +18,7 @@ export const appRouter = router({
   semanticCore: semanticCoreRouter,
   autopilot: autopilotRouter,
   content: contentRouter,
+  contentPlan: contentPlanRouter,
   dashboard: dashboardRouter,
 });
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Bot, Send, Globe,
   Calendar, CheckCircle2, XCircle, Edit3,
   ToggleLeft, ToggleRight, Sparkles, Bell,
-  Play, Pause, ChevronRight, Clock,
+  Play, Pause, ChevronRight, Clock, LayoutList,
 } from "lucide-react";
 
 
@@ -32,6 +33,7 @@ const STATUS_CONFIG = {
 };
 
 export default function AutopilotPage() {
+  const router = useRouter();
   const [enabled, setEnabled] = useState(false);
   const [schedule, setSchedule] = useState("3w");
   const [telegramConnected, setTelegramConnected] = useState(false);
@@ -199,6 +201,27 @@ export default function AutopilotPage() {
                 </p>
               )}
             </div>
+
+            {/* Content Planner */}
+            <button
+              onClick={() => router.push("/autopilot/content-planner")}
+              className="glass-card p-5 w-full text-left group hover:border-indigo-500/30 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <LayoutList className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-surface-100 group-hover:text-white transition-colors">
+                      Content Planner
+                    </p>
+                    <p className="text-xs text-surface-500 mt-0.5">Plan & track all pages</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-surface-600 group-hover:text-indigo-400 transition-colors" />
+              </div>
+            </button>
           </div>
 
           {/* ── RIGHT: Queue ────────────────────────── */}
