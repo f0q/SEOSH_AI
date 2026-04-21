@@ -1,8 +1,4 @@
-/**
- * @page Dashboard
- * @description Main dashboard page showing project overview, quick actions,
- * and key metrics. This is the first page users see after login.
- */
+"use client";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
@@ -18,17 +14,18 @@ import {
   Clock,
 } from "lucide-react";
 import Link from "next/link";
+import { trpc } from "@/trpc/client";
 
 // ─── Quick Action Cards ─────────────────────────────────────────────────
 
 const quickActions = [
   {
-    title: "New Project",
-    description: "Set up a new website for SEO optimization",
-    icon: Plus,
-    href: "/projects/new",
-    gradient: "from-brand-500 to-accent-500",
-    shadow: "shadow-brand-500/20",
+    title: "Autopilot",
+    description: "Enable automatic content generation",
+    icon: Zap,
+    href: "/autopilot",
+    gradient: "from-orange-500 to-rose-500",
+    shadow: "shadow-orange-500/20",
   },
   {
     title: "Semantic Core",
@@ -47,23 +44,18 @@ const quickActions = [
     shadow: "shadow-emerald-500/20",
   },
   {
-    title: "Autopilot",
-    description: "Enable automatic content generation",
-    icon: Zap,
-    href: "/autopilot",
-    gradient: "from-orange-500 to-rose-500",
-    shadow: "shadow-orange-500/20",
+    title: "New Project",
+    description: "Set up a new website for SEO optimization",
+    icon: Plus,
+    href: "/projects/new",
+    gradient: "from-brand-500 to-accent-500",
+    shadow: "shadow-brand-500/20",
   },
 ];
 
 // ─── Stats Cards ────────────────────────────────────────────────────────
 
-const stats = [
-  { label: "Projects", value: "0", change: null, icon: Target },
-  { label: "Keywords", value: "0", change: null, icon: Brain },
-  { label: "Content Pieces", value: "0", change: null, icon: FileText },
-  { label: "Published", value: "0", change: null, icon: Rocket },
-];
+import { useRouter } from "next/navigation";
 
 // ─── Recent Activity ────────────────────────────────────────────────────
 
@@ -75,6 +67,32 @@ const recentActivity: Array<{
 }> = [];
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { data, isLoading } = trpc.dashboard.getOverview.useQuery();
+
+  const statsProps = [
+    { label: "Projects", value: data?.stats.projects ?? 0, change: null, icon: Target },
+    { label: "Keywords / Cores", value: data?.stats.semanticCores ?? 0, change: null, icon: Brain },
+    { label: "Content Pieces", value: data?.stats.contentPieces ?? 0, change: null, icon: FileText },
+    { label: "Published", value: data?.stats.published ?? 0, change: null, icon: Rocket },
+  ];
+
+  // Determine Getting Started Checklist mapping
+  const steps = [
+    { step: "Create your first project", done: (data?.stats.projects ?? 0) > 0 },
+    { step: "Build semantic core", done: (data?.stats.semanticCores ?? 0) > 0 },
+    { step: "Generate first content", done: (data?.stats.contentPieces ?? 0) > 0 },
+  ];
+  const completedStepsCount = steps.filter(s => s.done).length;
+
+  const handleSmartStart = () => {
+    if (data?.nextStep?.href) {
+      router.push(data.nextStep.href);
+    } else {
+      router.push("/projects/new");
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
@@ -85,18 +103,22 @@ export default function DashboardPage() {
               Welcome to <span className="gradient-text-brand">SEOSH.AI</span>
             </h1>
             <p className="text-surface-400 mt-1.5 text-base">
-              Your all-in-one SEO automation platform. Let&apos;s grow your search traffic.
+              Your all-in-one SEO automation platform. Let's grow your search traffic.
             </p>
           </div>
-          <Link href="/projects/new" className="btn-primary">
-            <Plus className="w-4 h-4" />
-            New Project
-          </Link>
+          <button 
+            onClick={handleSmartStart}
+            disabled={isLoading}
+            className="btn-primary"
+          >
+            {isLoading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Zap className="w-4 h-4 fill-white" />}
+            Smart Start
+          </button>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat) => (
+          {statsProps.map((stat) => (
             <div
               key={stat.label}
               className="glass-card glass-card-hover p-5 transition-all duration-300"
@@ -107,7 +129,11 @@ export default function DashboardPage() {
                   <stat.icon className="w-4.5 h-4.5 text-brand-400" />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-surface-50">{stat.value}</p>
+              {isLoading ? (
+                <div className="h-9 w-16 bg-surface-800 animate-pulse rounded-md" />
+              ) : (
+                <p className="text-3xl font-bold text-surface-50">{stat.value}</p>
+              )}
               {stat.change && (
                 <div className="flex items-center gap-1 mt-1.5">
                   <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
@@ -184,13 +210,7 @@ export default function DashboardPage() {
           <div className="glass-card p-6">
             <h2 className="text-lg font-semibold text-surface-100 mb-4">Getting Started</h2>
             <div className="space-y-3">
-              {[
-                { step: "Create your first project", done: false },
-                { step: "Complete company onboarding", done: false },
-                { step: "Build semantic core", done: false },
-                { step: "Generate first content", done: false },
-                { step: "Connect to WordPress", done: false },
-              ].map((item, i) => (
+              {steps.map((item, i) => (
                 <div
                   key={i}
                   className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
@@ -223,12 +243,12 @@ export default function DashboardPage() {
             <div className="mt-4 pt-3 border-t border-surface-800/50">
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-surface-400">Progress</span>
-                <span className="text-brand-400 font-medium">0/5</span>
+                <span className="text-brand-400 font-medium">{completedStepsCount}/{steps.length}</span>
               </div>
               <div className="h-2 bg-surface-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-brand-500 to-accent-500 rounded-full transition-all duration-500"
-                  style={{ width: "0%" }}
+                  style={{ width: `${(completedStepsCount / steps.length) * 100}%` }}
                 />
               </div>
             </div>

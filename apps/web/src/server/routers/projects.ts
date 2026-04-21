@@ -5,20 +5,26 @@
 
 import { router, protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
+import { prisma } from "../db";
 
 export const projectsRouter = router({
   /** List all projects for current user */
   list: protectedProcedure.query(async ({ ctx }) => {
-    // TODO: prisma.project.findMany({ where: { userId: ctx.user.id } })
-    return [];
+    return await prisma.project.findMany({
+      where: { userId: ctx.user.id },
+      include: { companyProfile: true },
+      orderBy: { createdAt: "desc" },
+    });
   }),
 
-  /** Get a single project by ID */
+  /** Get a single project by ID with its company profile */
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
-      // TODO: prisma.project.findFirst({ where: { id: input.id, userId: ctx.user.id } })
-      return null;
+      return await prisma.project.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+        include: { companyProfile: true },
+      });
     }),
 
   /** Create a project from onboarding data */
@@ -29,7 +35,12 @@ export const projectsRouter = router({
         industry: z.string().optional(),
         description: z.string().optional(),
         geography: z.string().optional(),
-        websiteUrl: z.string().url().optional().or(z.literal("")),
+        websiteUrl: z.string()
+          .refine(v => v === "" || /^https?:\/\/.+/.test(v), {
+            message: "Please enter a valid domain (e.g. your-website.com)"
+          })
+          .optional()
+          .or(z.literal("")),
         products: z.array(z.object({
           name: z.string(),
           description: z.string(),
@@ -45,16 +56,57 @@ export const projectsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      // TODO: Create project + companyProfile + dataSources in DB
-      // For now return a mock ID
-      return { projectId: "mock-" + Date.now() };
+      const project = await prisma.project.create({
+        data: {
+          name: input.companyName,
+          url: input.websiteUrl || null,
+          userId: ctx.user.id,
+          companyProfile: {
+            create: {
+              companyName: input.companyName,
+              industry: input.industry,
+              description: input.description,
+              geography: input.geography,
+              productsServices: input.products,
+              targetAudience: {
+                segments: input.audienceSegments || [],
+                painPoints: input.painPoints || [],
+              },
+              competitors: input.competitors,
+            }
+          }
+        }
+      });
+      
+      // If a website URL was provided, we'll create a DataSource for it automatically
+      if (input.websiteUrl) {
+        await prisma.dataSource.create({
+          data: {
+            projectId: project.id,
+            type: "WEBSITE",
+            url: input.websiteUrl,
+            status: "PENDING"
+          }
+        });
+      }
+
+      return { projectId: project.id };
     }),
 
   /** Delete a project */
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      // TODO: prisma.project.delete
+      // Must verify ownership first
+      const project = await prisma.project.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+      });
+      if (!project) throw new Error("Project not found");
+
+      await prisma.project.delete({
+        where: { id: input.id },
+      });
+      
       return { success: true };
     }),
 });

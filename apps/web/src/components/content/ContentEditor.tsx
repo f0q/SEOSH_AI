@@ -21,6 +21,7 @@ import {
   AlertTriangle, TrendingUp, Eye, Code2,
   Loader2, RefreshCw, BookOpen,
 } from "lucide-react";
+import { AIModelSelector } from "../ui/AIModelSelector";
 
 type Tab = "write" | "seo" | "preview";
 type GenerationStatus = "idle" | "generating" | "done";
@@ -55,6 +56,13 @@ export default function ContentEditor() {
   const [analyzing, setAnalyzing] = useState(false);
   const [showPublishMenu, setShowPublishMenu] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  
+  const [selectedModelId, setSelectedModelId] = useState<string>("");
+  
+  // Estimate input length for cost calculation
+  const promptTextLength = topic.length + keywords.length + noteText.length + materials.reduce((acc, m) => acc + m.content.length, 0);
+  const estimatedPromptTokens = Math.ceil(promptTextLength / 4); // rough approximation
+  const estimatedOutputTokens = parseInt(targetLength) || 1500;
 
   const addNote = () => {
     if (!noteText.trim()) return;
@@ -315,20 +323,32 @@ ${topic} — это важная тема, которую необходимо �
             )}
           </div>
 
-          {/* Generate button */}
-          <button
-            onClick={handleGenerate}
-            disabled={!topic.trim() || generationStatus === "generating"}
-            className={`btn-primary w-full justify-center gap-2 py-3 ${!topic.trim() ? "opacity-40 pointer-events-none" : ""}`}
-          >
-            {generationStatus === "generating" ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
-            ) : generationStatus === "done" ? (
-              <><RefreshCw className="w-4 h-4" /> Regenerate</>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> Generate with AI</>
-            )}
-          </button>
+          {/* Generate button & Model Selector */}
+          <div className="space-y-3 pt-2 border-t border-surface-700/30">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-surface-400">Model</span>
+              <AIModelSelector 
+                onModelSelect={setSelectedModelId} 
+                selectedModelId={selectedModelId}
+                estimatedPromptTokens={estimatedPromptTokens}
+                expectedOutputTokens={estimatedOutputTokens}
+              />
+            </div>
+            
+            <button
+              onClick={handleGenerate}
+              disabled={!topic.trim() || generationStatus === "generating"}
+              className={`btn-primary w-full justify-center gap-2 py-3 ${!topic.trim() ? "opacity-40 pointer-events-none" : ""}`}
+            >
+              {generationStatus === "generating" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+              ) : generationStatus === "done" ? (
+                <><RefreshCw className="w-4 h-4" /> Regenerate</>
+              ) : (
+                <><Sparkles className="w-4 h-4" /> Generate Content</>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* ── RIGHT: Editor + SEO + Preview ─────────────────── */}
@@ -429,10 +449,10 @@ ${topic} — это важная тема, которую необходимо �
                   {/* Metrics grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                      { label: "Uniqueness", value: seoMetrics.uniqueness, unit: "%", good: v => v >= 85, warn: v => v >= 70 },
-                      { label: "Wateriness", value: seoMetrics.wateriness, unit: "%", good: v => v <= 15, warn: v => v <= 25 },
-                      { label: "Spaminess", value: seoMetrics.spaminess, unit: "%", good: v => v <= 5, warn: v => v <= 10 },
-                      { label: "Keyword Density", value: seoMetrics.keywordDensity, unit: "%", good: v => v >= 1 && v <= 3, warn: v => v <= 4 },
+                      { label: "Uniqueness", value: seoMetrics.uniqueness, unit: "%", good: (v: number) => v >= 85, warn: (v: number) => v >= 70 },
+                      { label: "Wateriness", value: seoMetrics.wateriness, unit: "%", good: (v: number) => v <= 15, warn: (v: number) => v <= 25 },
+                      { label: "Spaminess", value: seoMetrics.spaminess, unit: "%", good: (v: number) => v <= 5, warn: (v: number) => v <= 10 },
+                      { label: "Keyword Density", value: seoMetrics.keywordDensity, unit: "%", good: (v: number) => v >= 1 && v <= 3, warn: (v: number) => v <= 4 },
                     ].map(metric => {
                       const isGood = metric.good(metric.value);
                       const isWarn = !isGood && metric.warn(metric.value);
@@ -471,9 +491,20 @@ ${topic} — это важная тема, которую необходимо �
                     </div>
                   </div>
 
-                  <button onClick={handleOptimizeWithAI} className="btn-primary w-full justify-center gap-2">
-                    <Sparkles className="w-4 h-4" /> Apply All Recommendations with AI
-                  </button>
+                  <div className="pt-4 border-t border-surface-700/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-surface-400">Optimization Model</span>
+                      <AIModelSelector 
+                        onModelSelect={setSelectedModelId} 
+                        selectedModelId={selectedModelId}
+                        estimatedPromptTokens={Math.ceil(content.length / 4)}
+                        expectedOutputTokens={Math.ceil(content.length / 4)}
+                      />
+                    </div>
+                    <button onClick={handleOptimizeWithAI} className="btn-primary w-full justify-center gap-2">
+                      <Sparkles className="w-4 h-4" /> Apply All Recommendations
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-center gap-4">

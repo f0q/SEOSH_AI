@@ -7,6 +7,8 @@
 
 import type { OnboardingData } from "./OnboardingWizard";
 import { Plus, X, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { AIModelSelector } from "../ui/AIModelSelector";
 
 interface Props {
   data: OnboardingData;
@@ -14,6 +16,8 @@ interface Props {
 }
 
 export default function StepAudience({ data, updateData }: Props) {
+  const [selectedModelId, setSelectedModelId] = useState<string>("");
+
   const addSegment = () => {
     updateData({ audienceSegments: [...data.audienceSegments, ""] });
   };
@@ -59,9 +63,19 @@ export default function StepAudience({ data, updateData }: Props) {
             Based on your business description, AI can suggest audience segments and pain points.
           </p>
         </div>
-        <button className="btn-secondary text-xs ml-auto flex-shrink-0">
-          Suggest with AI
-        </button>
+        <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+          <div className="hidden sm:block">
+            <AIModelSelector
+              onModelSelect={setSelectedModelId}
+              selectedModelId={selectedModelId}
+              estimatedPromptTokens={150} // Rough context prompt length
+              expectedOutputTokens={200}
+            />
+          </div>
+          <button className="btn-secondary text-xs">
+            Suggest with AI
+          </button>
+        </div>
       </div>
 
       {/* Audience Segments */}

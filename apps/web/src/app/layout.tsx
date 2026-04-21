@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { TRPCProvider } from "@/trpc/client";
+import { ProjectProvider } from "@/lib/project-context";
 import "./globals.css";
 
 const inter = Inter({
@@ -45,7 +47,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-screen bg-surface-950 bg-grid font-sans antialiased">
-        {children}
+        <TRPCProvider>
+          <ProjectProvider>
+            {children}
+          </ProjectProvider>
+        </TRPCProvider>
       </body>
     </html>
   );

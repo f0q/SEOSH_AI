@@ -43,6 +43,7 @@ model User {
   tokenBalance  TokenBalance?
   transactions  TokenTransaction[]
   projects      Project[]
+  semanticCores SemanticCore[]
   aiPreferences UserAIPreferences?
 
   @@map("users")
@@ -155,6 +156,7 @@ model Project {
   semanticCores  SemanticCore[]
   contentPlans   ContentPlan[]
   sitemapPages   SitemapPage[]
+  autopilotConfig AutopilotConfig?
 
   @@map("projects")
 }
@@ -227,8 +229,10 @@ enum DataSourceStatus {
 /// A semantic core analysis session for a project
 model SemanticCore {
   id          String   @id @default(uuid())
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   siteUrl     String   // URL being analyzed
   status      String   @default("draft") // draft | analyzing | completed
   siteStructure Json?  // AI-generated site structure tree
@@ -478,4 +482,27 @@ enum TransactionReason {
   PURCHASE
   SIGNUP_BONUS
   REFUND
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTOPILOT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Autopilot configuration per project
+model AutopilotConfig {
+  id               String   @id @default(uuid())
+  projectId        String   @unique
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  enabled          Boolean  @default(false)
+  scheduleFreq     String   @default("3w")
+  autoApprove      Boolean  @default(false)
+  
+  tgBotToken       String?
+  tgChatId         String?
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("autopilot_configs")
 }

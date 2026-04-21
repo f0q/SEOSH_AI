@@ -31,6 +31,8 @@ import {
   ArrowLeft,
   Sparkles,
 } from "lucide-react";
+import { trpc } from "@/trpc/client";
+import { useRouter } from "next/navigation";
 
 export interface OnboardingData {
   companyName: string;
@@ -41,6 +43,8 @@ export interface OnboardingData {
   audienceSegments: string[];
   painPoints: string[];
   websiteUrl: string;
+  isCompetitorDomain: boolean;
+  myProjectUrl?: string; // If competitor domain is parsed
   competitors: Array<{ url: string; name: string; notes: string }>;
 }
 
@@ -53,14 +57,16 @@ const INITIAL_DATA: OnboardingData = {
   audienceSegments: [""],
   painPoints: [""],
   websiteUrl: "",
+  isCompetitorDomain: false,
+  myProjectUrl: "",
   competitors: [{ url: "", name: "", notes: "" }],
 };
 
 const STEPS = [
-  { id: 1, title: "Company", icon: Building2, description: "About Your Company" },
-  { id: 2, title: "Products", icon: Package, description: "Products & Services" },
-  { id: 3, title: "Audience", icon: Users, description: "Target Audience" },
-  { id: 4, title: "Data", icon: Globe, description: "Data Sources" },
+  { id: 1, title: "Data", icon: Globe, description: "Data Sources" },
+  { id: 2, title: "Company", icon: Building2, description: "About Your Company" },
+  { id: 3, title: "Products", icon: Package, description: "Products & Services" },
+  { id: 4, title: "Audience", icon: Users, description: "Target Audience" },
   { id: 5, title: "Competitors", icon: Swords, description: "Competitors" },
 ];
 
@@ -81,21 +87,31 @@ export default function OnboardingWizard() {
     if (currentStep > 1) setCurrentStep((s) => s - 1);
   };
 
+  const router = useRouter();
+  const createProject = trpc.projects.create.useMutation();
+
+  const utils = trpc.useUtils();
+
   const handleFinish = async () => {
     setIsSubmitting(true);
-    // TODO: Submit to API → create project + company profile
-    console.log("Onboarding data:", data);
-    setTimeout(() => {
+    try {
+      const result = await createProject.mutateAsync(data);
+      utils.dashboard.getOverview.invalidate(); // Clear cache for dashboard
+      router.refresh(); // Tell Next.js Server Components to re-fetch
+      
+      // Navigate to the newly created project's dashboard or semantic core
+      router.push(`/projects`);
+    } catch (error) {
+      console.error("Failed to create project:", error);
       setIsSubmitting(false);
-      // TODO: Navigate to project dashboard
-    }, 2000);
+    }
   };
 
   const isStepValid = () => {
     switch (currentStep) {
-      case 1: return data.companyName.trim().length > 0;
-      case 2: return data.products.some((p) => p.name.trim().length > 0);
-      case 3: return true; // Optional
+      case 1: return true; // Optional website
+      case 2: return data.companyName.trim().length > 0;
+      case 3: return data.products.some((p) => p.name.trim().length > 0);
       case 4: return true; // Optional
       case 5: return true; // Optional
       default: return true;
@@ -186,10 +202,10 @@ export default function OnboardingWizard() {
           </div>
         </div>
 
-        {currentStep === 1 && <StepCompany data={data} updateData={updateData} />}
-        {currentStep === 2 && <StepProducts data={data} updateData={updateData} />}
-        {currentStep === 3 && <StepAudience data={data} updateData={updateData} />}
-        {currentStep === 4 && <StepDataSources data={data} updateData={updateData} />}
+        {currentStep === 1 && <StepDataSources data={data} updateData={updateData} />}
+        {currentStep === 2 && <StepCompany data={data} updateData={updateData} />}
+        {currentStep === 3 && <StepProducts data={data} updateData={updateData} />}
+        {currentStep === 4 && <StepAudience data={data} updateData={updateData} />}
         {currentStep === 5 && <StepCompetitors data={data} updateData={updateData} />}
       </div>
 

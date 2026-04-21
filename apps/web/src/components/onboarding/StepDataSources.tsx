@@ -26,6 +26,23 @@ export default function StepDataSources({ data, updateData }: Props) {
   const [parseStatus, setParseStatus] = useState<"idle" | "parsing" | "done" | "error">("idle");
   const [parseResult, setParseResult] = useState<{ pages: number } | null>(null);
 
+  // Normalize URL: strip any protocol prefix, then prepend https://
+  const normalizeUrl = (raw: string) => {
+    const stripped = raw.replace(/^https?:\///i, "").trim();
+    return stripped ? `https://${stripped}` : "";
+  };
+
+  const handleUrlChange = (raw: string) => {
+    // Strip any pasted protocol for clean display
+    const stripped = raw.replace(/^https?:\/\//i, "");
+    // Store as full URL internally so Zod is happy
+    const full = stripped ? `https://${stripped}` : "";
+    updateData({ websiteUrl: full });
+  };
+
+  // Display value strips protocol so users see only the domain
+  const displayUrl = data.websiteUrl.replace(/^https?:\/\//i, "");
+
   const handleParseWebsite = async () => {
     if (!data.websiteUrl.trim()) return;
     setParseStatus("parsing");
@@ -38,23 +55,65 @@ export default function StepDataSources({ data, updateData }: Props) {
 
   return (
     <div className="space-y-8">
+      {/* Domain Type Selection */}
+      <div className="flex gap-4 mb-6">
+        <label className={`flex-1 flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${!data.isCompetitorDomain ? 'bg-brand-500/10 border-brand-500/30' : 'bg-surface-800/30 border-surface-700/50 hover:border-surface-600'}`}>
+          <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${!data.isCompetitorDomain ? 'border-brand-400' : 'border-surface-500'}`}>
+            {!data.isCompetitorDomain && <div className="w-2.5 h-2.5 rounded-full bg-brand-400" />}
+          </div>
+          <div>
+            <div className={`font-medium ${!data.isCompetitorDomain ? 'text-brand-300' : 'text-surface-300'}`}>My Own Domain</div>
+            <div className="text-xs text-surface-500 mt-0.5">I have a website, analyze it.</div>
+          </div>
+          <input 
+            type="radio" 
+            className="hidden" 
+            checked={!data.isCompetitorDomain} 
+            onChange={() => updateData({ isCompetitorDomain: false })}
+          />
+        </label>
+
+        <label className={`flex-1 flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${data.isCompetitorDomain ? 'bg-orange-500/10 border-orange-500/30' : 'bg-surface-800/30 border-surface-700/50 hover:border-surface-600'}`}>
+          <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${data.isCompetitorDomain ? 'border-orange-400' : 'border-surface-500'}`}>
+            {data.isCompetitorDomain && <div className="w-2.5 h-2.5 rounded-full bg-orange-400" />}
+          </div>
+          <div>
+            <div className={`font-medium ${data.isCompetitorDomain ? 'text-orange-300' : 'text-surface-300'}`}>Competitor Domain</div>
+            <div className="text-xs text-surface-500 mt-0.5">Analyze a competitor's site instead.</div>
+          </div>
+          <input 
+            type="radio" 
+            className="hidden" 
+            checked={data.isCompetitorDomain} 
+            onChange={() => updateData({ isCompetitorDomain: true })}
+          />
+        </label>
+      </div>
+
       {/* Website URL — Primary */}
       <div>
         <label className="block text-sm font-medium text-surface-200 mb-2">
-          Website URL
+          {data.isCompetitorDomain ? "Competitor Website URL" : "Your Website URL"}
         </label>
         <p className="text-xs text-surface-500 mb-3">
-          Enter your website URL. We&apos;ll analyze its structure, sitemap, and current content.
+          {data.isCompetitorDomain 
+            ? "Enter a competitor URL. We'll extract its sitemap and keyword structure." 
+            : "Enter your website URL. We'll analyze its structure, sitemap, and auto-fill your company details."}
         </p>
         <div className="flex gap-3">
           <div className="relative flex-1">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
+            <div className="absolute left-9 top-1/2 -translate-y-1/2 text-surface-500 text-sm pointer-events-none select-none">
+              https://
+            </div>
             <input
-              type="url"
-              value={data.websiteUrl}
-              onChange={(e) => updateData({ websiteUrl: e.target.value })}
-              placeholder="https://your-website.com"
-              className="input-field pl-10"
+              type="text"
+              value={displayUrl}
+              onChange={(e) => handleUrlChange(e.target.value)}
+              placeholder="your-website.com"
+              className="input-field !pl-[88px]"
+              autoComplete="url"
+              spellCheck={false}
             />
           </div>
           <button
@@ -102,7 +161,7 @@ export default function StepDataSources({ data, updateData }: Props) {
 
       {/* Future: Social Media (disabled cards) */}
       <div>
-        <label className="block text-sm font-medium text-surface-200 mb-3">
+        <label className="block text-sm font-medium text-surface-200 mb-3 mt-8">
           Social Media <span className="badge badge-brand text-xs ml-2">Coming Soon</span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

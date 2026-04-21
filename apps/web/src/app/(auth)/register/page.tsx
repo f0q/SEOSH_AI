@@ -89,7 +89,7 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Smith"
-                  className="input-field pl-10"
+                  className="input-field !pl-10"
                   required
                 />
               </div>
@@ -106,7 +106,7 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
-                  className="input-field pl-10"
+                  className="input-field !pl-10"
                   required
                 />
               </div>
@@ -123,7 +123,7 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 6 characters"
-                  className="input-field pl-10"
+                  className="input-field !pl-10"
                   required
                 />
               </div>

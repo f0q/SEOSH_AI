@@ -12,10 +12,10 @@ export const aiRouter = router({
   listModels: protectedProcedure.query(async ({ ctx }) => {
     // TODO: Read from AIProviderConfig + UserAIPreferences
     return [
-      { id: "google/gemini-2.0-flash-001", name: "Gemini 2.0 Flash", provider: "openrouter" },
-      { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "openrouter" },
-      { id: "openai/gpt-4o", name: "GPT-4o", provider: "openrouter" },
-      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", provider: "openrouter" },
+      { id: "google/gemini-2.0-flash-001", name: "Gemini 2.0 Flash", provider: "openrouter", costPer1k: 5 },
+      { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "openrouter", costPer1k: 50 },
+      { id: "openai/gpt-4o", name: "GPT-4o", provider: "openrouter", costPer1k: 40 },
+      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", provider: "openrouter", costPer1k: 2 },
     ];
   }),
 
