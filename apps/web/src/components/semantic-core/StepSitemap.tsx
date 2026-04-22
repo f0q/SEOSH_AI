@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, Plus, Trash2, Loader2, Wand2, ExternalLink, AlertCircle, ChevronRight, ChevronDown, CheckCircle2 } from "lucide-react";
+import { Globe, Plus, Trash2, Loader2, Wand2, ExternalLink, AlertCircle, ChevronRight, ChevronDown, CheckCircle2, Pencil, X, Check, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
+import { PAGE_TYPES } from "@seosh/shared/seo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,29 +25,269 @@ interface TreeNode {
   children?: TreeNode[];
 }
 
-// ─── Tree component ───────────────────────────────────────────────────────────
+// ─── Editable tree node ───────────────────────────────────────────────────────
 
-function TreeNodeRow({ node, depth = 0 }: { node: TreeNode; depth?: number }) {
-  const [open, setOpen] = useState(depth < 1);
+function EditableTreeNode({
+  node, depth, index, total,
+  onRename, onDelete, onMoveUp, onMoveDown, onPageTypeChange, onAddChild, onDeleteChild, onRenameChild,
+}: {
+  node: TreeNode;
+  depth: number;
+  index: number;
+  total: number;
+  onRename: (label: string) => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onPageTypeChange: (pt: string) => void;
+  onAddChild: () => void;
+  onDeleteChild: (i: number) => void;
+  onRenameChild: (i: number, label: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState(node.label);
+  const [editingPt, setEditingPt] = useState(false);
   const hasChildren = !!node.children?.length;
+
+  const commitRename = () => { onRename(editVal.trim() || node.label); setEditing(false); };
+
   return (
     <div>
+      {/* Section row */}
       <div
-        onClick={() => hasChildren && setOpen((o) => !o)}
-        className={`flex items-center gap-2 py-1.5 rounded-lg transition-colors cursor-pointer hover:bg-surface-800/40`}
+        className="group flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-surface-800/40 transition-colors"
         style={{ paddingLeft: `${8 + depth * 20}px` }}
       >
+        {/* Collapse toggle */}
         {hasChildren ? (
-          open ? <ChevronDown className="w-3.5 h-3.5 text-surface-500 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-surface-500 flex-shrink-0" />
+          <button onClick={() => setOpen((o) => !o)} className="flex-shrink-0 text-surface-500 hover:text-surface-300">
+            {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          </button>
         ) : (
           <div className="w-3.5 flex-shrink-0 flex justify-center"><div className="w-1.5 h-1.5 rounded-full bg-surface-600" /></div>
         )}
-        <span className={`text-sm truncate ${depth === 0 ? "font-medium text-surface-100" : "text-surface-400"}`}>{node.label}</span>
-        {node.pageType && (
-          <span className="ml-auto mr-2 text-xs font-mono text-cyan-400/70 bg-cyan-500/8 border border-cyan-500/15 rounded px-1.5 py-0.5 flex-shrink-0">{node.pageType}</span>
+
+        {/* Label — inline edit */}
+        {editing ? (
+          <div className="flex items-center gap-1 flex-1">
+            <input
+              autoFocus
+              value={editVal}
+              onChange={(e) => setEditVal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setEditing(false); }}
+              className="input-field !py-0.5 !px-2 !text-sm flex-1"
+            />
+            <button onClick={commitRename} className="text-emerald-400 hover:text-emerald-300"><Check className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setEditing(false)} className="text-surface-500"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        ) : (
+          <span
+            onDoubleClick={() => { setEditVal(node.label); setEditing(true); }}
+            className={`flex-1 text-sm truncate cursor-default select-none ${depth === 0 ? "font-medium text-surface-100" : "text-surface-300"}`}
+          >
+            {node.label}
+          </span>
         )}
+
+        {/* Page Type badge (sections only) */}
+        {depth === 0 && (
+          <div className="flex-shrink-0 flex flex-col items-end">
+            <span className="text-[9px] text-surface-600 leading-none mb-0.5 mr-0.5">Page Type</span>
+            {editingPt ? (
+              <select
+                autoFocus
+                value={node.pageType || ""}
+                onChange={(e) => { onPageTypeChange(e.target.value); setEditingPt(false); }}
+                onBlur={() => setEditingPt(false)}
+                className="bg-surface-800 text-xs text-cyan-300 border border-cyan-500/30 rounded px-1.5 py-0.5 outline-none"
+              >
+                {PAGE_TYPES.map((pt) => (
+                  <option key={pt.slug} value={pt.slug} className="bg-surface-800">{pt.slug}</option>
+                ))}
+              </select>
+            ) : (
+              <button
+                onClick={() => setEditingPt(true)}
+                title="Click to change page type"
+                className="text-xs font-mono text-cyan-400/80 bg-cyan-500/8 border border-cyan-500/15 rounded px-1.5 py-0.5 hover:border-cyan-500/40 hover:text-cyan-300 transition-colors"
+              >
+                {node.pageType || "—"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Action icons — visible on hover */}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1">
+          {!editing && (
+            <button onClick={() => { setEditVal(node.label); setEditing(true); }} title="Rename" className="p-1 rounded text-surface-500 hover:text-surface-200 hover:bg-surface-700/40">
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
+          {depth === 0 && (
+            <>
+              <button onClick={onMoveUp} disabled={index === 0} title="Move up" className="p-1 rounded text-surface-500 hover:text-surface-200 hover:bg-surface-700/40 disabled:opacity-20">
+                <ArrowUp className="w-3 h-3" />
+              </button>
+              <button onClick={onMoveDown} disabled={index === total - 1} title="Move down" className="p-1 rounded text-surface-500 hover:text-surface-200 hover:bg-surface-700/40 disabled:opacity-20">
+                <ArrowDown className="w-3 h-3" />
+              </button>
+            </>
+          )}
+          <button onClick={onDelete} title="Delete" className="p-1 rounded text-surface-500 hover:text-red-400 hover:bg-red-500/10">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
       </div>
-      {hasChildren && open && node.children!.map((c, i) => <TreeNodeRow key={i} node={c} depth={depth + 1} />)}
+
+      {/* Children */}
+      {hasChildren && open && (
+        <div>
+          {node.children!.map((child, i) => (
+            <ChildRow
+              key={i}
+              label={child.label}
+              url={child.url}
+              depth={depth + 1}
+              onRename={(l) => onRenameChild(i, l)}
+              onDelete={() => onDeleteChild(i)}
+            />
+          ))}
+          <button
+            onClick={onAddChild}
+            className="text-xs text-surface-600 hover:text-surface-400 flex items-center gap-1 py-1 transition-colors"
+            style={{ paddingLeft: `${8 + (depth + 1) * 20 + 16}px` }}
+          >
+            <Plus className="w-3 h-3" /> Add page
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChildRow({ label, url, depth, onRename, onDelete }: {
+  label: string; url?: string; depth: number;
+  onRename: (l: string) => void; onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(label);
+  const commit = () => { onRename(val.trim() || label); setEditing(false); };
+  return (
+    <div
+      className="group flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-surface-800/40 transition-colors"
+      style={{ paddingLeft: `${8 + depth * 20}px` }}
+    >
+      <div className="w-3.5 flex-shrink-0 flex justify-center"><div className="w-1.5 h-1.5 rounded-full bg-surface-600" /></div>
+      {editing ? (
+        <div className="flex items-center gap-1 flex-1">
+          <input autoFocus value={val} onChange={(e) => setVal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+            className="input-field !py-0.5 !px-2 !text-sm flex-1" />
+          <button onClick={commit} className="text-emerald-400"><Check className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setEditing(false)} className="text-surface-500"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      ) : (
+        <span onDoubleClick={() => { setVal(label); setEditing(true); }} className="flex-1 text-sm text-surface-400 truncate cursor-default select-none">{label}</span>
+      )}
+      {url && <ExternalLink className="w-3 h-3 text-surface-700 flex-shrink-0 opacity-0 group-hover:opacity-100" />}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        {!editing && <button onClick={() => { setVal(label); setEditing(true); }} className="p-1 rounded text-surface-500 hover:text-surface-200"><Pencil className="w-3 h-3" /></button>}
+        <button onClick={onDelete} className="p-1 rounded text-surface-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page type manager panel ──────────────────────────────────────────────────
+
+function PageTypeManager({ tree, setTree }: { tree: TreeNode[]; setTree: (t: TreeNode[]) => void }) {
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editVal, setEditVal] = useState("");
+  const [newVal, setNewVal] = useState("");
+
+  // Gather all unique page types from tree sections
+  const usedTypes = Array.from(new Set(tree.map((n) => n.pageType).filter(Boolean))) as string[];
+
+  const renameType = (oldPt: string, newPt: string) => {
+    if (!newPt.trim() || newPt === oldPt) return;
+    setTree(tree.map((n) => n.pageType === oldPt ? { ...n, pageType: newPt.trim() } : n));
+  };
+
+  const removeType = (pt: string) => {
+    setTree(tree.map((n) => n.pageType === pt ? { ...n, pageType: undefined } : n));
+  };
+
+  const addType = () => {
+    if (!newVal.trim()) return;
+    // Assign to first section without a pageType
+    const updated = [...tree];
+    const idx = updated.findIndex((n) => !n.pageType);
+    if (idx >= 0) updated[idx] = { ...updated[idx], pageType: newVal.trim() };
+    setTree(updated);
+    setNewVal("");
+  };
+
+  return (
+    <div className="rounded-xl border border-surface-700/30 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-surface-200">Page Types</p>
+          <p className="text-xs text-surface-500 mt-0.5">AI-assigned page types for each section. Edit to correct mistakes.</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {usedTypes.length === 0 && <p className="text-xs text-surface-600">No page types assigned yet.</p>}
+        {usedTypes.map((pt, i) => (
+          <div key={pt} className="group flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2">
+              {editingIdx === i ? (
+                <>
+                  <input
+                    autoFocus
+                    value={editVal}
+                    onChange={(e) => setEditVal(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { renameType(pt, editVal); setEditingIdx(null); } if (e.key === "Escape") setEditingIdx(null); }}
+                    className="input-field !py-1 !px-2 !text-xs flex-1 font-mono"
+                    list="pt-suggestions"
+                  />
+                  <datalist id="pt-suggestions">
+                    {PAGE_TYPES.map((p) => <option key={p.slug} value={p.slug} />)}
+                  </datalist>
+                  <button onClick={() => { renameType(pt, editVal); setEditingIdx(null); }} className="text-emerald-400"><Check className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setEditingIdx(null)} className="text-surface-500"><X className="w-3.5 h-3.5" /></button>
+                </>
+              ) : (
+                <span className="text-xs font-mono text-cyan-400 bg-cyan-500/8 border border-cyan-500/15 rounded px-2 py-1">{pt}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => { setEditVal(pt); setEditingIdx(i); }} className="p-1 rounded text-surface-500 hover:text-surface-200"><Pencil className="w-3.5 h-3.5" /></button>
+              <button onClick={() => removeType(pt)} className="p-1 rounded text-surface-500 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add new type */}
+      <div className="flex gap-2 pt-1 border-t border-surface-700/20">
+        <input
+          value={newVal}
+          onChange={(e) => setNewVal(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addType()}
+          placeholder="Add page type (e.g. service_detail)"
+          className="input-field !py-1.5 !text-xs flex-1 font-mono"
+          list="pt-suggestions-add"
+        />
+        <datalist id="pt-suggestions-add">
+          {PAGE_TYPES.map((p) => <option key={p.slug} value={p.slug} />)}
+        </datalist>
+        <button onClick={addType} disabled={!newVal.trim()} className="btn-secondary text-xs gap-1.5">
+          <Plus className="w-3.5 h-3.5" /> Add
+        </button>
+      </div>
     </div>
   );
 }
@@ -393,11 +634,53 @@ export function StepSitemap({ projectId, sitemapUrl, setSitemapUrl, competitors,
           </div>
 
           {structureStatus === "done" && siteTree.length > 0 && (
-            <div className="border-t border-surface-700/20 pt-3 animate-fade-in">
-              <p className="text-xs text-surface-500 mb-2">{siteTree.length} sections · {[ownSite, ...competitorSites].filter(s => s.status === "done").reduce((n, s) => n + s.pages.length, 0)} pages total</p>
-              <div className="max-h-72 overflow-y-auto rounded-lg bg-surface-900/40 border border-surface-800/40 p-2">
-                {siteTree.map((node, i) => <TreeNodeRow key={i} node={node} depth={0} />)}
+            <div className="border-t border-surface-700/20 pt-4 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-surface-500">
+                  {siteTree.length} sections · {[ownSite, ...competitorSites].filter(s => s.status === "done").reduce((n, s) => n + s.pages.length, 0)} pages total
+                </p>
+                <span className="text-xs text-surface-600">Double-click any name to rename · Hover for edit options</span>
               </div>
+
+              {/* Editable tree */}
+              <div className="max-h-72 overflow-y-auto rounded-lg bg-surface-900/40 border border-surface-800/40 p-2">
+                {siteTree.map((node, i) => (
+                  <EditableTreeNode
+                    key={i}
+                    node={node}
+                    depth={0}
+                    index={i}
+                    total={siteTree.length}
+                    onRename={(label) => setSiteTree(siteTree.map((n, j) => j === i ? { ...n, label } : n))}
+                    onDelete={() => setSiteTree(siteTree.filter((_, j) => j !== i))}
+                    onMoveUp={() => {
+                      if (i === 0) return;
+                      const next = [...siteTree];
+                      [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                      setSiteTree(next);
+                    }}
+                    onMoveDown={() => {
+                      if (i === siteTree.length - 1) return;
+                      const next = [...siteTree];
+                      [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                      setSiteTree(next);
+                    }}
+                    onPageTypeChange={(pt) => setSiteTree(siteTree.map((n, j) => j === i ? { ...n, pageType: pt } : n))}
+                    onAddChild={() => setSiteTree(siteTree.map((n, j) => j === i ? { ...n, children: [...(n.children || []), { label: "New Page" }] } : n))}
+                    onDeleteChild={(ci) => setSiteTree(siteTree.map((n, j) => j === i ? { ...n, children: n.children?.filter((_, k) => k !== ci) } : n))}
+                    onRenameChild={(ci, label) => setSiteTree(siteTree.map((n, j) => j === i ? { ...n, children: n.children?.map((c, k) => k === ci ? { ...c, label } : c) } : n))}
+                  />
+                ))}
+                <button
+                  onClick={() => setSiteTree([...siteTree, { label: "New Section", pageType: "info_page", children: [] }])}
+                  className="text-xs text-surface-600 hover:text-surface-400 flex items-center gap-1.5 px-2 py-1.5 mt-1 transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Add section
+                </button>
+              </div>
+
+              {/* Page type manager */}
+              <PageTypeManager tree={siteTree} setTree={setSiteTree} />
             </div>
           )}
         </div>
