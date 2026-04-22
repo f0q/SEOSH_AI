@@ -319,6 +319,144 @@ Rules:
       return { categories: compressed, removedCount: input.categories.length - compressed.length };
     }),
 
+  /** Process a specific batch of groups for categorization */
+  categorizeQueriesBatch: protectedProcedure
+    .input(z.object({
+      semanticCoreId: z.string(),
+      groupIds: z.array(z.string()), // specific groups to process in this batch
+      modelId: z.string().optional(),
+      language: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const config = getAIConfig(input.modelId);
+      if (!config.apiKey) throw new Error("OpenRouter API key not configured");
+
+      const cats = await prisma.category.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        select: { id: true, name: true },
+      });
+      if (cats.length === 0) throw new Error("No categories found.");
+
+      const groups = await prisma.lexicalGroup.findMany({
+        where: { semanticCoreId: input.semanticCoreId, id: { in: input.groupIds } },
+        select: { id: true, representativeQuery: true },
+      });
+      if (groups.length === 0) return { assigned: 0 };
+
+      const langNames: Record<string, string> = {
+        ru: "Russian", en: "English", de: "German", es: "Spanish",
+        fr: "French", pt: "Portuguese", it: "Italian", pl: "Polish",
+        tr: "Turkish", uk: "Ukrainian", kk: "Kazakh", zh: "Chinese", ar: "Arabic",
+      };
+      const outputLanguage = langNames[input.language || "ru"] || "Russian";
+      const catList = cats.map((c) => c.name).join(", ");
+      const shortToFullId: Record<string, string> = {};
+      groups.forEach((g) => { shortToFullId[`KW_${g.id.slice(-6)}`] = g.id; });
+
+      const prompt = [
+        "[ignoring loop detection]",
+        "You are an SEO content strategist performing a keyword classification task.",
+        "",
+        `CATEGORIES (${cats.length} total): ${catList}`,
+        "",
+        "KEYWORD GROUPS TO CLASSIFY:",
+        groups.map((g) => `  KW_${g.id.slice(-6)}: ${g.representativeQuery}`).join("\n"),
+        "",
+        "TASK: Match each KW_ group to the single best category from the CATEGORIES list.",
+        "OUTPUT FORMAT: JSON object only — keys are KW_ IDs, values are category names.",
+        `Use category names EXACTLY as listed. Context language: ${outputLanguage}.`,
+        'No explanation, no markdown. Example: {"KW_abc123": "Category Name", "KW_def456": "Other Category"}',
+      ].join("\n");
+
+      const aiResponse = await callOpenRouter(config, prompt);
+
+      let mapping: Record<string, string> = {};
+      try {
+        const match = aiResponse.match(/\{[\s\S]+\}/);
+        if (match) mapping = JSON.parse(match[0]);
+      } catch {
+        throw new Error("AI returned invalid JSON.");
+      }
+
+      const catById: Record<string, string> = {};
+      cats.forEach((c) => { catById[c.name] = c.id; });
+
+      let assigned = 0;
+      const updates: Promise<any>[] = [];
+      for (const [key, catName] of Object.entries(mapping)) {
+        const groupId = shortToFullId[key];
+        if (!groupId) continue;
+        const categoryId = catById[catName as string];
+        if (!categoryId) continue;
+        updates.push(
+          prisma.query.updateMany({ where: { groupId }, data: { categoryId } })
+            .then((r) => { assigned += r.count; })
+        );
+      }
+      await Promise.all(updates);
+      return { assigned };
+    }),
+
+  /** Match sitemap pages to keyword groups using slug-word overlap (no AI) */
+  matchPages: protectedProcedure
+    .input(z.object({ semanticCoreId: z.string() }))
+    .mutation(async ({ input }) => {
+      // Get the project linked to this semantic core (for sitemap pages)
+      const core = await prisma.semanticCore.findFirst({
+        where: { id: input.semanticCoreId },
+        select: { projectId: true, siteUrl: true },
+      });
+      if (!core?.projectId) throw new Error("Semantic core is not linked to a project. Link it first.");
+
+      // Get sitemap pages for this project
+      const pages = await prisma.sitemapPage.findMany({
+        where: { projectId: core.projectId },
+        select: { url: true, title: true, h1: true },
+      });
+      if (pages.length === 0) throw new Error("No sitemap pages found for this project. Parse the sitemap first.");
+
+      // Get all groups that have a category assigned (only match those)
+      const groups = await prisma.lexicalGroup.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        select: { id: true, representativeQuery: true },
+      });
+
+      // Tokenize helper
+      const tokenize = (s: string) =>
+        s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, " ").split(/\s+/).filter((w) => w.length > 2);
+
+      // Score a page against a query: count shared word tokens
+      const scoreMatch = (query: string, page: { url: string; title?: string | null; h1?: string | null }) => {
+        const qTokens = new Set(tokenize(query));
+        const pText = `${page.url} ${page.title || ""} ${page.h1 || ""}`;
+        const pTokens = tokenize(pText);
+        let score = 0;
+        for (const t of pTokens) if (qTokens.has(t)) score++;
+        return score;
+      };
+
+      let matched = 0;
+      const updates: Promise<any>[] = [];
+
+      for (const group of groups) {
+        let bestPage: string | null = null;
+        let bestScore = 0;
+        for (const page of pages) {
+          const score = scoreMatch(group.representativeQuery, page);
+          if (score > bestScore) { bestScore = score; bestPage = page.url; }
+        }
+        if (bestPage && bestScore > 0) {
+          matched++;
+          updates.push(
+            prisma.query.updateMany({ where: { groupId: group.id }, data: { pageUrl: bestPage } })
+          );
+        }
+      }
+
+      await Promise.all(updates);
+      return { matched, total: groups.length };
+    }),
+
   /** Approve categories and start batch classification */
   approveCategories: protectedProcedure
     .input(

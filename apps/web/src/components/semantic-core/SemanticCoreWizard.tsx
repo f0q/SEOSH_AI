@@ -497,15 +497,21 @@ function StepCategories({
 
 // ─── Step 4: Results ────────────────────────────────────────────────────────
 
+const BATCH_SIZE = 10; // groups per AI request
+
 function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | null; projectId: string | undefined }) {
   const router = useRouter();
   const [genStatus, setGenStatus] = useState<"idle" | "generating" | "done">("idle");
   const [genResult, setGenResult] = useState<{ created: number; categories: string[] } | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+
+  // Categorization progress state
   const [catModelId, setCatModelId] = useState("");
   const [catLanguage, setCatLanguage] = useState("ru");
   const [catError, setCatError] = useState<string | null>(null);
-  const [catResult, setCatResult] = useState<{ assigned: number; totalGroups: number } | null>(null);
+  const [catProgress, setCatProgress] = useState<{ done: number; total: number } | null>(null);
+  const [catRunning, setCatRunning] = useState(false);
+  const cancelRef = { current: false };
 
   const { data, isLoading, refetch } = trpc.semanticCore.getResults.useQuery(
     { semanticCoreId: semanticCoreId || "" },
@@ -517,8 +523,14 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
     { enabled: !!semanticCoreId }
   );
 
-  const categorizeMut = trpc.semanticCore.categorizeQueries.useMutation({
-    onSuccess: (res) => { setCatResult(res); setCatError(null); refetch(); },
+  const groupsData = trpc.semanticCore.getGroups.useQuery(
+    { semanticCoreId: semanticCoreId || "" },
+    { enabled: !!semanticCoreId }
+  );
+
+  const batchMut = trpc.semanticCore.categorizeQueriesBatch.useMutation();
+  const matchPagesMut = trpc.semanticCore.matchPages.useMutation({
+    onSuccess: (res) => { refetch(); },
     onError: (e) => setCatError(e.message),
   });
 
@@ -534,7 +546,49 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
 
   const totalResults = data?.results?.length ?? 0;
   const catNames = (catData.data ?? []).map((c: any) => c.name);
-  const isCategorizePending = categorizeMut.isPending;
+  const summary: Record<string, number> = (data?.summary as any) ?? {};
+
+  // Batched AI categorization with progress
+  const handleCategorizeAll = async () => {
+    if (!semanticCoreId) return;
+    const allGroups = groupsData.data?.groups ?? [];
+    if (allGroups.length === 0) { setCatError("No keyword groups found."); return; }
+
+    setCatError(null);
+    setCatRunning(true);
+    cancelRef.current = false;
+
+    const groupIds = allGroups.map((g: any) => g.id);
+    const chunks: string[][] = [];
+    for (let i = 0; i < groupIds.length; i += BATCH_SIZE) {
+      chunks.push(groupIds.slice(i, i + BATCH_SIZE));
+    }
+
+    setCatProgress({ done: 0, total: groupIds.length });
+
+    let processedGroups = 0;
+    for (const chunk of chunks) {
+      if (cancelRef.current) break;
+      try {
+        const res = await batchMut.mutateAsync({
+          semanticCoreId,
+          groupIds: chunk,
+          modelId: catModelId || undefined,
+          language: catLanguage,
+        });
+        processedGroups += chunk.length;
+        setCatProgress({ done: processedGroups, total: groupIds.length });
+      } catch (e: any) {
+        setCatError(e.message);
+        break;
+      }
+    }
+
+    setCatRunning(false);
+    refetch();
+  };
+
+  const handleCancel = () => { cancelRef.current = true; };
 
   return (
     <div className="space-y-5">
@@ -546,6 +600,32 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
         <button className="btn-secondary text-sm">Export CSV</button>
       </div>
 
+      {/* Category distribution bar */}
+      {catNames.length > 0 && (
+        <div className="rounded-xl border border-surface-700/25 bg-surface-800/15 p-4">
+          <p className="text-xs text-surface-500 uppercase tracking-wide mb-3">Categories</p>
+          <div className="flex flex-wrap gap-2">
+            {catNames.map((name: string) => {
+              const count = summary[name] ?? 0;
+              const pct = totalResults > 0 ? Math.round((count / totalResults) * 100) : 0;
+              return (
+                <div key={name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/20 bg-cyan-500/8">
+                  <span className="text-xs font-medium text-cyan-300">{name}</span>
+                  <span className="text-xs text-surface-500">{count}</span>
+                  {pct > 0 && <span className="text-[10px] text-surface-600">{pct}%</span>}
+                </div>
+              );
+            })}
+            {summary["Uncategorized"] > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-surface-700/30 bg-surface-800/30">
+                <span className="text-xs text-surface-500">Uncategorized</span>
+                <span className="text-xs text-surface-600">{summary["Uncategorized"]}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* AI categorize panel */}
       {semanticCoreId && (
         <div className="rounded-xl border border-surface-700/25 bg-surface-800/15 p-4 space-y-3">
@@ -553,11 +633,11 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
             <div>
               <p className="text-sm font-medium text-surface-200">Assign Keywords to Categories with AI</p>
               <p className="text-xs text-surface-500 mt-0.5">
-                AI reads each keyword group and assigns it to the best matching category. All keywords in a group share the same category.
+                Processes in batches of {BATCH_SIZE} groups. Progress tracked in real time. You can stop at any time.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <select value={catLanguage} onChange={(e) => setCatLanguage(e.target.value)} className="input-field !py-1.5 !px-3 !text-sm !w-auto">
+              <select value={catLanguage} onChange={(e) => setCatLanguage(e.target.value)} className="input-field !py-1.5 !px-3 !text-sm !w-auto" disabled={catRunning}>
                 <option value="ru">RU</option>
                 <option value="en">EN</option>
                 <option value="de">DE</option>
@@ -566,33 +646,66 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 <option value="uk">UK</option>
               </select>
               <div className="w-40">
-                <AIModelSelector onModelSelect={setCatModelId} selectedModelId={catModelId} estimatedPromptTokens={800} expectedOutputTokens={400} />
+                <AIModelSelector onModelSelect={setCatModelId} selectedModelId={catModelId} estimatedPromptTokens={400} expectedOutputTokens={200} />
               </div>
-              <button
-                onClick={() => {
-                  setCatError(null);
-                  setCatResult(null);
-                  categorizeMut.mutate({ semanticCoreId: semanticCoreId!, modelId: catModelId || undefined, language: catLanguage });
-                }}
-                disabled={isCategorizePending}
-                className="btn-primary gap-2 text-sm"
-              >
-                {isCategorizePending
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Categorizing...</>
-                  : <><Brain className="w-4 h-4" /> Categorize All</>}
-              </button>
+              {catRunning ? (
+                <button onClick={handleCancel} className="btn-ghost gap-2 text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10">
+                  <X className="w-4 h-4" /> Stop
+                </button>
+              ) : (
+                <button onClick={handleCategorizeAll} disabled={!semanticCoreId} className="btn-primary gap-2 text-sm">
+                  <Brain className="w-4 h-4" /> Categorize All
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Progress bar */}
+          {catProgress && (
+            <div className="space-y-1.5 animate-fade-in">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-surface-400">
+                  {catRunning ? "Processing..." : "Done"} — {catProgress.done} / {catProgress.total} groups
+                </span>
+                <span className="text-surface-500">{Math.round((catProgress.done / catProgress.total) * 100)}%</span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-surface-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-brand-500 transition-all duration-500"
+                  style={{ width: `${(catProgress.done / catProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {catError && (
             <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{catError}</p>
           )}
-          {catResult && (
-            <div className="flex items-center gap-2 text-xs animate-fade-in">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-emerald-400 font-medium">{catResult.assigned} keywords assigned</span>
-              <span className="text-surface-600">·</span>
-              <span className="text-surface-500">{catResult.totalGroups} groups processed</span>
+
+          {/* Match pages button — appears after categorization */}
+          {catProgress && catProgress.done > 0 && !catRunning && (
+            <div className="flex items-center justify-between pt-2 border-t border-surface-700/20">
+              <div>
+                <p className="text-xs font-medium text-surface-300">Match Sitemap Pages</p>
+                <p className="text-xs text-surface-500">
+                  Script matches each keyword group to the best-fitting page using URL/title overlap. No AI needed.
+                </p>
+              </div>
+              <button
+                onClick={() => matchPagesMut.mutate({ semanticCoreId: semanticCoreId! })}
+                disabled={matchPagesMut.isPending}
+                className="btn-secondary gap-2 text-sm flex-shrink-0"
+              >
+                {matchPagesMut.isPending
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Matching...</>
+                  : <><Globe className="w-4 h-4" /> Match Pages</>}
+              </button>
             </div>
+          )}
+          {matchPagesMut.data && (
+            <p className="text-xs text-emerald-400 animate-fade-in">
+              ✓ {matchPagesMut.data.matched} of {matchPagesMut.data.total} groups matched to sitemap pages
+            </p>
           )}
         </div>
       )}
@@ -627,9 +740,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 disabled={genStatus === "generating"}
                 className="btn-primary gap-2 text-sm flex-shrink-0"
               >
-                {genStatus === "generating"
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
-                  : <><LayoutList className="w-4 h-4" /> Generate Plan</>}
+                {genStatus === "generating" ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><LayoutList className="w-4 h-4" /> Generate Plan</>}
               </button>
             </div>
           )}
@@ -639,7 +750,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
 
       {!projectId && totalResults > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <p className="text-sm text-amber-300">⚠ Link this core to a project to generate a content plan.</p>
+          <p className="text-sm text-amber-300">⚠ Link this core to a project to enable page matching and content plan generation.</p>
         </div>
       )}
 
@@ -671,7 +782,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 />
               ))
             ) : (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-surface-500">No results yet — complete Steps 1 &amp; 2 first.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-surface-500">No results yet — complete Steps 1 & 2 first.</td></tr>
             )}
           </tbody>
         </table>
@@ -743,7 +854,11 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
       </td>
       <td className="px-4 py-2.5 text-surface-500 text-xs truncate max-w-[160px]">{row.group || "—"}</td>
       <td className="px-4 py-2.5 text-brand-400 font-mono text-xs truncate max-w-[180px]">
-        {row.page || <span className="text-surface-600">Needs Content</span>}
+        {row.page ? (
+          <a href={row.page} target="_blank" rel="noreferrer" className="hover:text-brand-300 transition-colors">{row.page}</a>
+        ) : (
+          <span className="text-surface-600">No page matched</span>
+        )}
       </td>
     </tr>
   );
