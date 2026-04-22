@@ -22,30 +22,39 @@ import { StepKeywords } from "./StepKeywords";
 // Using inline styles (not dynamic Tailwind classes) for reliable rendering.
 
 const CAT_PALETTE = [
-  { h: 186, label: "cyan"    },
-  { h: 270, label: "violet"  },
-  { h: 150, label: "emerald" },
-  { h: 35,  label: "amber"   },
-  { h: 330, label: "pink"    },
-  { h: 220, label: "blue"    },
-  { h: 175, label: "teal"    },
-  { h: 15,  label: "orange"  },
-  { h: 250, label: "indigo"  },
-  { h: 90,  label: "lime"    },
-  { h: 350, label: "rose"    },
-  { h: 200, label: "sky"     },
+  { h: 186 }, // cyan
+  { h: 270 }, // violet
+  { h: 150 }, // emerald
+  { h: 35  }, // amber
+  { h: 330 }, // pink
+  { h: 220 }, // blue
+  { h: 175 }, // teal
+  { h: 15  }, // orange
+  { h: 250 }, // indigo
+  { h: 90  }, // lime
+  { h: 350 }, // rose
+  { h: 200 }, // sky
 ];
 
-function getCatColor(name: string, allNames: string[]) {
-  const idx = allNames.indexOf(name);
-  const { h } = CAT_PALETTE[idx % CAT_PALETTE.length] ?? CAT_PALETTE[0];
+/** Hash a string to a number (djb2) — stable across renders / page loads */
+function hashStr(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i);
+  return Math.abs(h);
+}
+
+/** Returns inline-style objects for a category badge, dot, and checkmark.
+ *  Color is derived from the category NAME (not its list position),
+ *  so the same name always gets the same hue. */
+function getCatColor(name: string) {
+  const { h } = CAT_PALETTE[hashStr(name) % CAT_PALETTE.length];
   return {
     badge: {
-      color: `hsl(${h} 80% 72%)`,
+      color:      `hsl(${h} 80% 72%)`,
       background: `hsl(${h} 70% 30% / 0.15)`,
-      border: `1px solid hsl(${h} 60% 50% / 0.30)`,
+      border:     `1px solid hsl(${h} 60% 50% / 0.30)`,
     },
-    dot: `hsl(${h} 80% 65%)`,
+    dot:   `hsl(${h} 80% 65%)`,
     check: `hsl(${h} 80% 70%)`,
   };
 }
@@ -641,7 +650,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
             {catNames.map((name: string) => {
               const count = summary[name] ?? 0;
               const pct = totalResults > 0 ? Math.round((count / totalResults) * 100) : 0;
-              const clr = getCatColor(name, catNames);
+              const clr = getCatColor(name);
               return (
                 <div key={name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={clr.badge}>
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: clr.dot }} />
@@ -836,7 +845,7 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
 }) {
   const [open, setOpen] = useState(false);
   const isUncategorized = !row.category || row.category === "Uncategorized";
-  const clr = isUncategorized ? null : getCatColor(row.category, catNames);
+  const clr = isUncategorized ? null : getCatColor(row.category);
 
   return (
     <tr className="border-b border-surface-700/20 hover:bg-surface-800/20 transition-colors">
@@ -862,7 +871,7 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
           <div className="absolute left-0 top-full mt-1 z-20 bg-surface-900 border border-surface-700/50 rounded-xl shadow-xl min-w-52 py-1 animate-fade-in">
             <p className="text-[10px] text-surface-600 px-3 py-1 uppercase tracking-wide">Assign to category</p>
             {catNames.map((name) => {
-              const itemClr = getCatColor(name, catNames);
+              const itemClr = getCatColor(name);
               const isActive = name === row.category;
               return (
                 <div key={name} className="group flex items-center">
