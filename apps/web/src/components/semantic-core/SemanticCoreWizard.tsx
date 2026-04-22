@@ -2,35 +2,62 @@
 
 /**
  * @component SemanticCoreWizard
- * @description 4-step semantic core builder.
- * Migrated from SEO_classify frontend Wizard.tsx.
- *
- * Steps:
- *   1. Sitemap — parse or paste URL
- *   2. Queries — upload CSV or paste keywords
- *   3. Categories — AI generates, user edits + approves
- *   4. Results — clustered table with page assignments + export
+ * Steps: Sitemap → Keywords → Categories → Results
+ * Navigation is free (any step accessible at any time).
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Brain, Globe, Upload, Tags, BarChart3, ArrowRight, ArrowLeft, LayoutList, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  Brain, Globe, Upload, Tags, BarChart3,
+  LayoutList, Loader2, CheckCircle2,
+} from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
+import { StepSitemap } from "./StepSitemap";
+import { StepKeywords } from "./StepKeywords";
+
+// ─── Step config ─────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { id: 1, title: "Sitemap", icon: Globe, description: "Parse your website structure" },
-  { id: 2, title: "Keywords", icon: Upload, description: "Upload your keyword list" },
-  { id: 3, title: "Categories", icon: Tags, description: "AI generates and you approve" },
-  { id: 4, title: "Results", icon: BarChart3, description: "Keyword → Category → Page" },
+  { id: 1, title: "Sitemap",    icon: Globe,     description: "Parse site or competitor" },
+  { id: 2, title: "Keywords",   icon: Upload,    description: "Upload & cluster keywords" },
+  { id: 3, title: "Categories", icon: Tags,      description: "AI generates, you approve" },
+  { id: 4, title: "Results",    icon: BarChart3, description: "Keyword → Category → Page" },
 ];
+
+// ─── Completion heuristics (for progress dots) ────────────────────────────────
+function stepDone(step: number, semanticCoreId: string | null, groupsDone: boolean, catsDone: boolean) {
+  if (step === 1) return !!semanticCoreId;
+  if (step === 2) return groupsDone;
+  if (step === 3) return catsDone;
+  return false;
+}
+
+// ─── Main wizard ─────────────────────────────────────────────────────────────
 
 export default function SemanticCoreWizard({ projectId: initialProjectId }: { projectId?: string }) {
   const [step, setStep] = useState(1);
   const [semanticCoreId, setSemanticCoreId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(initialProjectId);
 
+  // Sitemap state (lifted so StepSitemap is re-mountable without losing data)
+  const [sitemapUrl, setSitemapUrl] = useState("");
+  const [competitors, setCompetitors] = useState<{ url: string; label: string }[]>([]);
+
+  // Step completion flags
+  const [groupsDone, setGroupsDone] = useState(false);
+  const [catsDone, setCatsDone] = useState(false);
+
   const projectsQuery = trpc.projects.list.useQuery();
+  const groupsQuery = trpc.semanticCore.getGroups.useQuery(
+    { semanticCoreId: semanticCoreId || "" },
+    { enabled: !!semanticCoreId }
+  );
+
+  // Sync groupsDone from query data
+  if ((groupsQuery.data?.totalGroups ?? 0) > 0 && !groupsDone) setGroupsDone(true);
+
   const projectId = selectedProjectId;
 
   return (
@@ -47,7 +74,6 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
           </div>
         </div>
 
-        {/* Project Selector */}
         <div className="flex items-center gap-2">
           <label className="text-xs text-surface-400 font-medium">Link to Project:</label>
           <select
@@ -65,29 +91,35 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
         </div>
       </div>
 
-      {/* Step Indicators */}
+      {/* Step indicators — all clickable */}
       <div className="flex items-center gap-1">
         {STEPS.map((s, i) => {
-          const done = step > s.id;
+          const done = stepDone(s.id, semanticCoreId, groupsDone, catsDone);
           const current = step === s.id;
           const StepIcon = s.icon;
           return (
             <div key={s.id} className="flex items-center flex-1 last:flex-none">
-              <div
-                className={`flex-1 flex items-center gap-2 px-4 py-3 rounded-xl border transition-all ${
+              <button
+                onClick={() => setStep(s.id)}
+                className={`flex-1 flex items-center gap-2 px-4 py-3 rounded-xl border transition-all text-left ${
                   current
                     ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
                     : done
-                    ? "bg-emerald-500/8 border-emerald-500/15 text-emerald-400"
-                    : "bg-surface-800/20 border-surface-700/20 text-surface-500"
+                    ? "bg-emerald-500/8 border-emerald-500/15 text-emerald-400 hover:bg-emerald-500/12"
+                    : "bg-surface-800/20 border-surface-700/20 text-surface-500 hover:bg-surface-800/30 hover:border-surface-600/30"
                 }`}
               >
-                <StepIcon className="w-5 h-5 flex-shrink-0" />
+                <div className="relative flex-shrink-0">
+                  <StepIcon className="w-5 h-5" />
+                  {done && (
+                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-surface-900" />
+                  )}
+                </div>
                 <div className="hidden md:block min-w-0">
                   <p className="text-sm font-medium truncate">{s.title}</p>
                   <p className="text-xs opacity-70 truncate">{s.description}</p>
                 </div>
-              </div>
+              </button>
               {i < STEPS.length - 1 && (
                 <div className={`w-6 h-0.5 mx-1 ${done ? "bg-emerald-500/40" : "bg-surface-700/20"}`} />
               )}
@@ -96,37 +128,57 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
         })}
       </div>
 
-      {/* Step Content */}
-      <div className="glass-card p-8 min-h-[400px] flex flex-col" key={step}>
-        {step === 1 && <StepSitemap projectId={projectId} onComplete={(id) => setSemanticCoreId(id)} />}
-        {step === 2 && <StepKeywords semanticCoreId={semanticCoreId} />}
-        {step === 3 && <StepCategories semanticCoreId={semanticCoreId} url={"https://example.com"} />}
-        {step === 4 && <StepResults semanticCoreId={semanticCoreId} projectId={projectId} />}
+      {/* Progress bar for current step */}
+      <div className="h-0.5 bg-surface-800 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500"
+          style={{ width: `${(step / STEPS.length) * 100}%` }}
+        />
       </div>
 
-      {/* Navigation */}
+      {/* Step content */}
+      <div className="glass-card p-8 min-h-[400px] flex flex-col" key={step}>
+        {step === 1 && (
+          <StepSitemap
+            projectId={projectId}
+            sitemapUrl={sitemapUrl}
+            setSitemapUrl={setSitemapUrl}
+            competitors={competitors}
+            setCompetitors={setCompetitors}
+            semanticCoreId={semanticCoreId}
+            onComplete={(id) => {
+              setSemanticCoreId(id);
+              setTimeout(() => setStep(2), 600);
+            }}
+          />
+        )}
+        {step === 2 && (
+          <StepKeywords semanticCoreId={semanticCoreId} />
+        )}
+        {step === 3 && (
+          <StepCategories semanticCoreId={semanticCoreId} onDone={() => setCatsDone(true)} />
+        )}
+        {step === 4 && (
+          <StepResults semanticCoreId={semanticCoreId} projectId={projectId} />
+        )}
+      </div>
+
+      {/* Bottom navigation */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => step > 1 && setStep(s => s - 1)}
+          onClick={() => step > 1 && setStep((s) => s - 1)}
           disabled={step === 1}
           className={`btn-ghost gap-2 ${step === 1 ? "opacity-30 pointer-events-none" : ""}`}
         >
-          <ArrowLeft className="w-4 h-4" /> Back
+          ← Back
         </button>
         {step < 4 ? (
-          <button onClick={() => setStep(s => s + 1)} className="btn-primary gap-2">
-            Continue <ArrowRight className="w-4 h-4" />
+          <button onClick={() => setStep((s) => s + 1)} className="btn-primary gap-2">
+            Continue →
           </button>
         ) : (
-          <button 
-            onClick={() => {
-              // Note: We'd typically invalidate here but trpc utils isn't set up at this level in this file yet.
-              // A full reload or relying on the link is fine, but since we are modifying state:
-              window.location.href = "/semantic-core";
-            }} 
-            className="btn-primary gap-2"
-          >
-            Finish & View Dashboard <ArrowRight className="w-4 h-4" />
+          <button onClick={() => (window.location.href = "/semantic-core")} className="btn-primary gap-2">
+            Finish & View Dashboard →
           </button>
         )}
       </div>
@@ -134,136 +186,23 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
   );
 }
 
-// ─── Step Components ─────────────────────────────────────────────────────────
+// ─── Step 3: Categories ───────────────────────────────────────────────────────
 
-function StepSitemap({ projectId, onComplete }: { projectId: string | undefined; onComplete: (id: string) => void }) {
-  const [url, setUrl] = useState("");
-  const [status, setStatus] = useState<"idle" | "parsing" | "done">("idle");
-  const createSession = trpc.semanticCore.createSession.useMutation();
-
-  const handleParse = async () => {
-    setStatus("parsing");
-    try {
-      const session = await createSession.mutateAsync({ projectId, siteUrl: url });
-      onComplete(session.id);
-      setStatus("done");
-    } catch (e: any) {
-      console.error(e);
-      alert(e.message || "Failed to parse. Do you have a project created?");
-      setStatus("idle");
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-surface-100 mb-1">Parse Sitemap</h2>
-        <p className="text-sm text-surface-400">
-          Enter your website URL. We&apos;ll fetch sitemap.xml and extract all pages.
-        </p>
-      </div>
-
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
-          <input
-            type="url"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            placeholder="https://your-website.com"
-            className="input-field !pl-10"
-          />
-        </div>
-        <button
-          onClick={handleParse}
-          disabled={!url || status === "parsing"}
-          className="btn-primary flex-shrink-0"
-        >
-          {status === "parsing" ? (
-            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Parsing...</>
-          ) : status === "done" ? "✓ Parsed" : "Parse Sitemap"}
-        </button>
-      </div>
-
-      {status === "done" && (
-        <div className="p-4 rounded-xl bg-emerald-500/8 border border-emerald-500/15 animate-fade-in">
-          <p className="text-sm text-emerald-300 font-medium mb-2">✓ Sitemap parsed successfully</p>
-          <p className="text-sm text-surface-400">Project configured.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StepKeywords({ semanticCoreId }: { semanticCoreId: string | null }) {
-  const [text, setText] = useState("");
-  const [status, setStatus] = useState<"idle" | "grouping" | "done">("idle");
-  const groupQueries = trpc.semanticCore.groupQueries.useMutation();
-
-  const handleGroup = async () => {
-    if (!semanticCoreId) return;
-    setStatus("grouping");
-    try {
-      const queriesArray = text.split('\n').filter(l => l.trim().length > 0);
-      await groupQueries.mutateAsync({ semanticCoreId, queries: queriesArray });
-      setStatus("done");
-    } catch (e) {
-      console.error(e);
-      setStatus("idle");
-    }
-  };
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold text-surface-100 mb-1">Upload Keywords</h2>
-        <p className="text-sm text-surface-400">
-          Paste your keywords — one per line. We&apos;ll group similar ones automatically.
-        </p>
-      </div>
-
-      <textarea
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder={"купить кроссовки\nкупить кроссовки nike\nкроссовки для бега\n..."}
-        className="input-field min-h-[260px] font-mono text-sm resize-y"
-        rows={12}
-      />
-
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-surface-500">
-          {text.split('\n').filter(l => l.trim()).length} keywords
-        </span>
-        <button 
-          onClick={handleGroup}
-          disabled={!text || !semanticCoreId || status === "grouping"}
-          className="btn-primary"
-        >
-          {status === "grouping" ? "Grouping..." : status === "done" ? "✓ Grouped" : "Group Keywords"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function StepCategories({ semanticCoreId, url }: { semanticCoreId: string | null; url: string }) {
+function StepCategories({ semanticCoreId, onDone }: { semanticCoreId: string | null; onDone: () => void }) {
   const [categories, setCategories] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
-  const [selectedModelId, setSelectedModelId] = useState<string>("");
-  const generateCategories = trpc.semanticCore.generateCategories.useMutation();
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const generateCats = trpc.semanticCore.generateCategories.useMutation();
 
   const handleGenerate = async () => {
     if (!semanticCoreId) return;
     setGenerating(true);
     try {
-      // In future: pass selectedModelId to backend
-      const res = await generateCategories.mutateAsync({ semanticCoreId, websiteUrl: url });
+      const res = await generateCats.mutateAsync({ semanticCoreId, websiteUrl: "https://example.com" });
       setCategories(res.categories);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setGenerating(false);
-    }
+      onDone();
+    } catch (e) { console.error(e); }
+    finally { setGenerating(false); }
   };
 
   return (
@@ -277,21 +216,23 @@ function StepCategories({ semanticCoreId, url }: { semanticCoreId: string | null
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex-1 max-w-[280px]">
-          <AIModelSelector 
-            onModelSelect={setSelectedModelId} 
+          <AIModelSelector
+            onModelSelect={setSelectedModelId}
             selectedModelId={selectedModelId}
-            estimatedPromptTokens={500} // rough estimate of representatives length
+            estimatedPromptTokens={500}
             expectedOutputTokens={200}
           />
         </div>
-        <button 
-          onClick={handleGenerate} 
-          disabled={generating || !semanticCoreId} 
+        <button
+          onClick={handleGenerate}
+          disabled={generating || !semanticCoreId}
           className="btn-primary gap-2 w-full sm:w-auto justify-center"
         >
           {generating ? (
-            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Generating...</>
-          ) : <><Brain className="w-4 h-4" /> Generate with AI</>}
+            <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+          ) : (
+            <><Brain className="w-4 h-4" /> Generate with AI</>
+          )}
         </button>
       </div>
 
@@ -303,7 +244,7 @@ function StepCategories({ semanticCoreId, url }: { semanticCoreId: string | null
               <input
                 type="text"
                 value={cat}
-                onChange={e => {
+                onChange={(e) => {
                   const next = [...categories];
                   next[i] = e.target.value;
                   setCategories(next);
@@ -322,6 +263,8 @@ function StepCategories({ semanticCoreId, url }: { semanticCoreId: string | null
   );
 }
 
+// ─── Step 4: Results ──────────────────────────────────────────────────────────
+
 function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | null; projectId: string | undefined }) {
   const router = useRouter();
   const [genStatus, setGenStatus] = useState<"idle" | "generating" | "done">("idle");
@@ -334,25 +277,12 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
   );
 
   const generatePlan = trpc.contentPlan.generateFromSemanticCore.useMutation({
-    onSuccess: (result) => {
-      setGenResult(result);
-      setGenStatus("done");
-    },
-    onError: (err) => {
-      setGenError(err.message);
-      setGenStatus("idle");
-    },
+    onSuccess: (result) => { setGenResult(result); setGenStatus("done"); },
+    onError: (err) => { setGenError(err.message); setGenStatus("idle"); },
   });
 
-  const handleGenerate = async () => {
-    if (!semanticCoreId || !projectId) return;
-    setGenStatus("generating");
-    setGenError(null);
-    generatePlan.mutate({ semanticCoreId, projectId });
-  };
-
   const totalResults = data?.results?.length ?? 0;
-  const categories = data?.summary ? Object.keys(data.summary) : [];
+  const cats = data?.summary ? Object.keys(data.summary) : [];
 
   return (
     <div className="space-y-5">
@@ -361,12 +291,10 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
           <h2 className="text-lg font-semibold text-surface-100 mb-1">Results</h2>
           <p className="text-sm text-surface-400">Keyword → Category → Page mapping</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="btn-secondary">Export CSV</button>
-        </div>
+        <button className="btn-secondary">Export CSV</button>
       </div>
 
-      {/* ── Generate Content Plan banner ── */}
+      {/* Generate content plan banner */}
       {projectId && totalResults > 0 && (
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
           {genStatus === "done" && genResult ? (
@@ -378,16 +306,12 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                     Created {genResult.created} content plan rows from {genResult.categories.length} categories
                   </p>
                   <p className="text-xs text-surface-500 mt-0.5">
-                    Categories: {genResult.categories.join(", ")}
+                    {genResult.categories.join(", ")}
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => router.push("/autopilot/content-planner")}
-                className="btn-primary gap-2 text-sm"
-              >
-                <LayoutList className="w-4 h-4" />
-                Open Content Planner
+              <button onClick={() => router.push("/autopilot/content-planner")} className="btn-primary gap-2 text-sm">
+                <LayoutList className="w-4 h-4" /> Open Content Planner
               </button>
             </div>
           ) : (
@@ -395,17 +319,18 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
               <div className="flex items-center gap-3">
                 <LayoutList className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-surface-200">
-                    Generate Content Plan
-                  </p>
+                  <p className="text-sm font-medium text-surface-200">Generate Content Plan</p>
                   <p className="text-xs text-surface-500 mt-0.5">
-                    Create {categories.length} content plan rows from your keyword categories.
-                    Each row gets auto-filled page type, schema, target word count, and priority.
+                    Create {cats.length} rows from keyword categories with auto-filled page type, schema, and word count.
                   </p>
                 </div>
               </div>
               <button
-                onClick={handleGenerate}
+                onClick={() => {
+                  setGenStatus("generating");
+                  setGenError(null);
+                  generatePlan.mutate({ semanticCoreId: semanticCoreId!, projectId });
+                }}
                 disabled={genStatus === "generating"}
                 className="btn-primary gap-2 text-sm flex-shrink-0"
               >
@@ -417,20 +342,15 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
               </button>
             </div>
           )}
-
           {genError && (
-            <p className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              {genError}
-            </p>
+            <p className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{genError}</p>
           )}
         </div>
       )}
 
       {!projectId && totalResults > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <p className="text-sm text-amber-300">
-            ⚠ Link this semantic core to a project (top-right dropdown) to generate a content plan.
-          </p>
+          <p className="text-sm text-amber-300">⚠ Link this core to a project (top-right) to generate a content plan.</p>
         </div>
       )}
 
@@ -445,7 +365,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={3} className="px-4 py-8 text-center text-surface-500">Loading results...</td></tr>
+              <tr><td colSpan={3} className="px-4 py-8 text-center text-surface-500">Loading...</td></tr>
             ) : data?.results && data.results.length > 0 ? (
               data.results.map((r: any, i: number) => (
                 <tr key={i} className="border-b border-surface-700/20 hover:bg-surface-800/20 transition-colors">

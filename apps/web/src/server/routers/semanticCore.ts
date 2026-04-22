@@ -114,6 +114,33 @@ export const semanticCoreRouter = router({
       };
     }),
 
+  /** Get lexical groups for an existing semantic core (for Step 2 display) */
+  getGroups: protectedProcedure
+    .input(z.object({ semanticCoreId: z.string() }))
+    .query(async ({ input }) => {
+      const groups = await prisma.lexicalGroup.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        include: {
+          queries: { select: { id: true, text: true } },
+        },
+        orderBy: { queries: { _count: "desc" } },
+      });
+
+      const totalQueries = groups.reduce((sum: number, g: any) => sum + g.queries.length, 0);
+
+      return {
+        groups: groups.map((g: any) => ({
+          id: g.id,
+          representative: g.representativeQuery,
+          count: g.queries.length,
+          queries: g.queries.map((q: any) => q.text),
+        })),
+        totalGroups: groups.length,
+        totalQueries,
+        compressionPct: totalQueries > 0 ? Math.round((1 - groups.length / totalQueries) * 100) : 0,
+      };
+    }),
+
   /** Generate AI categories from representative queries */
   generateCategories: protectedProcedure
     .input(
