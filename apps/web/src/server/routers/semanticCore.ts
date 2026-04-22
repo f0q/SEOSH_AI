@@ -791,14 +791,14 @@ Rules:
       // 1. Fetch all selected cores & their queries
       const cores = await prisma.semanticCore.findMany({
         where: { id: { in: input.coreIds }, userId: ctx.user.id },
-        include: { queries: true }
+        include: { queries: { select: { text: true } } }
       });
       if (cores.length !== input.coreIds.length) throw new Error("Some cores not found or unauthorized");
 
       // 2. Extract and deduplicate raw queries
       const allRawQueries = new Set<string>();
-      cores.forEach(c => {
-        c.queries.forEach(q => allRawQueries.add(q.query));
+      cores.forEach((c: any) => {
+        c.queries.forEach((q: any) => allRawQueries.add(q.text));
       });
       const uniqueQueries = Array.from(allRawQueries);
 
@@ -815,39 +815,27 @@ Rules:
       // 4. Run N-gram lexical grouper on the deduped list
       const groups = groupQueriesLexically(uniqueQueries);
 
-      const lexicalGroupInserts = groups.map((g) => ({
-        id: crypto.randomUUID(),
-        semanticCoreId: masterCore.id,
-        centroid: g.centroid,
-      }));
-
-      await prisma.lexicalGroup.createMany({ data: lexicalGroupInserts });
-
-      const queryInserts: Array<{
-        id: string;
-        query: string;
-        normalized: string;
-        semanticCoreId: string;
-        lexicalGroupId: string;
-      }> = [];
-
-      groups.forEach((g, idx) => {
-        const groupId = lexicalGroupInserts[idx].id;
-        g.items.forEach((queryStr) => {
-          queryInserts.push({
-            id: crypto.randomUUID(),
-            query: queryStr,
-            normalized: normalizeForStorage(queryStr),
-            semanticCoreId: masterCore.id,
-            lexicalGroupId: groupId,
+      // 5. Insert groups + queries in a transaction
+      await prisma.$transaction(async (tx: any) => {
+        for (const g of groups) {
+          const dbGroup = await tx.lexicalGroup.create({
+            data: {
+              representativeQuery: g.representative,
+              semanticCoreId: masterCore.id,
+            }
           });
-        });
+
+          await tx.query.createMany({
+            data: g.queries.map((q: string) => ({
+              text: q,
+              normalizedText: normalizeForStorage(q),
+              semanticCoreId: masterCore.id,
+              groupId: dbGroup.id,
+            }))
+          });
+        }
       });
 
-      await prisma.query.createMany({ data: queryInserts });
-
-      // Note: We don't automatically generate categories here. The user will be redirected to the Master Core to generate categories with AI, saving tokens.
-      
       return {
         success: true,
         masterCoreId: masterCore.id,
