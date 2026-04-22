@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Brain, Globe, Upload, Tags, BarChart3,
-  LayoutList, Loader2, CheckCircle2, X, Plus,
+  LayoutList, Loader2, CheckCircle2, X, Plus, Wand2,
 } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
@@ -197,10 +197,12 @@ function StepCategories({
 }) {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedModelId, setSelectedModelId] = useState("");
+  const [compressModelId, setCompressModelId] = useState("");
   const [language, setLanguage] = useState("ru");
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
   const [newCat, setNewCat] = useState("");
+  const [lastCompressed, setLastCompressed] = useState<{ before: number; after: number } | null>(null);
 
   // Load existing categories from DB on mount
   const existingCats = trpc.semanticCore.getCategories.useQuery(
@@ -223,8 +225,18 @@ function StepCategories({
   const generateCats = trpc.semanticCore.generateCategories.useMutation({
     onSuccess: (res) => {
       setCategories(res.categories);
+      setLastCompressed(null);
       setError(null);
       onDone();
+    },
+    onError: (e) => setError(e.message),
+  });
+
+  const compressCats = trpc.semanticCore.compressCategories.useMutation({
+    onSuccess: (res) => {
+      setLastCompressed({ before: categories.length, after: res.categories.length });
+      setCategories(res.categories);
+      setError(null);
     },
     onError: (e) => setError(e.message),
   });
@@ -237,7 +249,14 @@ function StepCategories({
   const handleGenerate = () => {
     if (!semanticCoreId) return;
     setError(null);
+    setLastCompressed(null);
     generateCats.mutate({ semanticCoreId, modelId: selectedModelId || undefined, language });
+  };
+
+  const handleCompress = () => {
+    if (!semanticCoreId || categories.length < 2) return;
+    setError(null);
+    compressCats.mutate({ semanticCoreId, categories, modelId: compressModelId || undefined, language });
   };
 
   const handleApprove = () => {
@@ -254,6 +273,7 @@ function StepCategories({
   // hasGroups now checks the actual lexical groups from Step 2, not the categories
   const hasKeywordGroups = (groupsData.data?.totalGroups ?? 0) > 0;
   const isGenerating = generateCats.isPending;
+  const isCompressing = compressCats.isPending;
   const isApproving = approveCats.isPending;
 
   return (
@@ -406,6 +426,47 @@ function StepCategories({
             <button onClick={addCategory} disabled={!newCat.trim()} className="btn-ghost gap-1.5 text-sm">
               <Plus className="w-4 h-4" /> Add
             </button>
+          </div>
+
+          {/* Compress with AI */}
+          <div className="rounded-xl border border-surface-700/25 bg-surface-800/15 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium text-surface-300">Compress with AI</p>
+                <p className="text-xs text-surface-500 mt-0.5">
+                  AI will merge similar or overlapping categories into one.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="w-36">
+                  <AIModelSelector
+                    onModelSelect={setCompressModelId}
+                    selectedModelId={compressModelId}
+                    estimatedPromptTokens={150}
+                    expectedOutputTokens={150}
+                  />
+                </div>
+                <button
+                  onClick={handleCompress}
+                  disabled={isCompressing || categories.length < 2}
+                  className="btn-secondary gap-2 text-sm flex-shrink-0"
+                >
+                  {isCompressing ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Merging...</>
+                  ) : (
+                    <><Wand2 className="w-4 h-4" /> Compress</>
+                  )}
+                </button>
+              </div>
+            </div>
+            {lastCompressed && (
+              <div className="flex items-center gap-2 text-xs animate-fade-in">
+                <span className="text-surface-500 line-through">{lastCompressed.before} categories</span>
+                <span className="text-surface-600">→</span>
+                <span className="text-emerald-400 font-medium">{lastCompressed.after} categories</span>
+                <span className="text-surface-600">· {lastCompressed.before - lastCompressed.after} merged</span>
+              </div>
+            )}
           </div>
 
           {/* Approve */}

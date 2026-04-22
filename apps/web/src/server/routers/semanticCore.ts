@@ -254,6 +254,68 @@ Rules:
       return cats;
     }),
 
+  /** Compress / deduplicate category list using AI */
+  compressCategories: protectedProcedure
+    .input(
+      z.object({
+        semanticCoreId: z.string(),
+        categories: z.array(z.string()).min(2),
+        modelId: z.string().optional(),
+        language: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const config = getAIConfig(input.modelId);
+      if (!config.apiKey) throw new Error("OpenRouter API key not configured");
+
+      const langNames: Record<string, string> = {
+        ru: "Russian", en: "English", de: "German", es: "Spanish",
+        fr: "French", pt: "Portuguese", it: "Italian", pl: "Polish",
+        tr: "Turkish", uk: "Ukrainian", kk: "Kazakh", zh: "Chinese", ar: "Arabic",
+      };
+      const outputLanguage = langNames[input.language || "ru"] || "Russian";
+
+      const prompt = `You are an SEO content strategist. Below is a list of content categories that may contain duplicates or near-duplicates.
+
+Current categories (${input.categories.length} total):
+${input.categories.map((c, i) => `${i + 1}. ${c}`).join("\n")}
+
+Task: Merge similar or overlapping categories into one canonical name. Remove redundancy while preserving distinct topics.
+
+Rules:
+- Write ALL category names in ${outputLanguage} ONLY
+- Keep only truly distinct categories (aim for 5-10 max)
+- Prefer broader names when merging
+- Do NOT invent new categories — only merge existing ones
+- Return ONLY a valid JSON array of strings, nothing else`;
+
+      const aiResponse = await callOpenRouter(config, prompt);
+
+      let compressed: string[] = [];
+      try {
+        const match = aiResponse.match(/\[[\s\S]*?\]/);
+        if (match) compressed = JSON.parse(match[0]);
+      } catch {
+        compressed = aiResponse
+          .split("\n")
+          .map((l) => l.replace(/^[\-\*\u2022"\d\.\)]+\s*/, "").replace(/",$/, "").replace(/^"|"$/g, "").trim())
+          .filter((l) => l.length > 2 && l.length < 60)
+          .slice(0, 12);
+      }
+
+      if (compressed.length === 0)
+        throw new Error("AI returned no categories after compression.");
+
+      await prisma.$transaction(async (tx: any) => {
+        await tx.category.deleteMany({ where: { semanticCoreId: input.semanticCoreId } });
+        await tx.category.createMany({
+          data: compressed.map((name: string) => ({ name, semanticCoreId: input.semanticCoreId })),
+        });
+      });
+
+      return { categories: compressed, removedCount: input.categories.length - compressed.length };
+    }),
+
   /** Approve categories and start batch classification */
   approveCategories: protectedProcedure
     .input(
