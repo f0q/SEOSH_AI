@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Brain, Globe, Upload, Tags, BarChart3,
-  LayoutList, Loader2, CheckCircle2,
+  LayoutList, Loader2, CheckCircle2, X, Plus,
 } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
@@ -186,82 +186,204 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
   );
 }
 
-// ─── Step 3: Categories ───────────────────────────────────────────────────────
+// \u2500\u2500\u2500 Step 3: Categories \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-function StepCategories({ semanticCoreId, onDone }: { semanticCoreId: string | null; onDone: () => void }) {
+function StepCategories({
+  semanticCoreId,
+  onDone,
+}: {
+  semanticCoreId: string | null;
+  onDone: () => void;
+}) {
   const [categories, setCategories] = useState<string[]>([]);
-  const [generating, setGenerating] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState("");
-  const generateCats = trpc.semanticCore.generateCategories.useMutation();
+  const [error, setError] = useState<string | null>(null);
+  const [approved, setApproved] = useState(false);
+  const [newCat, setNewCat] = useState("");
 
-  const handleGenerate = async () => {
-    if (!semanticCoreId) return;
-    setGenerating(true);
-    try {
-      const res = await generateCats.mutateAsync({ semanticCoreId, websiteUrl: "https://example.com" });
+  // Load existing categories from DB on mount
+  const existingCats = trpc.semanticCore.getCategories.useQuery(
+    { semanticCoreId: semanticCoreId || "" },
+    { enabled: !!semanticCoreId }
+  );
+
+  // Sync DB categories into local state (only on first load)
+  if (existingCats.data && existingCats.data.length > 0 && categories.length === 0) {
+    setCategories(existingCats.data.map((c: any) => c.name));
+    if (existingCats.data.some((c: any) => c.approved)) setApproved(true);
+  }
+
+  const generateCats = trpc.semanticCore.generateCategories.useMutation({
+    onSuccess: (res) => {
       setCategories(res.categories);
+      setError(null);
       onDone();
-    } catch (e) { console.error(e); }
-    finally { setGenerating(false); }
+    },
+    onError: (e) => setError(e.message),
+  });
+
+  const approveCats = trpc.semanticCore.approveCategories.useMutation({
+    onSuccess: () => { setApproved(true); onDone(); },
+    onError: (e) => setError(e.message),
+  });
+
+  const handleGenerate = () => {
+    if (!semanticCoreId) return;
+    setError(null);
+    generateCats.mutate({ semanticCoreId, modelId: selectedModelId || undefined });
   };
+
+  const handleApprove = () => {
+    if (!semanticCoreId || categories.length === 0) return;
+    approveCats.mutate({ semanticCoreId, categories });
+  };
+
+  const addCategory = () => {
+    if (!newCat.trim()) return;
+    setCategories([...categories, newCat.trim()]);
+    setNewCat("");
+  };
+
+  const hasGroups = (existingCats.data?.length ?? 0) > 0 || categories.length > 0;
+  const isGenerating = generateCats.isPending;
+  const isApproving = approveCats.isPending;
 
   return (
     <div className="space-y-5">
+      {/* Header */}
       <div>
         <h2 className="text-lg font-semibold text-surface-100 mb-1">AI Categories</h2>
         <p className="text-sm text-surface-400">
-          AI analyzes your keywords and suggests categories. Review and edit before approving.
+          AI analyzes your keyword groups and suggests content categories. Review, edit, then approve.
         </p>
       </div>
 
+      {/* No groups warning */}
+      {!semanticCoreId && (
+        <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
+          <p className="text-sm text-amber-300">⚠ Complete Step 1 (Sitemap) first to create a session.</p>
+        </div>
+      )}
+
+      {semanticCoreId && !hasGroups && !isGenerating && (
+        <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
+          <p className="text-sm text-amber-300">⚠ No keyword groups yet. Go to Step 2 and upload your keywords first.</p>
+        </div>
+      )}
+
+      {/* Generate row */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex-1 max-w-[280px]">
           <AIModelSelector
             onModelSelect={setSelectedModelId}
             selectedModelId={selectedModelId}
-            estimatedPromptTokens={500}
-            expectedOutputTokens={200}
+            estimatedPromptTokens={600}
+            expectedOutputTokens={300}
           />
         </div>
         <button
           onClick={handleGenerate}
-          disabled={generating || !semanticCoreId}
+          disabled={isGenerating || !semanticCoreId}
           className="btn-primary gap-2 w-full sm:w-auto justify-center"
         >
-          {generating ? (
+          {isGenerating ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+          ) : categories.length > 0 ? (
+            <><Brain className="w-4 h-4" /> Regenerate</>
           ) : (
             <><Brain className="w-4 h-4" /> Generate with AI</>
           )}
         </button>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="flex items-start gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/8 text-sm text-red-300">
+          <span className="flex-shrink-0 mt-0.5">⚠</span>
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Categories list */}
       {categories.length > 0 && (
-        <div className="space-y-2 animate-fade-in">
-          <p className="text-sm text-surface-400">{categories.length} categories generated. Edit if needed:</p>
-          {categories.map((cat, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={cat}
-                onChange={(e) => {
-                  const next = [...categories];
-                  next[i] = e.target.value;
-                  setCategories(next);
-                }}
-                className="input-field flex-1"
-              />
-              <button
-                onClick={() => setCategories(categories.filter((_, j) => j !== i))}
-                className="btn-ghost p-2 text-surface-500 hover:text-red-400"
-              >✕</button>
-            </div>
-          ))}
+        <div className="space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-surface-400">
+              {categories.length} categories · edit names or delete unwanted ones
+            </p>
+            {approved && (
+              <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                ✓ Approved
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {categories.map((cat, i) => (
+              <div key={i} className="flex items-center gap-2 group">
+                <div className="w-6 h-6 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs text-cyan-400 font-bold">{i + 1}</span>
+                </div>
+                <input
+                  type="text"
+                  value={cat}
+                  onChange={(e) => {
+                    const next = [...categories];
+                    next[i] = e.target.value;
+                    setCategories(next);
+                  }}
+                  className="input-field flex-1"
+                  placeholder="Category name"
+                />
+                <button
+                  onClick={() => setCategories(categories.filter((_, j) => j !== i))}
+                  className="p-2 rounded-lg text-surface-600 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Add category manually */}
+          <div className="flex gap-2">
+            <input
+              value={newCat}
+              onChange={(e) => setNewCat(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addCategory()}
+              placeholder="Add category manually..."
+              className="input-field flex-1 !text-sm"
+            />
+            <button onClick={addCategory} disabled={!newCat.trim()} className="btn-ghost gap-1.5 text-sm">
+              <Plus className="w-4 h-4" /> Add
+            </button>
+          </div>
+
+          {/* Approve */}
+          <div className="flex items-center justify-between pt-2 border-t border-surface-700/20">
+            <p className="text-xs text-surface-500">
+              Approving locks the categories and enables categorization in Step 4.
+            </p>
+            <button
+              onClick={handleApprove}
+              disabled={isApproving || categories.length === 0}
+              className="btn-primary gap-2"
+            >
+              {isApproving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Approving...</>
+              ) : approved ? (
+                "✓ Re-approve"
+              ) : (
+                "Approve Categories →"
+              )}
+            </button>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
 
 // ─── Step 4: Results ──────────────────────────────────────────────────────────
 

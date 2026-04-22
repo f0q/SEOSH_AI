@@ -9,22 +9,39 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { groupQueriesLexically, normalizeForStorage } from "../services/lexicalGrouper";
 
-// Mock functions until remaining @seosh/semantic-core AI categorization is migrated
-const generateCategories = async (reps: string[], site: any, config: any) => {
-  return { categories: ["Mock Category 1", "Mock Category 2"] };
-};
-const categorizeQueries = async (queries: string[], categories: string[], config: any) => {
-  return [];
-};
-const findBestPage = (query: string, category: string, sitemap: any[]) => {
-  return null;
-};
+// ─── Real OpenRouter call ───────────────────────────────────────────────────
+async function callOpenRouter(
+  config: { apiKey: string; model: string; baseUrl: string },
+  prompt: string
+): Promise<string> {
+  const res = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://seosh.ai",
+      "X-Title": "SEOSH.AI Semantic Core",
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 600,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`OpenRouter error ${res.status}: ${body.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "";
+}
 
 // ─── Helper to get AI config from env ───────────────────────────────────────
-function getAIConfig() {
+function getAIConfig(modelOverride?: string) {
   return {
     apiKey: process.env.OPENROUTER_API_KEY || "",
-    model: process.env.OPENROUTER_MODEL_CLASSIFY || "google/gemini-2.0-flash-001",
+    model: modelOverride || process.env.OPENROUTER_MODEL_CLASSIFY || "google/gemini-2.0-flash-001",
     baseUrl: "https://openrouter.ai/api/v1",
   };
 }
@@ -146,37 +163,86 @@ export const semanticCoreRouter = router({
     .input(
       z.object({
         semanticCoreId: z.string(),
-        websiteUrl: z.string().url(),
+        websiteUrl: z.string().optional(),
+        modelId: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const config = getAIConfig();
+      const config = getAIConfig(input.modelId);
       if (!config.apiKey) throw new Error("OpenRouter API key not configured");
 
-      // Fetch representatives from DB (just take top 100 max to save tokens)
+      // Get site URL from DB if not passed
+      const core = await prisma.semanticCore.findFirst({
+        where: { id: input.semanticCoreId },
+        select: { siteUrl: true },
+      });
+      const siteUrl = input.websiteUrl || core?.siteUrl || "(unknown)";
+
+      // Fetch representatives
       const reps = await prisma.lexicalGroup.findMany({
         where: { semanticCoreId: input.semanticCoreId },
         take: 100,
-        select: { representativeQuery: true }
+        orderBy: { queries: { _count: "desc" } },
+        select: { representativeQuery: true },
       });
       const repStrings = reps.map((r: any) => r.representativeQuery);
 
-      const result = await generateCategories(
-        repStrings,
-        { url: input.websiteUrl, pages: [] }, // pages empty for now
-        config
-      );
+      if (repStrings.length === 0)
+        throw new Error("No keyword groups found. Complete Step 2 (upload keywords) first.");
 
-      // Save categories to DB
-      await prisma.$transaction(
-        result.categories.map((cat: string) => 
-          prisma.category.create({
-            data: { name: cat, semanticCoreId: input.semanticCoreId }
-          })
-        )
-      );
+      const prompt = `You are a senior SEO strategist. Below are the most representative keyword queries from a website: ${siteUrl}
 
-      return { categories: result.categories };
+Keyword representatives:
+${repStrings.slice(0, 80).map((q, i) => `${i + 1}. ${q}`).join("\n")}
+
+Task: Suggest 5-12 broad content categories to organize these keywords into a semantic content plan. Categories should reflect the website's main topics and match its structure.
+
+Rules:
+- Each category name should be 2-5 words, clear and descriptive
+- Think like an SEO strategist planning a site's content sections
+- Avoid generic names like "Other" or "Miscellaneous"
+- Return ONLY a valid JSON array of strings, nothing else
+- Example output: ["Product Reviews", "How-To Guides", "Service Pages", "Company Blog"]`;
+
+      const aiResponse = await callOpenRouter(config, prompt);
+
+      // Parse JSON array from AI response
+      let categories: string[] = [];
+      try {
+        const match = aiResponse.match(/\[[\s\S]*?\]/);
+        if (match) categories = JSON.parse(match[0]);
+      } catch {
+        // Fallback: parse line by line
+        categories = aiResponse
+          .split("\n")
+          .map((l) => l.replace(/^[\-\*•"\d\.\)]+\s*/, "").replace(/",$/, "").replace(/^"|"$/g, "").trim())
+          .filter((l) => l.length > 2 && l.length < 60)
+          .slice(0, 12);
+      }
+
+      if (categories.length === 0)
+        throw new Error("AI returned no categories. Try a different model or add more keywords first.");
+
+      // Persist: wipe old categories, save new ones
+      await prisma.$transaction(async (tx: any) => {
+        await tx.category.deleteMany({ where: { semanticCoreId: input.semanticCoreId } });
+        await tx.category.createMany({
+          data: categories.map((name: string) => ({ name, semanticCoreId: input.semanticCoreId })),
+        });
+      });
+
+      return { categories };
+    }),
+
+  /** Get saved categories for a semantic core */
+  getCategories: protectedProcedure
+    .input(z.object({ semanticCoreId: z.string() }))
+    .query(async ({ input }) => {
+      const cats = await prisma.category.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        select: { id: true, name: true, approved: true },
+      });
+      return cats;
     }),
 
   /** Approve categories and start batch classification */
