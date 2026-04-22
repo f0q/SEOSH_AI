@@ -563,11 +563,13 @@ Rules:
       return { results, summary };
     }),
 
-  /** Update a query's manually assigned page URL */
   updatePage: protectedProcedure
     .input(z.object({ queryId: z.string(), pageUrl: z.string().nullable() }))
     .mutation(async ({ input }) => {
-      // TODO: prisma.query.update
+      await prisma.query.update({
+        where: { id: input.queryId },
+        data: { pageUrl: input.pageUrl },
+      });
       return { success: true };
     }),
 
@@ -714,8 +716,28 @@ Rules:
   exportCsv: protectedProcedure
     .input(z.object({ semanticCoreId: z.string() }))
     .mutation(async ({ input }) => {
-      // TODO: Query DB → generateCsv → return base64 CSV
-      return { csv: "" };
+      const queries = await prisma.query.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        include: { category: true, group: true },
+        orderBy: { text: 'asc' },
+      });
+
+      const escCsv = (s: string) => {
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      };
+
+      const header = 'Keyword,Category,Group,Page';
+      const rows = queries.map((q: any) => [
+        escCsv(q.text),
+        escCsv(q.category?.name || 'Uncategorized'),
+        escCsv(q.group?.representativeQuery || ''),
+        escCsv(q.pageUrl || ''),
+      ].join(','));
+
+      const csv = [header, ...rows].join('\n');
+      const base64 = Buffer.from(csv, 'utf-8').toString('base64');
+      return { csv: base64, filename: `semantic-core-${input.semanticCoreId.slice(0, 8)}.csv` };
     }),
 
   /** Link/unlink a semantic core to a project */

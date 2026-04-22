@@ -603,6 +603,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
     onSuccess: () => { catData.refetch(); refetch(); },
     onError: (e) => setCatError(e.message),
   });
+  const exportCsvMut = trpc.semanticCore.exportCsv.useMutation();
 
   // Category editing state (for distribution bar)
   const [editingCat, setEditingCat] = useState<{ id: string; name: string } | null>(null);
@@ -679,7 +680,30 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
           <h2 className="text-lg font-semibold text-surface-100 mb-1">Results</h2>
           <p className="text-sm text-surface-400">Keyword → Category → Page mapping</p>
         </div>
-        <button className="btn-secondary text-sm">Export CSV</button>
+        <button
+          className="btn-secondary text-sm"
+          disabled={!semanticCoreId || totalResults === 0}
+          onClick={async () => {
+            if (!semanticCoreId) return;
+            try {
+              const res = await exportCsvMut.mutateAsync({ semanticCoreId });
+              const decoded = atob(res.csv);
+              // Add BOM for Excel UTF-8 compatibility
+              const bom = '\uFEFF';
+              const blob = new Blob([bom + decoded], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = res.filename;
+              a.click();
+              URL.revokeObjectURL(url);
+            } catch (e: any) {
+              setCatError(e.message);
+            }
+          }}
+        >
+          {exportCsvMut.isPending ? 'Exporting…' : 'Export CSV'}
+        </button>
       </div>
 
       {/* Category distribution bar — editable */}
