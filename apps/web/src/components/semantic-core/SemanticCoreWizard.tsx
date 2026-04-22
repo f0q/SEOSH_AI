@@ -17,6 +17,39 @@ import { AIModelSelector } from "../ui/AIModelSelector";
 import { StepSitemap } from "./StepSitemap";
 import { StepKeywords } from "./StepKeywords";
 
+// ─── Category color palette ───────────────────────────────────────────────────
+// 12 distinct hues that look good on dark backgrounds.
+// Using inline styles (not dynamic Tailwind classes) for reliable rendering.
+
+const CAT_PALETTE = [
+  { h: 186, label: "cyan"    },
+  { h: 270, label: "violet"  },
+  { h: 150, label: "emerald" },
+  { h: 35,  label: "amber"   },
+  { h: 330, label: "pink"    },
+  { h: 220, label: "blue"    },
+  { h: 175, label: "teal"    },
+  { h: 15,  label: "orange"  },
+  { h: 250, label: "indigo"  },
+  { h: 90,  label: "lime"    },
+  { h: 350, label: "rose"    },
+  { h: 200, label: "sky"     },
+];
+
+function getCatColor(name: string, allNames: string[]) {
+  const idx = allNames.indexOf(name);
+  const { h } = CAT_PALETTE[idx % CAT_PALETTE.length] ?? CAT_PALETTE[0];
+  return {
+    badge: {
+      color: `hsl(${h} 80% 72%)`,
+      background: `hsl(${h} 70% 30% / 0.15)`,
+      border: `1px solid hsl(${h} 60% 50% / 0.30)`,
+    },
+    dot: `hsl(${h} 80% 65%)`,
+    check: `hsl(${h} 80% 70%)`,
+  };
+}
+
 // ─── Step config ─────────────────────────────────────────────────────────────
 
 const STEPS = [
@@ -608,11 +641,13 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
             {catNames.map((name: string) => {
               const count = summary[name] ?? 0;
               const pct = totalResults > 0 ? Math.round((count / totalResults) * 100) : 0;
+              const clr = getCatColor(name, catNames);
               return (
-                <div key={name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/20 bg-cyan-500/8">
-                  <span className="text-xs font-medium text-cyan-300">{name}</span>
-                  <span className="text-xs text-surface-500">{count}</span>
-                  {pct > 0 && <span className="text-[10px] text-surface-600">{pct}%</span>}
+                <div key={name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={clr.badge}>
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: clr.dot }} />
+                  <span className="text-xs font-medium">{name}</span>
+                  <span className="text-xs opacity-60">{count}</span>
+                  {pct > 0 && <span className="text-[10px] opacity-40">{pct}%</span>}
                 </div>
               );
             })}
@@ -801,6 +836,7 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
 }) {
   const [open, setOpen] = useState(false);
   const isUncategorized = !row.category || row.category === "Uncategorized";
+  const clr = isUncategorized ? null : getCatColor(row.category, catNames);
 
   return (
     <tr className="border-b border-surface-700/20 hover:bg-surface-800/20 transition-colors">
@@ -809,35 +845,51 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
       <td className="px-4 py-2.5 relative">
         <button
           onClick={() => setOpen((o) => !o)}
-          className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
-            isUncategorized
-              ? "text-surface-500 bg-surface-800/40 border-surface-700/30 hover:border-surface-600/50"
-              : "text-cyan-300 bg-cyan-500/10 border-cyan-500/20 hover:border-cyan-500/40"
-          }`}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg transition-colors"
+          style={clr?.badge ?? {
+            color: "hsl(0 0% 50%)",
+            background: "hsl(0 0% 15% / 0.4)",
+            border: "1px solid hsl(0 0% 30% / 0.3)",
+          }}
         >
+          {!isUncategorized && (
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: clr!.dot }} />
+          )}
           {row.category || "Uncategorized"}
           <ChevronDown className="w-3 h-3 opacity-60" />
         </button>
         {open && (
           <div className="absolute left-0 top-full mt-1 z-20 bg-surface-900 border border-surface-700/50 rounded-xl shadow-xl min-w-52 py-1 animate-fade-in">
             <p className="text-[10px] text-surface-600 px-3 py-1 uppercase tracking-wide">Assign to category</p>
-            {catNames.map((name) => (
-              <div key={name} className="group flex items-center">
-                <button
-                  onClick={() => { onCategoryChange(row.id, name, false); setOpen(false); }}
-                  className={`flex-1 text-left text-xs px-3 py-1.5 hover:bg-surface-800 transition-colors ${name === row.category ? "text-cyan-400" : "text-surface-300"}`}
-                >
-                  {name === row.category && "✓ "}{name}
-                </button>
-                <button
-                  onClick={() => { onCategoryChange(row.id, name, true); setOpen(false); }}
-                  title="Apply to entire group"
-                  className="text-[10px] text-surface-600 hover:text-surface-400 px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
-                >
-                  all group
-                </button>
-              </div>
-            ))}
+            {catNames.map((name) => {
+              const itemClr = getCatColor(name, catNames);
+              const isActive = name === row.category;
+              return (
+                <div key={name} className="group flex items-center">
+                  <button
+                    onClick={() => { onCategoryChange(row.id, name, false); setOpen(false); }}
+                    className="flex-1 flex items-center gap-2 text-left text-xs px-3 py-1.5 hover:bg-surface-800 transition-colors"
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: itemClr.dot, opacity: isActive ? 1 : 0.5 }}
+                    />
+                    <span style={{ color: isActive ? itemClr.check : undefined }}
+                      className={isActive ? "font-medium" : "text-surface-300"}>
+                      {name}
+                    </span>
+                    {isActive && <span style={{ color: itemClr.check }} className="ml-auto text-xs">✓</span>}
+                  </button>
+                  <button
+                    onClick={() => { onCategoryChange(row.id, name, true); setOpen(false); }}
+                    title="Apply to entire group"
+                    className="text-[10px] text-surface-600 hover:text-surface-400 px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+                  >
+                    all group
+                  </button>
+                </div>
+              );
+            })}
             {!isUncategorized && (
               <>
                 <div className="border-t border-surface-700/30 my-1" />
