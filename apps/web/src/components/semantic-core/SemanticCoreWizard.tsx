@@ -148,7 +148,7 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
             semanticCoreId={semanticCoreId}
             onComplete={(id) => {
               setSemanticCoreId(id);
-              setTimeout(() => setStep(2), 600);
+              // No auto-advance — user reviews pages and clicks Continue
             }}
           />
         )}
