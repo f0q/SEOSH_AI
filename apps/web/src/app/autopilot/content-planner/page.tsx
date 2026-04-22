@@ -9,8 +9,9 @@ import { PAGE_TYPES, getDefaultSchema, getDefaultWordCount } from "@seosh/shared
 import {
   LayoutList, Plus, Trash2, ChevronLeft, Users, Mail,
   Sparkles, ShieldCheck, Lightbulb, X, Check, Loader2,
-  ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown,
+  ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown, Wand2,
 } from "lucide-react";
+import { IdeationModal } from "@/components/content-planner/IdeationModal";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -220,6 +221,7 @@ export default function ContentPlannerPage() {
   const router = useRouter();
   const { activeProject } = useProject();
   const [showInvite, setShowInvite] = useState(false);
+  const [showIdeation, setShowIdeation] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [rowError, setRowError] = useState<string | null>(null);
   const [kwSearch, setKwSearch] = useState("");
@@ -376,7 +378,15 @@ export default function ContentPlannerPage() {
               </div>
             </div>
 
-            <div className="w-px h-6 bg-surface-700/50" />
+            <div className="w-px h-6 bg-surface-700/50 mx-2" />
+
+            <button
+              onClick={() => setShowIdeation(true)}
+              className="btn-primary gap-2 text-sm"
+            >
+              <Wand2 className="w-4 h-4" />
+              Start Planning Content
+            </button>
 
             <button
               onClick={() => setShowInvite(true)}
@@ -796,6 +806,15 @@ export default function ContentPlannerPage() {
           onClose={() => setShowInvite(false)}
         />
       )}
+      {/* Ideation Modal */}
+      {showIdeation && (
+        <IdeationModal
+          projectId={projectId}
+          onClose={() => setShowIdeation(false)}
+          onAddItems={() => utils.contentPlan.getByProject.invalidate({ projectId })}
+        />
+      )}
+
     </DashboardLayout>
   );
 }

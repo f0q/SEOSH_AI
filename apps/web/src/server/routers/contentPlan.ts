@@ -428,4 +428,43 @@ export const contentPlanRouter = router({
         },
       });
     }),
+
+  // ─── Ideation & Planning ────────────────────────────────────────────────────
+
+  getRandomTopic: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      // Find semantic cores belonging to this project (or all for user if no direct relation)
+      const cores = await prisma.semanticCore.findMany({
+        where: { userId: ctx.user.id },
+        select: { id: true }
+      });
+      if (!cores.length) return { topic: "No semantic cores found." };
+      
+      const queries = await prisma.query.findMany({
+        where: { semanticCoreId: { in: cores.map(c => c.id) } },
+        take: 100,
+      });
+
+      if (!queries.length) return { topic: "No keywords found in your cores." };
+      
+      const randomQuery = queries[Math.floor(Math.random() * queries.length)];
+      return { topic: randomQuery.text };
+    }),
+
+  proposeIdeas: protectedProcedure
+    .input(z.object({ topic: z.string() }))
+    .mutation(async ({ input }) => {
+      // Stub for real AI generation. In a full implementation, we'd call OpenRouter here.
+      // This will let the user test the workflow safely.
+      return {
+        ideas: [
+          { title: `Ultimate Guide to ${input.topic}`, type: "blog_post", intent: "Informational" },
+          { title: `Top 10 ${input.topic} trends in 2026`, type: "listicle", intent: "Commercial" },
+          { title: `How to choose the best ${input.topic}`, type: "how_to", intent: "Informational" },
+          { title: `${input.topic} vs Alternatives`, type: "comparison", intent: "Commercial" },
+          { title: `${input.topic} Case Study`, type: "case_study", intent: "Navigational" },
+        ]
+      };
+    }),
 });
