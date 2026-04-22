@@ -517,7 +517,8 @@ Rules:
     .query(async ({ input }) => {
       const queries = await prisma.query.findMany({
         where: { semanticCoreId: input.semanticCoreId },
-        include: { category: true, group: true }
+        include: { category: true, group: true },
+        orderBy: { text: 'asc' },
       });
 
       const results = queries.map((q: any) => ({

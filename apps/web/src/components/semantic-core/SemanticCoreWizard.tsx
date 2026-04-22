@@ -880,18 +880,19 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
       <td className="px-4 py-2.5 relative">
         <button
           onClick={() => setOpen((o) => !o)}
-          className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg transition-colors max-w-[160px]"
           style={clr?.badge ?? {
             color: "hsl(0 0% 50%)",
             background: "hsl(0 0% 15% / 0.4)",
             border: "1px solid hsl(0 0% 30% / 0.3)",
           }}
+          title={row.category || "Uncategorized"}
         >
           {!isUncategorized && (
             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: clr!.dot }} />
           )}
-          {row.category || "Uncategorized"}
-          <ChevronDown className="w-3 h-3 opacity-60" />
+          <span className="truncate">{row.category || "Uncategorized"}</span>
+          <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0" />
         </button>
         {open && (
           <div className="absolute left-0 top-full mt-1 z-20 bg-surface-900 border border-surface-700/50 rounded-xl shadow-xl min-w-52 py-1 animate-fade-in">
