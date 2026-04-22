@@ -574,6 +574,18 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
     onSuccess: () => { catData.refetch(); refetch(); },
     onError: (e) => setCatError(e.message),
   });
+  const refineCatMut = trpc.semanticCore.refineCategory.useMutation({
+    onSuccess: (res) => {
+      if (res.moved > 0) {
+        catData.refetch();
+        refetch();
+        alert(`Refined: moved ${res.moved} outliers to Uncategorized.`);
+      } else {
+        alert("Category looks good! No outliers found.");
+      }
+    },
+    onError: (e) => setCatError(e.message),
+  });
   const exportCsvMut = trpc.semanticCore.exportCsv.useMutation();
 
   // Category editing state (for distribution bar)
@@ -737,6 +749,18 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                     title="Delete category"
                   >
                     <Trash2 className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Ask AI to refine "${cat.name}"? This will move outliers to Uncategorized.`)) {
+                        refineCatMut.mutate({ semanticCoreId: semanticCoreId || "", categoryName: cat.name, modelId: catModelId || undefined, language: catLanguage });
+                      }
+                    }}
+                    disabled={refineCatMut.isPending}
+                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-indigo-400 disabled:opacity-30 disabled:animate-pulse ml-0.5"
+                    title="Refine with AI (removes outliers)"
+                  >
+                    <Wand2 className="w-3 h-3" />
                   </button>
                 </div>
               );

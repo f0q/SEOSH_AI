@@ -704,12 +704,94 @@ Rules:
       return { success: true };
     }),
 
-  /** Refine a category: AI re-evaluates all its queries */
+  /** Refine a category: AI re-evaluates all its queries and removes outliers */
   refineCategory: protectedProcedure
-    .input(z.object({ semanticCoreId: z.string(), categoryName: z.string() }))
+    .input(z.object({
+      semanticCoreId: z.string(),
+      categoryName: z.string(),
+      modelId: z.string().optional(),
+      language: z.string().optional()
+    }))
     .mutation(async ({ input }) => {
-      // TODO: Get queries from DB → call refineCategory AI → apply moves
-      return { moved: 0, total: 0, moves: [] };
+      const category = await prisma.category.findFirst({
+        where: { semanticCoreId: input.semanticCoreId, name: input.categoryName }
+      });
+      if (!category) throw new Error("Category not found");
+
+      // Find all queries in this category
+      const queries = await prisma.query.findMany({
+        where: { categoryId: category.id },
+        include: { group: true }
+      });
+
+      if (queries.length === 0) return { moved: 0, total: 0, moves: [] };
+
+      // Deduplicate by group representative query
+      const groupsMap = new Map<string, any>();
+      for (const q of queries) {
+        if (q.group?.representativeQuery) {
+          groupsMap.set(q.group.id, q.group);
+        }
+      }
+      
+      const uniqueGroups = Array.from(groupsMap.values());
+      const keywordsList = uniqueGroups.map(g => g.representativeQuery);
+
+      const prompt = `You are an expert SEO architect.
+We have a semantic core category named: "${input.categoryName}"
+
+Here are the representative keywords currently assigned to this category:
+${keywordsList.map(k => `- ${k}`).join('\n')}
+
+Your task is to identify which keywords DO NOT belong in this category because their search intent or subject matter is distinctly different from the core theme of the category.
+Be strict but reasonable. If a keyword is borderline, keep it.
+
+Return ONLY valid JSON in this exact format:
+[
+  { "keyword": "the exact keyword from the list above", "reason": "brief explanation why it doesn't fit" }
+]
+
+If all keywords fit perfectly, return an empty array [].
+Respond ONLY with the JSON array, no markdown formatting, no backticks.`;
+
+      const config = getAIConfig(input.modelId);
+      const aiResponse = await callOpenRouter(config, prompt);
+
+      let outliers: { keyword: string; reason: string }[] = [];
+      try {
+        const text = aiResponse.trim().replace(/^```json\n?/, '').replace(/```$/, '').trim();
+        outliers = JSON.parse(text);
+      } catch (e) {
+        throw new Error("AI returned invalid JSON: " + aiResponse);
+      }
+
+      if (!Array.isArray(outliers) || outliers.length === 0) {
+        return { moved: 0, total: uniqueGroups.length, moves: [] };
+      }
+
+      const movedGroupIds: string[] = [];
+      const moves: { keyword: string; reason: string }[] = [];
+
+      for (const out of outliers) {
+        const group = uniqueGroups.find(g => g.representativeQuery === out.keyword);
+        if (group) {
+          movedGroupIds.push(group.id);
+          moves.push({ keyword: out.keyword, reason: out.reason });
+        }
+      }
+
+      if (movedGroupIds.length > 0) {
+        await prisma.query.updateMany({
+          where: { groupId: { in: movedGroupIds } },
+          data: { categoryId: null } // Move to Uncategorized
+        });
+      }
+
+      return {
+        moved: movedGroupIds.length,
+        total: uniqueGroups.length,
+        moves
+      };
     }),
 
   /** Export results as CSV */
