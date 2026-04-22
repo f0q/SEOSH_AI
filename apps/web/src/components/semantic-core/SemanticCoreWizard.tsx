@@ -13,7 +13,8 @@
  */
 
 import { useState } from "react";
-import { Brain, Globe, Upload, Tags, BarChart3, ArrowRight, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Brain, Globe, Upload, Tags, BarChart3, ArrowRight, ArrowLeft, LayoutList, Loader2, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
 
@@ -100,7 +101,7 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
         {step === 1 && <StepSitemap projectId={projectId} onComplete={(id) => setSemanticCoreId(id)} />}
         {step === 2 && <StepKeywords semanticCoreId={semanticCoreId} />}
         {step === 3 && <StepCategories semanticCoreId={semanticCoreId} url={"https://example.com"} />}
-        {step === 4 && <StepResults semanticCoreId={semanticCoreId} />}
+        {step === 4 && <StepResults semanticCoreId={semanticCoreId} projectId={projectId} />}
       </div>
 
       {/* Navigation */}
@@ -321,11 +322,37 @@ function StepCategories({ semanticCoreId, url }: { semanticCoreId: string | null
   );
 }
 
-function StepResults({ semanticCoreId }: { semanticCoreId: string | null }) {
+function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | null; projectId: string | undefined }) {
+  const router = useRouter();
+  const [genStatus, setGenStatus] = useState<"idle" | "generating" | "done">("idle");
+  const [genResult, setGenResult] = useState<{ created: number; categories: string[] } | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
+
   const { data, isLoading } = trpc.semanticCore.getResults.useQuery(
     { semanticCoreId: semanticCoreId || "" },
     { enabled: !!semanticCoreId }
   );
+
+  const generatePlan = trpc.contentPlan.generateFromSemanticCore.useMutation({
+    onSuccess: (result) => {
+      setGenResult(result);
+      setGenStatus("done");
+    },
+    onError: (err) => {
+      setGenError(err.message);
+      setGenStatus("idle");
+    },
+  });
+
+  const handleGenerate = async () => {
+    if (!semanticCoreId || !projectId) return;
+    setGenStatus("generating");
+    setGenError(null);
+    generatePlan.mutate({ semanticCoreId, projectId });
+  };
+
+  const totalResults = data?.results?.length ?? 0;
+  const categories = data?.summary ? Object.keys(data.summary) : [];
 
   return (
     <div className="space-y-5">
@@ -334,8 +361,78 @@ function StepResults({ semanticCoreId }: { semanticCoreId: string | null }) {
           <h2 className="text-lg font-semibold text-surface-100 mb-1">Results</h2>
           <p className="text-sm text-surface-400">Keyword → Category → Page mapping</p>
         </div>
-        <button className="btn-secondary">Export CSV</button>
+        <div className="flex items-center gap-2">
+          <button className="btn-secondary">Export CSV</button>
+        </div>
       </div>
+
+      {/* ── Generate Content Plan banner ── */}
+      {projectId && totalResults > 0 && (
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+          {genStatus === "done" && genResult ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-emerald-300">
+                    Created {genResult.created} content plan rows from {genResult.categories.length} categories
+                  </p>
+                  <p className="text-xs text-surface-500 mt-0.5">
+                    Categories: {genResult.categories.join(", ")}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push("/autopilot/content-planner")}
+                className="btn-primary gap-2 text-sm"
+              >
+                <LayoutList className="w-4 h-4" />
+                Open Content Planner
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <LayoutList className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-surface-200">
+                    Generate Content Plan
+                  </p>
+                  <p className="text-xs text-surface-500 mt-0.5">
+                    Create {categories.length} content plan rows from your keyword categories.
+                    Each row gets auto-filled page type, schema, target word count, and priority.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleGenerate}
+                disabled={genStatus === "generating"}
+                className="btn-primary gap-2 text-sm flex-shrink-0"
+              >
+                {genStatus === "generating" ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+                ) : (
+                  <><LayoutList className="w-4 h-4" /> Generate Plan</>
+                )}
+              </button>
+            </div>
+          )}
+
+          {genError && (
+            <p className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              {genError}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!projectId && totalResults > 0 && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+          <p className="text-sm text-amber-300">
+            ⚠ Link this semantic core to a project (top-right dropdown) to generate a content plan.
+          </p>
+        </div>
+      )}
 
       <div className="overflow-auto rounded-xl border border-surface-700/30">
         <table className="w-full text-sm">

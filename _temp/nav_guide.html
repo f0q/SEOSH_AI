@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Структура навигации — fackturaf.com</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+    }
+
+    /* ── Шапка гайда ── */
+    header.guide-header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 40px 48px 36px;
+    }
+    .guide-header .inner { max-width: 960px; margin: 0 auto; }
+    .guide-header .label {
+      font-size: 11px; font-weight: 600; letter-spacing: .1em;
+      text-transform: uppercase; color: #7c83fd; margin-bottom: 10px;
+    }
+    .guide-header h1 { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
+    .guide-header h1 span { color: #7c83fd; }
+    .guide-header p { font-size: 14px; color: #aab; max-width: 580px; line-height: 1.65; }
+    .guide-header .back {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 20px; font-size: 13px; color: #7c83fd;
+      text-decoration: none; opacity: .8;
+    }
+    .guide-header .back:hover { opacity: 1; }
+
+    /* ── Страница ── */
+    .page { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    .section-title {
+      font-size: 12px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: #7c83fd;
+      margin-bottom: 20px; margin-top: 48px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px; background: #dde;
+    }
+
+    /* ── Рамка демо (имитация браузера) ── */
+    .browser-frame {
+      border-radius: 12px;
+      /* НЕ overflow:hidden — иначе выпадающие меню обрезаются */
+      border: 1px solid #dde; box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    }
+    .browser-bar {
+      background: #f8f9fb; border-bottom: 1px solid #e2e8f0;
+      padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+      border-radius: 12px 12px 0 0; /* скругление верхних углов вместо overflow */
+    }
+
+    /* ── Верхняя информационная полоса ── */
+    .demo-topbar {
+      background: #f8f9fb; border-bottom: 1px solid #e8eaf0;
+      padding: 0 20px; height: 34px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12.5px;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 20px; }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+
+    .topbar-phone {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 700; color: #111827; text-decoration: none;
+    }
+    .topbar-phone:hover { color: #2563eb; }
+
+    .topbar-sep { color: #d1d5db; }
+
+    .topbar-messengers { display: flex; align-items: center; gap: 6px; }
+    .msg-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 50%;
+      font-size: 10px; font-weight: 800; color: #fff; text-decoration: none;
+      transition: opacity .15s;
+    }
+    .msg-icon:hover { opacity: .85; }
+    .msg-wa { background: #25D366; }
+    .msg-tg { background: #2AABEE; }
+
+    .topbar-address {
+      color: #6b7280; font-size: 12.5px;
+      display: flex; align-items: center; gap: 5px;
+    }
+
+    .topbar-account {
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #e5e7eb; color: #6b7280; text-decoration: none;
+      font-size: 13px; transition: background .15s;
+    }
+    .topbar-account:hover { background: #d1d5db; }
+    .browser-dots { display: flex; gap: 6px; }
+    .browser-dots i {
+      display: block; width: 10px; height: 10px; border-radius: 50%;
+    }
+    .browser-dots i:nth-child(1) { background: #ef4444; }
+    .browser-dots i:nth-child(2) { background: #f59e0b; }
+    .browser-dots i:nth-child(3) { background: #10b981; }
+    .browser-url {
+      flex: 1; background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 6px; padding: 4px 12px; font-size: 12px;
+      color: #64748b; font-family: monospace;
+    }
+
+    /* ── Пояснение к пунктам ── */
+    .nav-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+    .nav-table th {
+      background: #1a1a2e; color: #fff; padding: 10px 14px;
+      text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .nav-table td {
+      padding: 11px 14px; border-bottom: 1px solid #e8eaf0; vertical-align: top;
+    }
+    .nav-table tr:hover td { background: #f8f9fb; }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .badge-new { background: #d1fae5; color: #065f46; }
+    .badge-exists { background: #dbeafe; color: #1e40af; }
+    .badge-cta { background: #fee2e2; color: #991b1b; }
+    .url-code {
+      font-family: monospace; font-size: 12px; color: #5b21b6;
+      background: #ede9fe; padding: 2px 6px; border-radius: 4px;
+    }
+    .dd-items {
+      color: #6b7280; font-size: 12px; margin-top: 4px; line-height: 1.7;
+    }
+
+    /* ── Заметки ── */
+    .note {
+      margin-top: 16px; padding: 14px 18px; border-radius: 8px;
+      font-size: 13px; line-height: 1.6; border-left: 3px solid;
+    }
+    .note-blue { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
+    .note-yellow { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+    .note-green { background: #f0fdf4; border-color: #10b981; color: #065f46; }
+
+    /* ── Структура подвала (схема) ── */
+    .footer-schema {
+      display: grid; grid-template-columns: 1.6fr 1fr 1.4fr 1fr;
+      gap: 1px; background: #dde; border-radius: 12px;
+      overflow: hidden; margin-top: 20px;
+      border: 1px solid #dde;
+    }
+    .footer-col {
+      background: #fff; padding: 20px 18px;
+    }
+    .footer-col-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: #7c83fd; margin-bottom: 12px;
+      padding-bottom: 8px; border-bottom: 1px solid #eef;
+    }
+    .footer-col ul { list-style: none; }
+    .footer-col ul li {
+      font-size: 12px; color: #4b5563; padding: 3px 0;
+      display: flex; align-items: flex-start; gap: 6px;
+    }
+    .footer-col ul li::before { content: '→'; color: #c7d2fe; flex-shrink: 0; }
+    .footer-col ul li.group-title {
+      font-weight: 700; color: #374151; margin-top: 10px;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .footer-col ul li.group-title::before { content: none; }
+    .footer-col ul li.sub { padding-left: 12px; color: #6b7280; }
+    .footer-col ul li.sub::before { content: '·'; }
+    .footer-contact { font-size: 12px; color: #6b7280; margin-top: 12px; line-height: 1.9; }
+    .footer-contact strong { color: #1f2937; }
+    .footer-bottom-bar {
+      background: #1a1a2e; color: #64748b; font-size: 12px;
+      padding: 14px 18px;
+      display: flex; justify-content: space-between;
+      margin-top: 1px;
+      border-radius: 0 0 12px 12px;
+    }
+    .footer-bottom-bar a { color: #64748b; text-decoration: none; margin-left: 16px; }
+    .footer-bottom-bar a:hover { color: #94a3b8; }
+
+    /* ── Mobile frame ── */
+    .mobile-wrapper {
+      display: flex; gap: 32px; align-items: flex-start; margin-top: 20px;
+    }
+    .phone-frame {
+      width: 320px; flex-shrink: 0;
+      border: 1px solid #dde; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,.1);
+    }
+    .mobile-notes { flex: 1; }
+    .mobile-notes p { font-size: 13px; color: #4b5563; line-height: 1.7; margin-bottom: 12px; }
+    .mobile-notes ul { list-style: none; }
+    .mobile-notes ul li {
+      font-size: 13px; color: #4b5563; padding: 5px 0;
+      display: flex; gap: 8px; border-bottom: 1px solid #eef;
+    }
+    .mobile-notes ul li::before { content: '→'; color: #7c83fd; }
+
+    /* ── Живой header demo ── */
+    .demo-site-header {
+      background: #fff; border-bottom: 1px solid #e2e8f0;
+      position: relative; z-index: 10;
+    }
+    .demo-site-inner {
+      display: flex; align-items: center; height: 60px;
+      padding: 0 20px; gap: 0;
+    }
+    .demo-logo-link {
+      font-size: 17px; font-weight: 800; color: #0f172a;
+      text-decoration: none; margin-right: 20px; white-space: nowrap;
+    }
+    .demo-logo-link span { color: #2563eb; }
+    .demo-nav { display: flex; align-items: center; gap: 2px; flex: 1; }
+    .demo-nav-item { position: relative; }
+    .demo-nav-link {
+      display: flex; align-items: center; gap: 3px;
+      padding: 7px 11px; font-size: 13.5px; font-weight: 500;
+      color: #374151; border-radius: 6px; cursor: pointer;
+      white-space: nowrap; text-decoration: none;
+      transition: background .14s, color .14s; user-select: none;
+    }
+    .demo-nav-link .arr { font-size: 9px; color: #9ca3af; margin-top: 1px; }
+    .demo-nav-link:hover { background: #f1f5f9; color: #1e40af; }
+    .demo-nav-item:hover > .demo-nav-link { background: #f1f5f9; color: #1e40af; }
+
+    /* Dropdown */
+    .demo-dropdown {
+      display: none; position: absolute; top: calc(100% + 6px); left: 0;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.12); z-index: 100; padding: 14px;
+      min-width: 240px;
+    }
+    .demo-dropdown.mega { min-width: 540px; }
+    .demo-nav-item:hover .demo-dropdown { display: block; }
+
+    .dd-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+    .dd-mega-3 { display: grid; grid-template-columns: 1.4fr 1fr 0.6fr; gap: 0 16px; }
+
+    .dd-col-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: #9ca3af;
+      margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;
+    }
+    .dd-link {
+      display: block; padding: 5px 8px; border-radius: 6px;
+      font-size: 13px; color: #374151; text-decoration: none;
+      transition: background .1s;
+    }
+    .dd-link:hover { background: #f8fafc; color: #1e40af; }
+    .dd-divider { height: 1px; background: #f1f5f9; margin: 10px 0; }
+    .dd-all {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 9px; background: #f8fafc; border-radius: 8px;
+      font-size: 13px; font-weight: 600; color: #2563eb; text-decoration: none;
+    }
+    .dd-all:hover { background: #eff6ff; }
+
+    .demo-cta-btn {
+      margin-left: auto; padding: 8px 18px;
+      background: #2563eb; color: #fff; border-radius: 7px;
+      font-size: 13.5px; font-weight: 600; text-decoration: none;
+      white-space: nowrap; transition: background .14s;
+    }
+    .demo-cta-btn:hover { background: #1d4ed8; }
+
+    /* ── Живое демо footer ── */
+    .demo-site-footer { background: #111827; padding: 44px 20px 0; }
+    .demo-footer-grid {
+      display: grid; grid-template-columns: 1.8fr 1fr 1.4fr 1fr;
+      gap: 36px;
+    }
+    .demo-footer-logo { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+    .demo-footer-logo span { color: #60a5fa; }
+    .demo-footer-desc { font-size: 12px; color: #9ca3af; line-height: 1.8; margin-bottom: 14px; }
+    .demo-footer-contact { font-size: 13px; color: #d1d5db; line-height: 2; }
+    .demo-footer-col-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 14px; }
+    .demo-footer-links { list-style: none; }
+    .demo-footer-links li { margin-bottom: 7px; }
+    .demo-footer-links a { font-size: 12px; color: #9ca3af; text-decoration: none; transition: color .14s; }
+    .demo-footer-links a:hover { color: #60a5fa; }
+    .demo-footer-links .grp {
+      font-size: 10px; font-weight: 700; color: #4b5563;
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-top: 12px; margin-bottom: 6px;
+    }
+    .demo-footer-bottom {
+      display: flex; justify-content: space-between; align-items: center;
+      border-top: 1px solid #1f2937; margin-top: 36px;
+      padding: 16px 0; font-size: 11px; color: #6b7280;
+    }
+    .demo-footer-bottom a { color: #6b7280; text-decoration: none; margin-left: 14px; }
+    .demo-footer-bottom a:hover { color: #9ca3af; }
+
+    /* ── Яндекс-рейтинг в подвале ── */
+    .ya-rating-row {
+      border-top: 1px solid #1f2937; margin-top: 28px;
+      padding: 20px 0;
+      display: flex; align-items: center; gap: 24px;
+    }
+    .ya-widget {
+      display: inline-flex; align-items: center; gap: 14px;
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px; padding: 14px 20px; cursor: pointer;
+      transition: border-color .15s;
+      text-decoration: none;
+    }
+    .ya-widget:hover { border-color: rgba(255,255,255,.22); }
+    .ya-pin {
+      width: 38px; height: 38px; flex-shrink: 0;
+      background: #fc3f1d; border-radius: 50% 50% 50% 4px;
+      transform: rotate(-45deg); position: relative;
+    }
+    .ya-pin::after {
+      content: ''; position: absolute; inset: 0; margin: auto;
+      width: 16px; height: 16px; background: #fff; border-radius: 50%;
+    }
+    .ya-info { line-height: 1; }
+    .ya-score { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+    .ya-stars { font-size: 15px; color: #fbbf24; letter-spacing: 1px; margin-bottom: 4px; }
+    .ya-label { font-size: 11px; color: #9ca3af; }
+    .ya-cta {
+      font-size: 12px; color: #60a5fa; text-decoration: none;
+      border: 1px solid rgba(96,165,250,.3); padding: 7px 14px;
+      border-radius: 6px; white-space: nowrap; transition: background .15s;
+    }
+    .ya-cta:hover { background: rgba(96,165,250,.1); }
+    .ya-count { font-size: 12px; color: #6b7280; }
+
+    /* Схема подвала (светлая версия) */
+    .ya-schema-row {
+      display: flex; align-items: center; gap: 16px;
+      margin-top: 16px; padding: 14px 16px;
+      background: #fff9f9; border: 1px solid #fde8e8;
+      border-radius: 10px;
+    }
+    .ya-schema-pin {
+      width: 32px; height: 32px; flex-shrink: 0;
+      background: #fc3f1d; border-radius: 50% 50% 50% 4px;
+      transform: rotate(-45deg); position: relative;
+    }
+    .ya-schema-pin::after {
+      content: ''; position: absolute; inset: 0; margin: auto;
+      width: 14px; height: 14px; background: #fff; border-radius: 50%;
+    }
+    .ya-schema-score { font-size: 22px; font-weight: 800; color: #111827; }
+    .ya-schema-stars { font-size: 14px; color: #f59e0b; margin-bottom: 2px; }
+    .ya-schema-label { font-size: 11px; color: #9ca3af; }
+
+    /* ── Mobile demo ── */
+    .mob-header {
+      background: #fff; border-bottom: 1px solid #e8eaf0;
+      padding: 0 16px; display: flex; align-items: center;
+      justify-content: space-between; height: 52px;
+    }
+    .mob-logo { font-size: 15px; font-weight: 800; color: #0f172a; }
+    .mob-logo span { color: #2563eb; }
+    .mob-burger {
+      display: flex; flex-direction: column; justify-content: center;
+      gap: 4px; width: 32px; height: 32px; cursor: pointer;
+      background: none; border: none; padding: 4px;
+    }
+    .mob-burger span { display: block; height: 2px; background: #374151; border-radius: 2px; transition: all .25s; }
+    .mob-burger.open span:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+    .mob-burger.open span:nth-child(2) { opacity: 0; }
+    .mob-burger.open span:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
+    .mob-menu { display: none; background: #fff; }
+    .mob-menu.open { display: block; }
+    .mob-item { border-bottom: 1px solid #f1f5f9; }
+    .mob-link {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 13px 16px; font-size: 14px; font-weight: 500; color: #111827; cursor: pointer;
+    }
+    .mob-link .chevron { color: #9ca3af; font-size: 12px; transition: transform .2s; }
+    .mob-link.active .chevron { transform: rotate(180deg); }
+    .mob-sub { display: none; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+    .mob-sub.open { display: block; }
+    .mob-sub .grp {
+      padding: 8px 16px 3px 16px; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .07em; color: #9ca3af;
+    }
+    .mob-sub a {
+      display: block; padding: 9px 16px 9px 24px; font-size: 13px;
+      color: #374151; text-decoration: none; border-bottom: 1px solid #eef;
+    }
+    .mob-cta-btn {
+      display: block; margin: 14px 16px; padding: 13px;
+      text-align: center; background: #2563eb; color: #fff;
+      border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Шапка гайда                                                    -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<header class="guide-header">
+  <div class="inner">
+    <div class="label">Гайд по навигации</div>
+    <h1>Структура меню для <span>fackturaf.com</span></h1>
+    <p>Рекомендуемая навигация шапки и подвала на основе SEO-плана.
+      Учитывает существующие разделы сайта и новые страницы из контент-плана.</p>
+    <a class="back" href="index.html">← Назад к плану продвижения</a>
+  </div>
+</header>
+
+<div class="page">
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ШАПКА САЙТА                                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">Меню шапки — Desktop</div>
+
+  <!-- Живое демо -->
+  <div class="browser-frame">
+    <div class="browser-bar">
+      <div class="browser-dots"><i></i><i></i><i></i></div>
+      <div class="browser-url">fackturaf.com</div>
+    </div>
+
+    <!-- Верхняя информационная полоса -->
+    <div class="demo-topbar">
+      <div class="topbar-left">
+        <a class="topbar-phone" href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.2" stroke-linecap="round">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.69 13a19.79 19.79 0 01-3.07-8.67A2 2 0 013.62 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.91 9.55a16 16 0 006.54 6.54l.96-.96a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+          +7 (812) 564-68-57
+        </a>
+        <span class="topbar-sep">|</span>
+        <div class="topbar-messengers">
+          <a class="msg-icon msg-wa" href="#" title="WhatsApp">WA</a>
+          <a class="msg-icon msg-tg" href="#" title="Telegram">TG</a>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-address">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#9ca3af">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+          ул. Марата, д. 39
+        </span>
+        <a class="topbar-account" href="#" title="Личный кабинет">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="demo-site-header">
+      <div class="demo-site-inner">
+        <a class="demo-logo-link" href="#">Фактура&nbsp;<span>Ф</span></a>
+
+        <nav class="demo-nav">
+
+          <!-- Услуги -->
+          <div class="demo-nav-item">
+            <span class="demo-nav-link">Услуги <span class="arr">▾</span></span>
+            <div class="demo-dropdown">
+              <div class="dd-grid-2">
+                <div>
+                  <div class="dd-col-title">По методу нанесения</div>
+                  <a class="dd-link" href="#">Шелкография</a>
+                  <a class="dd-link" href="#">DTF печать</a>
+                  <a class="dd-link" href="#">Прямая печать (DTG)</a>
+                  <a class="dd-link" href="#">Термопечать</a>
+                  <a class="dd-link" href="#">Вышивка на одежде</a>
+                  <a class="dd-link" href="#">Лазерная гравировка</a>
+                </div>
+                <div>
+                  <div class="dd-col-title">По типу изделия</div>
+                  <a class="dd-link" href="#">Печать на футболках</a>
+                  <a class="dd-link" href="#">Печать на толстовках</a>
+                  <a class="dd-link" href="#">Печать на ткани</a>
+                  <a class="dd-link" href="#">Печать на кружках</a>
+                  <a class="dd-link" href="#">Печать визиток</a>
+                  <a class="dd-link" href="#">Печать на твёрдых поверхностях</a>
+                </div>
+              </div>
+              <div class="dd-divider"></div>
+              <a class="dd-all" href="#">→ Все услуги</a>
+            </div>
+          </div>
+
+          <!-- Продукция -->
+          <div class="demo-nav-item">
+            <span class="demo-nav-link">Продукция <span class="arr">▾</span></span>
+            <div class="demo-dropdown mega">
+              <div class="dd-mega-3">
+                <div>
+                  <div class="dd-col-title">Одежда</div>
+                  <a class="dd-link" href="#">Футболки</a>
+                  <a class="dd-link" href="#">Поло с логотипом</a>
+                  <a class="dd-link" href="#">Толстовки и худи</a>
+                  <a class="dd-link" href="#">Кепки и бейсболки</a>
+                  <a class="dd-link" href="#">Куртки и ветровки</a>
+                  <a class="dd-link" href="#">Детская одежда</a>
+                  <a class="dd-link" href="#">Спортивная одежда</a>
+                  <a class="dd-link" href="#">Фартуки с логотипом</a>
+                </div>
+                <div>
+                  <div class="dd-col-title">Сумки</div>
+                  <a class="dd-link" href="#">Сумки для ноутбука</a>
+                  <a class="dd-link" href="#">Шопперы</a>
+                  <a class="dd-link" href="#">Для документов</a>
+                  <a class="dd-link" href="#">Дорожные сумки</a>
+                  <a class="dd-link" href="#">Спортивные сумки</a>
+                  <a class="dd-link" href="#">Для пикника</a>
+                </div>
+                <div>
+                  <div class="dd-col-title">Дом</div>
+                  <a class="dd-link" href="#">Пледы</a>
+                </div>
+              </div>
+              <div class="dd-divider"></div>
+              <a class="dd-all" href="#">→ Вся продукция под нанесение</a>
+            </div>
+          </div>
+
+          <a class="demo-nav-link" href="#">Прайс</a>
+          <a class="demo-nav-link" href="#">Проекты</a>
+          <a class="demo-nav-link" href="#">Блог</a>
+          <a class="demo-nav-link" href="#">Скидки</a>
+          <a class="demo-nav-link" href="#">О нас</a>
+        </nav>
+
+        <a class="demo-cta-btn" href="#">Заказать</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="note note-blue" style="margin-top:14px">
+    <strong>Интерактивный демо:</strong> наведите курсор на «Услуги» или «Продукция» чтобы увидеть выпадающее меню.
+    Над основной навигацией — тонкая информационная полоса с телефоном, мессенджерами, адресом и иконкой личного кабинета.
+  </div>
+
+
+  <!-- Таблица пунктов -->
+  <div class="section-title">Пункты меню — описание и статус</div>
+
+  <table class="nav-table">
+    <thead>
+      <tr>
+        <th>Пункт меню</th>
+        <th>URL</th>
+        <th>Статус</th>
+        <th>Выпадающий список</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Услуги</strong></td>
+        <td><span class="url-code">/uslugi/</span></td>
+        <td><span class="badge badge-new">Новый раздел</span></td>
+        <td>
+          <div class="dd-items">
+            <strong>По методу:</strong> Шелкография, DTF, DTG, Термопечать, Вышивка, Лазерная гравировка<br>
+            <strong>По изделию:</strong> Футболки, Толстовки, Ткань, Кружки, Визитки, Тв. поверхности
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Продукция</strong></td>
+        <td><span class="url-code">/goods/</span></td>
+        <td><span class="badge badge-exists">Существует</span></td>
+        <td>
+          <div class="dd-items">
+            <strong>Одежда:</strong> Футболки, Поло, Толстовки, Кепки, Куртки, Детская, Спортивная, Фартуки<br>
+            <strong>Сумки:</strong> Для ноутбука, Шопперы, Для документов, Дорожные, Спортивные<br>
+            <strong>Дом:</strong> Пледы
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Прайс</strong></td>
+        <td><span class="url-code">/price/</span></td>
+        <td><span class="badge badge-exists">Существует</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><strong>Проекты</strong></td>
+        <td><span class="url-code">/portfolio/</span></td>
+        <td><span class="badge badge-exists">Существует</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><strong>Блог</strong></td>
+        <td><span class="url-code">/blog/</span></td>
+        <td><span class="badge badge-new">Новый раздел</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><strong>Скидки</strong></td>
+        <td><span class="url-code">/aktsii/</span></td>
+        <td><span class="badge badge-exists">Существует</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><strong>О нас</strong></td>
+        <td><span class="url-code">/o-kompanii/</span></td>
+        <td><span class="badge badge-exists">Существует</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><strong>Заказать</strong></td>
+        <td><span class="url-code">/kontakty/</span> или форма</td>
+        <td><span class="badge badge-cta">Кнопка CTA</span></td>
+        <td>Акцентная кнопка в правом конце шапки</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note note-yellow" style="margin-top:14px">
+    <strong>Приоритет добавления:</strong> сначала добавьте раздел <strong>Услуги</strong> в навигацию — это основной новый раздел из плана (13 страниц).
+    Раздел <strong>Блог</strong> добавляйте после публикации первых 5–7 статей,
+    чтобы раздел не выглядел пустым.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- МОБИЛЬНОЕ МЕНЮ                                            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">Меню шапки — Mobile</div>
+
+  <div class="mobile-wrapper">
+    <div class="phone-frame">
+      <div class="mob-header">
+        <div class="mob-logo">Фактура <span>Ф</span></div>
+        <button class="mob-burger" id="mob-burger" onclick="toggleMob()">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+      <div class="mob-menu" id="mob-menu">
+
+        <div class="mob-item">
+          <div class="mob-link" onclick="toggleSub(this)">
+            Услуги <span class="chevron">▾</span>
+          </div>
+          <div class="mob-sub">
+            <div class="grp">По методу нанесения</div>
+            <a href="#">Шелкография</a>
+            <a href="#">DTF печать</a>
+            <a href="#">Прямая печать (DTG)</a>
+            <a href="#">Термопечать</a>
+            <a href="#">Вышивка на одежде</a>
+            <a href="#">Лазерная гравировка</a>
+            <div class="grp">По изделию</div>
+            <a href="#">Печать на футболках</a>
+            <a href="#">Печать на толстовках</a>
+            <a href="#">Печать визиток</a>
+            <a href="#" style="font-weight:600;color:#2563eb">→ Все услуги</a>
+          </div>
+        </div>
+
+        <div class="mob-item">
+          <div class="mob-link" onclick="toggleSub(this)">
+            Продукция <span class="chevron">▾</span>
+          </div>
+          <div class="mob-sub">
+            <div class="grp">Одежда</div>
+            <a href="#">Футболки</a>
+            <a href="#">Поло с логотипом</a>
+            <a href="#">Толстовки</a>
+            <a href="#">Кепки</a>
+            <a href="#">Куртки и ветровки</a>
+            <div class="grp">Сумки</div>
+            <a href="#">Сумки для ноутбука</a>
+            <a href="#">Шопперы</a>
+            <div class="grp">Дом</div>
+            <a href="#">Пледы</a>
+            <a href="#" style="font-weight:600;color:#2563eb">→ Вся продукция</a>
+          </div>
+        </div>
+
+        <div class="mob-item">
+          <div class="mob-link">Прайс</div>
+        </div>
+        <div class="mob-item">
+          <div class="mob-link">Проекты</div>
+        </div>
+        <div class="mob-item">
+          <div class="mob-link">Блог</div>
+        </div>
+        <div class="mob-item">
+          <div class="mob-link">Скидки</div>
+        </div>
+        <div class="mob-item">
+          <div class="mob-link">О нас</div>
+        </div>
+
+        <a class="mob-cta-btn" href="#">Заказать</a>
+
+      </div>
+    </div>
+
+    <div class="mobile-notes">
+      <p>Мобильное меню раскрывается по нажатию на «гамбургер» (три горизонтальные линии).
+        Пункты с выпадающими списками разворачиваются аккордеоном вниз.</p>
+      <p><strong>Кнопка «Заказать»</strong> всегда видна в самом низу меню, закреплена якорем.</p>
+      <ul>
+        <li>«Услуги» — аккордеон с подпунктами, разбитый по группам</li>
+        <li>«Продукция» — аккордеон с подпунктами по категориям</li>
+        <li>Остальные пункты — простые ссылки без раскрытия</li>
+        <li>«Заказать» — акцентная кнопка в конце списка</li>
+      </ul>
+      <div class="note note-blue" style="margin-top:16px">
+        <strong>Нажмите гамбургер</strong> в демо слева и разворачивайте подпункты — всё интерактивно.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ПОДВАЛ САЙТА                                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">Меню подвала — схема колонок</div>
+
+  <div class="footer-schema">
+    <div class="footer-col">
+      <div class="footer-col-title">Колонка 1 — Компания</div>
+      <p style="font-size:12px;color:#374151;font-weight:700;margin-bottom:6px">Фактура Ф</p>
+      <div class="footer-contact">
+        Типография полного цикла.<br>
+        Печать на одежде и сувенирах.<br><br>
+        <strong>Санкт-Петербург</strong><br>
+        +7 (xxx) xxx-xx-xx<br>
+        info@fackturaf.com<br><br>
+        [иконки соцсетей]
+      </div>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">Колонка 2 — Услуги</div>
+      <ul>
+        <li>Шелкография</li>
+        <li>DTF печать</li>
+        <li>Прямая печать (DTG)</li>
+        <li>Термопечать</li>
+        <li>Вышивка на одежде</li>
+        <li>Лазерная гравировка</li>
+        <li>Печать на футболках</li>
+        <li>Печать на кружках</li>
+        <li>Печать визиток</li>
+        <li>→ Все услуги</li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">Колонка 3 — Продукция</div>
+      <ul>
+        <li class="group-title">Одежда</li>
+        <li class="sub">Футболки</li>
+        <li class="sub">Поло с логотипом</li>
+        <li class="sub">Толстовки</li>
+        <li class="sub">Кепки</li>
+        <li class="sub">Куртки и ветровки</li>
+        <li class="sub">Детская одежда</li>
+        <li class="group-title">Сумки</li>
+        <li class="sub">Для ноутбука</li>
+        <li class="sub">Шопперы</li>
+        <li class="sub">Дорожные</li>
+        <li class="group-title">Дом</li>
+        <li class="sub">Пледы</li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">Колонка 4 — Информация</div>
+      <ul>
+        <li>О компании</li>
+        <li>Доставка и оплата</li>
+        <li>Часто задаваемые вопросы</li>
+        <li>Отзывы клиентов</li>
+        <li>Портфолио / Проекты</li>
+        <li>Блог</li>
+        <li>Акции и скидки</li>
+        <li>Контакты</li>
+      </ul>
+    </div>
+  </div>
+  <!-- Яндекс-рейтинг (схема, светлая) -->
+  <div class="ya-schema-row">
+    <div class="ya-schema-pin"></div>
+    <div>
+      <div class="ya-schema-score">4,9</div>
+      <div class="ya-schema-stars">★★★★★</div>
+      <div class="ya-schema-label">Рейтинг организации в Яндексе</div>
+    </div>
+    <div style="margin-left:auto;font-size:12px;color:#9ca3af;line-height:1.6">
+      Блок с рейтингом выводится между<br>
+      основной сеткой и строкой копирайта
+    </div>
+  </div>
+
+  <div class="footer-bottom-bar">
+    <span>© 2024–2025 Фактура Ф — типография в Санкт-Петербурге. Все права защищены.</span>
+    <span>
+      <a href="#">Политика конфиденциальности</a>
+      <a href="#">Карта сайта</a>
+    </span>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ЖИВОЙ ДЕМО ПОДВАЛА                                        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">Меню подвала — живой демо</div>
+
+  <div class="browser-frame">
+    <div class="browser-bar">
+      <div class="browser-dots"><i></i><i></i><i></i></div>
+      <div class="browser-url">fackturaf.com — подвал страницы</div>
+    </div>
+    <div class="demo-site-footer">
+      <div class="demo-footer-grid">
+        <div>
+          <div class="demo-footer-logo">Фактура <span>Ф</span></div>
+          <div class="demo-footer-desc">
+            Типография полного цикла в Санкт-Петербурге.<br>
+            Печать на одежде, сувенирах и рекламной продукции.<br>
+            Работаем с частными клиентами и бизнесом.
+          </div>
+          <div class="demo-footer-contact">
+            📍 Санкт-Петербург<br>
+            📞 +7 (xxx) xxx-xx-xx<br>
+            ✉️ info@fackturaf.com
+          </div>
+        </div>
+        <div>
+          <div class="demo-footer-col-title">Услуги</div>
+          <ul class="demo-footer-links">
+            <li><a href="#">Шелкография</a></li>
+            <li><a href="#">DTF печать</a></li>
+            <li><a href="#">Прямая печать (DTG)</a></li>
+            <li><a href="#">Термопечать</a></li>
+            <li><a href="#">Вышивка на одежде</a></li>
+            <li><a href="#">Лазерная гравировка</a></li>
+            <li><a href="#">Печать на футболках</a></li>
+            <li><a href="#">Печать визиток</a></li>
+            <li><a href="#" style="color:#60a5fa;font-weight:600">→ Все услуги</a></li>
+          </ul>
+        </div>
+        <div>
+          <div class="demo-footer-col-title">Продукция</div>
+          <ul class="demo-footer-links">
+            <li class="grp">Одежда</li>
+            <li><a href="#">Футболки</a></li>
+            <li><a href="#">Поло с логотипом</a></li>
+            <li><a href="#">Толстовки</a></li>
+            <li><a href="#">Кепки и бейсболки</a></li>
+            <li><a href="#">Куртки и ветровки</a></li>
+            <li><a href="#">Детская одежда</a></li>
+            <li class="grp">Сумки</li>
+            <li><a href="#">Для ноутбука</a></li>
+            <li><a href="#">Шопперы</a></li>
+            <li><a href="#">Дорожные сумки</a></li>
+            <li class="grp">Дом</li>
+            <li><a href="#">Пледы</a></li>
+          </ul>
+        </div>
+        <div>
+          <div class="demo-footer-col-title">Информация</div>
+          <ul class="demo-footer-links">
+            <li><a href="#">О компании</a></li>
+            <li><a href="#">Доставка и оплата</a></li>
+            <li><a href="#">FAQ</a></li>
+            <li><a href="#">Отзывы</a></li>
+            <li><a href="#">Портфолио</a></li>
+            <li><a href="#">Блог</a></li>
+            <li><a href="#">Акции</a></li>
+            <li><a href="#">Контакты</a></li>
+          </ul>
+        </div>
+      </div>
+      <!-- Яндекс рейтинг -->
+      <div class="ya-rating-row">
+        <a class="ya-widget" href="#" title="Читать отзывы на Яндекс Картах">
+          <div class="ya-pin"></div>
+          <div class="ya-info">
+            <div class="ya-score">4,9</div>
+            <div class="ya-stars">★★★★★</div>
+            <div class="ya-label">Рейтинг организации в Яндексе</div>
+          </div>
+        </a>
+        <div>
+          <a class="ya-cta" href="#">Читать отзывы →</a>
+          <div class="ya-count" style="margin-top:6px">127 отзывов на Яндекс Картах</div>
+        </div>
+      </div>
+
+      <div class="demo-footer-bottom">
+        <span>© 2024–2025 Фактура Ф. Все права защищены.</span>
+        <div>
+          <a href="#">Политика конфиденциальности</a>
+          <a href="#">Карта сайта</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note note-green" style="margin-top:14px">
+    <strong>Карта сайта в подвале</strong> — ссылка <code>/sitemap.xml</code> в строке «Карта сайта» помогает поисковым роботам.
+    Важно: ссылки в подвале должны совпадать со страницами из контент-плана — это даёт
+    <strong>внутренние ссылки</strong> на каждую страницу без дополнительных усилий.
+  </div>
+
+</div><!-- /page -->
+
+<script>
+  // Mobile burger toggle
+  function toggleMob() {
+    const burger = document.getElementById('mob-burger');
+    const menu   = document.getElementById('mob-menu');
+    burger.classList.toggle('open');
+    menu.classList.toggle('open');
+  }
+
+  // Mobile submenu accordion
+  function toggleSub(el) {
+    el.classList.toggle('active');
+    const sub = el.nextElementSibling;
+    if (sub) sub.classList.toggle('open');
+  }
+</script>
+
+</body>
+</html>

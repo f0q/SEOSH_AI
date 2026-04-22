@@ -1,7 +1,7 @@
 # SEOSH.AI — System Architecture
 
 > **Living Document** — Updated every time global functionality changes.  
-> Last updated: 2026-04-22 · Phase: Content Planner (v0.3)
+> Last updated: 2026-04-22 · Phase: SC→CP Bridge (v0.4)
 
 ---
 
@@ -64,7 +64,11 @@ SEOSH_AI/
 │   │   └── prisma/
 │   │       ├── schema.prisma        # Single source of truth for DB
 │   │       └── migrations/          # Prisma migration history
-│   ├── shared/                      # Shared types/utils (planned)
+│   ├── shared/                      # Shared types/utils
+│   │   ├── types/index.ts           # AI, SEO, Content, Publisher types
+│   │   ├── seo/pageTypes.ts         # Page type taxonomy (11 types)
+│   │   ├── i18n/                    # Internationalization (EN/RU)
+│   │   └── utils/                   # Shared utilities
 │   └── ui/                          # Shared UI component lib (planned)
 ├── services/                        # Future: separate microservices
 ├── docs/
@@ -122,8 +126,9 @@ Global:
 |---|---|---|---|---|
 | Auth | ✅ | ✅ | ✅ | Sign-in/up, sessions |
 | Projects | ✅ | ✅ | ✅ | Onboarding wizard |
-| Semantic Core | ✅ | 🟡 | 🟡 | Steps 1-2 ✅; step 3 AI = mock; step 4 categories unassigned |
-| Content Planner | ✅ | ✅ | ✅ | Table, CRUD, team sharing, keyword panel |
+| Semantic Core | ✅ | 🟡 | 🟡 | Steps 1-2 ✅; step 3 AI = mock; step 4 has "Generate Plan" button |
+| Semantic Core → Content Plan bridge | ✅ | ✅ | ✅ | `generateFromSemanticCore` mutation + UI in Step 4 |
+| Content Planner | ✅ | ✅ | ✅ | Table, CRUD, team sharing, keyword panel, auto-fill from taxonomy |
 | Content Planner — CSV Import | ✅ | ❌ | ❌ | Schema ready, not built |
 | Content Planner — AI Generate | ✅ | ❌ | 🔴 stub | Button disabled |
 | Content Planner — SEO Check | ✅ (SeoToolModule) | ❌ | ❌ | Pixeltools/text.ru API not wired |
@@ -147,10 +152,31 @@ User → Content Planner page
          ├─ getByProject (tRPC) ──► ContentPlan.items (Prisma)
          ├─ getKeywordsByProject ──► SemanticCore.queries (Prisma)
          ├─ createItem ────────────► ContentItem.create
-         ├─ updateItem ────────────► ContentItem.update
+         ├─ updateItem ────────────► ContentItem.update (auto-fills schema/wordCount on pageType change)
          ├─ deleteItem ────────────► ContentItem.delete
          ├─ inviteTeamMember ──────► ContentPlanShare.create + log to console
          └─ getSharedPlan (public) ► ContentPlanShare.accessToken lookup
+```
+
+## Data Flow: Semantic Core → Content Plan Bridge
+
+```
+Semantic Core Step 4 → "Generate Content Plan" button
+         │
+         ├─ generateFromSemanticCore tRPC mutation
+         │    ├── Loads all queries + categories from SemanticCore
+         │    ├── Groups queries by category name
+         │    ├── For each category group:
+         │    │    ├── section = category name
+         │    │    ├── pageType = guessPageTypeFromSection(section)
+         │    │    ├── schemaType = getDefaultSchema(pageType)
+         │    │    ├── targetWordCount = getDefaultWordCount(pageType)
+         │    │    ├── priority = getDefaultPriority(pageType)
+         │    │    ├── targetKeywords = unique query texts (max 20)
+         │    │    └── metaTitle = "Representative query — Company Name"
+         │    └── Creates ContentItem rows in bulk
+         │
+         └─ On success → navigate to /autopilot/content-planner
 ```
 
 ## Data Flow: Content Planner (Planned)
@@ -277,6 +303,28 @@ Invitee → /content-plan/shared/{accessToken}
 | SEO Score | `seoScore` | Int? | 0-100 from SEO tools |
 | Uniqueness | `uniqueness` | Float? | 0-100% from text.ru |
 | SEO Analysis | `seoAnalysis` | Json? | Full tool output |
+
+---
+
+## Page Type Taxonomy
+
+Defined in `packages/shared/seo/pageTypes.ts` — single source of truth.
+
+| Slug | Label | Default Schema | Word Count | Priority | Typical Sections |
+|---|---|---|---|---|---|
+| `homepage` | Homepage | `LocalBusiness` | 2500 | 1 | Home |
+| `service_listing` | Service Listing | `Service` | 2000 | 2 | Services |
+| `service_detail` | Service Detail | `Service` | 3000 | 1 | Services |
+| `product_listing` | Product Listing | `ItemList` | 2000 | 2 | Products |
+| `product_detail` | Product Detail | `Product` | 2000 | 2 | Products |
+| `landing_page` | Landing Page | `Service` | 3000 | 1 | Services, Methods |
+| `blog_listing` | Blog Index | `Blog` | 500 | 3 | Blog |
+| `blog_post` | Blog Post | `Article` | 1200 | 4 | Blog |
+| `promo_listing` | Promotions Index | `OfferCatalog` | 500 | 5 | Promotions |
+| `promo_detail` | Promotion Detail | `Offer` | 1000 | 5 | Promotions |
+| `info_page` | Info Page | `WebPage` | 1500 | 3 | About, Info |
+
+Helper functions: `getDefaultSchema()`, `getDefaultWordCount()`, `getDefaultPriority()`, `guessPageTypeFromSection()`
 
 ---
 

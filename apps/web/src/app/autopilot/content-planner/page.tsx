@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
 import { useProject } from "@/lib/project-context";
+import { PAGE_TYPES, getDefaultSchema, getDefaultWordCount } from "@seosh/shared/seo";
 import {
   LayoutList, Plus, Trash2, ChevronLeft, Users, Mail,
   Sparkles, ShieldCheck, Lightbulb, X, Check, Loader2,
@@ -24,16 +25,11 @@ const STATUS_OPTIONS = [
 
 type StatusValue = typeof STATUS_OPTIONS[number]["value"];
 
-const PAGE_TYPE_OPTIONS = [
-  "homepage", "service_detail", "service_listing",
-  "product_detail", "product_listing", "landing_page",
-  "blog_post", "blog_listing", "promo_listing",
-];
+const PAGE_TYPE_OPTIONS = PAGE_TYPES.map((pt) => pt.slug);
 
-const SCHEMA_OPTIONS = [
-  "LocalBusiness", "Service", "Article", "Product",
-  "ItemList", "Blog", "OfferCatalog",
-];
+const SCHEMA_OPTIONS = Array.from(
+  new Set(PAGE_TYPES.map((pt) => pt.defaultSchema))
+);
 
 // ─── Inline editable cell ─────────────────────────────────────────────────────
 
@@ -276,6 +272,13 @@ export default function ContentPlannerPage() {
   const handleUpdate = useCallback(
     (id: string, field: string, value: unknown) => {
       updateItem.mutate({ id, data: { [field]: value } as Parameters<typeof updateItem.mutate>[0]["data"] });
+
+      // Auto-fill schema + word count when page type changes
+      if (field === "pageType" && typeof value === "string" && value) {
+        const schema = getDefaultSchema(value);
+        const wordCount = getDefaultWordCount(value);
+        updateItem.mutate({ id, data: { schemaType: schema, targetWordCount: wordCount } as any });
+      }
     },
     [updateItem]
   );
@@ -534,8 +537,10 @@ export default function ContentPlannerPage() {
                         className="bg-transparent text-xs text-surface-300 border-0 outline-none cursor-pointer hover:text-surface-100 w-full"
                       >
                         <option value="">—</option>
-                        {PAGE_TYPE_OPTIONS.map((t) => (
-                          <option key={t} value={t} className="bg-surface-800">{t}</option>
+                        {PAGE_TYPES.map((pt) => (
+                          <option key={pt.slug} value={pt.slug} className="bg-surface-800">
+                            {pt.slug} ({pt.labelRu})
+                          </option>
                         ))}
                       </select>
                     </td>

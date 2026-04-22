@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Шаблоны страниц — Фактура Ф</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /*
+    ══════════════════════════════════════════════════════
+    РАСКЛАДКА ВЕРХНЕГО УРОВНЯ
+    Тело страницы — горизонтальный flex:
+      [aside 230px] [main flex:1]
+    main использует CSS Grid с двумя строками:
+      строка 1 — topbar (auto-высота)
+      строка 2 — content-area (1fr = вся оставшаяся высота)
+    Именно CSS Grid на main гарантирует, что content-area
+    получает ровно «оставшееся место», и overflow-y: auto
+    в ней работает корректно.
+    ══════════════════════════════════════════════════════
+    */
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      /* запрещаем скролл самого body */
+    }
+
+    /* ─── Sidebar ─────────────────────────────────── */
+    aside {
+      width: 230px;
+      flex-shrink: 0;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      /* сайдбар скроллится независимо */
+    }
+
+    .sidebar-logo {
+      padding: 20px 18px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #7c83fd;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #2d2d4e;
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo span {
+      display: block;
+      font-size: 10px;
+      font-weight: 400;
+      color: #666;
+      margin-top: 2px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    nav {
+      padding: 10px 0;
+      flex: 1;
+    }
+
+    .nav-group-label {
+      padding: 14px 18px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #555;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    nav button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 9px 18px;
+      background: none;
+      border: none;
+      color: #aab;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      border-left: 3px solid transparent;
+    }
+
+    nav button:hover {
+      background: #242444;
+      color: #e0e0f0;
+    }
+
+    nav button.active {
+      background: #1e1e40;
+      color: #fff;
+      border-left-color: #7c83fd;
+      font-weight: 600;
+    }
+
+    nav button .badge {
+      float: right;
+      font-size: 10px;
+      background: #2d2d4e;
+      color: #666;
+      padding: 1px 6px;
+      border-radius: 10px;
+      margin-top: 1px;
+    }
+
+    nav button.active .badge {
+      background: #3a3a6e;
+      color: #aab;
+    }
+
+    /* Блок «Справка» в нижней части сайдбара */
+    .sidebar-help {
+      border-top: 1px solid #2d2d4e;
+      flex-shrink: 0;
+    }
+
+    .sidebar-help-toggle {
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 12px 18px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: color .15s;
+    }
+
+    .sidebar-help-toggle:hover {
+      color: #aab;
+    }
+
+    .sidebar-help-toggle .arrow {
+      transition: transform .2s;
+      font-style: normal;
+    }
+
+    .sidebar-help-toggle.open .arrow {
+      transform: rotate(180deg);
+    }
+
+    .sidebar-help-body {
+      display: none;
+      padding: 0 14px 14px;
+      font-size: 11px;
+      line-height: 1.55;
+      color: #778;
+    }
+
+    .sidebar-help-body.open {
+      display: block;
+    }
+
+    .help-concept {
+      margin-bottom: 11px;
+      padding: 8px 10px;
+      background: #1e1e38;
+      border-radius: 6px;
+      border-left: 3px solid;
+    }
+
+    .help-concept.c-razdel {
+      border-color: #7c83fd;
+    }
+
+    .help-concept.c-type {
+      border-color: #34d399;
+    }
+
+    .help-concept.c-schema {
+      border-color: #f87171;
+    }
+
+    .help-concept strong {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .help-concept.c-razdel strong {
+      color: #7c83fd;
+    }
+
+    .help-concept.c-type strong {
+      color: #34d399;
+    }
+
+    .help-concept.c-schema strong {
+      color: #f87171;
+    }
+
+    .help-mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 10px;
+    }
+
+    .help-mini-table th {
+      color: #555;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      padding: 3px 4px;
+      border-bottom: 1px solid #2d2d4e;
+      text-align: left;
+    }
+
+    .help-mini-table td {
+      padding: 3px 4px;
+      color: #668;
+      border-bottom: 1px solid #222240;
+    }
+
+    .help-mini-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ─── Main ────────────────────────────────────── */
+    /*
+    Ключевое решение для скролла:
+    main — CSS Grid с двумя строками: topbar (auto) и content (1fr).
+    Это гарантирует, что content-area получает чёткую высоту,
+    и overflow-y: auto в ней работает без хаков с min-height.
+    */
+    main {
+      flex: 1;
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      /* topbar / scrollable content */
+    }
+
+    .topbar {
+      background: #fff;
+      padding: 14px 28px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar h1 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .topbar .url {
+      font-size: 13px;
+      color: #888;
+      font-family: monospace;
+    }
+
+    .topbar .schema-badge {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 600;
+      background: #ede9fe;
+      color: #6d28d9;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    /*
+    content-area — строка 2 грида, занимает весь остаток.
+    overflow-y: auto создаёт вертикальный скролл внутри неё.
+    */
+    .content-area {
+      overflow-y: auto;
+      padding: 24px 28px 40px;
+    }
+
+    /*
+    content-grid — внутренний двухколоночный грид для карточек.
+    Он находится ВНУТРИ скроллируемого content-area,
+    поэтому может быть любой высоты — скролл будет работать.
+    */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 18px;
+    }
+
+    /* ─── Cards ────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: #666;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    /* ─── SEO fields ───────────────────────────────── */
+    .seo-field {
+      margin-bottom: 14px;
+    }
+
+    .seo-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .seo-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .seo-label .len {
+      font-weight: 400;
+      color: #bbb;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .seo-value {
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 8px 12px;
+      background: #f9fafb;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      font-family: Georgia, serif;
+    }
+
+    .seo-value.title-val {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a0dab;
+    }
+
+    .seo-value.h1-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    /* ─── Metrics card ─────────────────────────────── */
+    /* Занимает обе строки правой колонки грида */
+    .metrics-card {
+      grid-row: span 2;
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 13px;
+    }
+
+    .metric-row:last-child {
+      border-bottom: none;
+    }
+
+    .metric-label {
+      color: #666;
+    }
+
+    .metric-val {
+      font-weight: 600;
+      color: #1a1a2e;
+    }
+
+    .ref-box {
+      margin-top: 14px;
+      padding: 10px 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #166534;
+      line-height: 1.55;
+    }
+
+    .ref-box strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .h2-samples {
+      margin-top: 10px;
+    }
+
+    .h2-samples strong {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #888;
+    }
+
+    .h2-samples ul {
+      margin-top: 5px;
+      list-style: none;
+    }
+
+    .h2-samples li {
+      font-size: 12px;
+      color: #444;
+      padding: 3px 0 3px 14px;
+      position: relative;
+    }
+
+    .h2-samples li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: #7c83fd;
+    }
+
+    /* ─── Wireframe ────────────────────────────────── */
+    .wireframe {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .wf-block {
+      border-radius: 6px;
+      padding: 10px 14px;
+      border: 1.5px solid;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: default;
+      transition: opacity .15s;
+    }
+
+    .wf-block:hover {
+      opacity: .85;
+    }
+
+    .wf-num {
+      font-size: 10px;
+      font-weight: 700;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .wf-info {
+      flex: 1;
+    }
+
+    .wf-tag {
+      font-size: 10px;
+      font-weight: 600;
+      font-family: monospace;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-bottom: 3px;
+      display: inline-block;
+    }
+
+    .wf-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .wf-desc {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .wf-words {
+      font-size: 11px;
+      color: #888;
+      align-self: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-style: italic;
+    }
+
+    .wf-bar {
+      height: 3px;
+      border-radius: 2px;
+      margin-top: 5px;
+      opacity: .5;
+    }
+
+    /* Цвета блоков по типу */
+    .wf-hero {
+      border-color: #fbbf24;
+      background: #fffbeb;
+    }
+
+    .wf-hero .wf-tag {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .wf-hero .wf-num {
+      background: #fbbf24;
+      color: #fff;
+    }
+
+    .wf-intro {
+      border-color: #60a5fa;
+      background: #eff6ff;
+    }
+
+    .wf-intro .wf-tag {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .wf-intro .wf-num {
+      background: #60a5fa;
+      color: #fff;
+    }
+
+    .wf-h2 {
+      border-color: #34d399;
+      background: #f0fdf4;
+    }
+
+    .wf-h2 .wf-tag {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .wf-h2 .wf-num {
+      background: #34d399;
+      color: #fff;
+    }
+
+    .wf-cta {
+      border-color: #f87171;
+      background: #fff1f2;
+    }
+
+    .wf-cta .wf-tag {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .wf-cta .wf-num {
+      background: #f87171;
+      color: #fff;
+    }
+
+    .wf-gallery {
+      border-color: #a78bfa;
+      background: #f5f3ff;
+    }
+
+    .wf-gallery .wf-tag {
+      background: #ede9fe;
+      color: #5b21b6;
+    }
+
+    .wf-gallery .wf-num {
+      background: #a78bfa;
+      color: #fff;
+    }
+
+    .wf-table {
+      border-color: #fb923c;
+      background: #fff7ed;
+    }
+
+    .wf-table .wf-tag {
+      background: #ffedd5;
+      color: #9a3412;
+    }
+
+    .wf-table .wf-num {
+      background: #fb923c;
+      color: #fff;
+    }
+
+    .wf-grid {
+      border-color: #38bdf8;
+      background: #f0f9ff;
+    }
+
+    .wf-grid .wf-tag {
+      background: #e0f2fe;
+      color: #0c4a6e;
+    }
+
+    .wf-grid .wf-num {
+      background: #38bdf8;
+      color: #fff;
+    }
+
+    .wf-filter {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    .wf-filter .wf-tag {
+      background: #e2e8f0;
+      color: #475569;
+    }
+
+    .wf-filter .wf-num {
+      background: #94a3b8;
+      color: #fff;
+    }
+
+    .wf-image {
+      border-color: #818cf8;
+      background: #eef2ff;
+    }
+
+    .wf-image .wf-tag {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+
+    .wf-image .wf-num {
+      background: #818cf8;
+      color: #fff;
+    }
+
+    .wf-contact {
+      border-color: #2dd4bf;
+      background: #f0fdfa;
+    }
+
+    .wf-contact .wf-tag {
+      background: #ccfbf1;
+      color: #134e4a;
+    }
+
+    .wf-contact .wf-num {
+      background: #2dd4bf;
+      color: #fff;
+    }
+
+    .wf-banner {
+      border-color: #fbbf24;
+      background: #fffbeb;
+    }
+
+    .wf-banner .wf-tag {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .wf-banner .wf-num {
+      background: #fbbf24;
+      color: #fff;
+    }
+
+    /* Легенда блоков */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #555;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══════════════════════════════════════════════
+    SIDEBAR — навигация по типам страниц + справка
+  ══════════════════════════════════════════════ -->
+  <aside>
+    <div class="sidebar-logo">
+      Шаблоны страниц
+      <span>Фактура Ф · fackturaf.com</span>
+    </div>
+
+    <!-- Кнопки типов страниц генерируются JS -->
+    <nav id="nav"></nav>
+
+    <!--
+    СПРАВКА: три ключевых понятия
+    Раздел / Тип страницы / Schema — см. подробности ниже
+    -->
+    <div class="sidebar-help">
+      <button class="sidebar-help-toggle" id="help-toggle" onclick="toggleHelp()">
+        Что значат эти поля?
+        <span class="arrow">▾</span>
+      </button>
+      <div class="sidebar-help-body" id="help-body">
+
+        <!--
+        ══════════════════════════════════════════
+        ПОНЯТИЕ 1: РАЗДЕЛ
+        ══════════════════════════════════════════
+        Раздел — навигационная группа страниц сайта.
+        Отвечает на вопрос «ГДЕ страница в структуре меню».
+
+        Примеры: «Услуги», «Продукция под нанесение», «Блог», «Акции».
+        Соответствует первому сегменту URL (/uslugi/, /goods/).
+        Один раздел содержит несколько страниц разного типа.
+        ══════════════════════════════════════════
+        -->
+        <div class="help-concept c-razdel">
+          <strong>Раздел — ГДЕ?</strong>
+          Навигационная группа в меню сайта. Соответствует разделу URL (/uslugi/, /blog/). Один раздел содержит
+          несколько страниц.
+          <br><em style="color:#556;font-size:10px">Пример: «Услуги», «Продукция», «Блог»</em>
+        </div>
+
+        <!--
+        ══════════════════════════════════════════
+        ПОНЯТИЕ 2: ТИП СТРАНИЦЫ
+        ══════════════════════════════════════════
+        Тип страницы — функциональный шаблон контента.
+        Отвечает на вопрос «ЧТО ДЕЛАЕТ эта страница».
+
+        Определяет: структуру блоков, кол-во H2, целевой объём.
+        Важно: разные разделы могут использовать ОДИН тип.
+        Пример: и «Услуги», и «Лендинги» используют landing_page.
+
+        Все типы: homepage, service_listing, service_detail,
+        product_listing, product_detail, landing_page,
+        blog_listing, blog_post, promo_listing, promo_detail,
+        info_page.
+        ══════════════════════════════════════════
+        -->
+        <div class="help-concept c-type">
+          <strong>Тип страницы — ЧТО ДЕЛАЕТ?</strong>
+          Функциональный шаблон: задаёт структуру блоков, H2, объём. Разные разделы могут иметь один тип.
+          <br><em style="color:#456;font-size:10px">Пример: service_detail, blog_post</em>
+        </div>
+
+        <!--
+        ══════════════════════════════════════════
+        ПОНЯТИЕ 3: SCHEMA
+        ══════════════════════════════════════════
+        Schema — разметка Schema.org (JSON-LD), встраивается в код страницы.
+        Отвечает на вопрос «ЧТО ГОВОРИМ GOOGLE об этой странице».
+
+        Влияет на rich snippets: звёздочки, цены, FAQs, хлебные крошки.
+        Каждый тип страницы → свой Schema-тип:
+          service_detail  → Service
+          product_detail  → Product
+          blog_post       → Article
+          homepage        → LocalBusiness
+          promo_detail    → Offer
+          product_listing → ItemList
+        ══════════════════════════════════════════
+        -->
+        <div class="help-concept c-schema">
+          <strong>Schema — ЧТО ГОВОРИМ GOOGLE?</strong>
+          Разметка Schema.org (JSON-LD) в коде. Влияет на rich snippets в поиске.
+          <br><em style="color:#566;font-size:10px">Пример: Service, Product, Article</em>
+        </div>
+
+        <table class="help-mini-table">
+          <thead>
+            <tr>
+              <th>Раздел</th>
+              <th>Тип</th>
+              <th>Schema</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Услуги</td>
+              <td>service_detail</td>
+              <td>Service</td>
+            </tr>
+            <tr>
+              <td>Продукция под нанесение</td>
+              <td>product_detail</td>
+              <td>Product</td>
+            </tr>
+            <tr>
+              <td>Блог</td>
+              <td>blog_post</td>
+              <td>Article</td>
+            </tr>
+            <tr>
+              <td>Лендинги</td>
+              <td>landing_page</td>
+              <td>Service</td>
+            </tr>
+            <tr>
+              <td>Акции</td>
+              <td>promo_detail</td>
+              <td>Offer</td>
+            </tr>
+            <tr>
+              <td>Главная</td>
+              <td>homepage</td>
+              <td>LocalBusiness</td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div><!-- /help-body -->
+    </div><!-- /sidebar-help -->
+  </aside>
+
+  <!-- ══════════════════════════════════════════════
+    MAIN — шапка + скроллируемый контент
+    Используем CSS Grid (auto / 1fr) вместо flex,
+    чтобы overflow-y: auto работал без хаков.
+  ══════════════════════════════════════════════ -->
+  <main>
+
+    <!-- Строка 1 грида: фиксированная шапка -->
+    <div class="topbar">
+      <h1 id="top-name"></h1>
+      <span class="url" id="top-url"></span>
+      <span class="schema-badge" id="top-schema"></span>
+    </div>
+
+    <!-- Строка 2 грида: прокручиваемая область.
+         Внутри — content-grid (двухколоночный грид карточек). -->
+    <div class="content-area" id="content"></div>
+
+  </main>
+
+  <script>
+    /*
+    ══════════════════════════════════════════════════════════
+    ДАННЫЕ: массив TYPES — 11 типов страниц сайта fackturaf.com
+
+    Каждый объект содержит:
+      id         — уникальный ключ типа (совпадает с xlsx-полем «Тип страницы»)
+      label      — человекочитаемое название для сайдбара
+      group      — группа в сайдбаре (Услуги / Каталог / Блог / ...)
+      url        — паттерн URL (/{slug}/ означает параметр)
+      schema     — Schema.org тип для JSON-LD разметки
+      title      — шаблон тега <title> (в формуле; черновики — в xlsx)
+      titleLen   — допустимый диапазон длины в символах
+      meta       — шаблон meta description
+      metaLen    — допустимый диапазон длины
+      h1         — шаблон тега H1
+      targets    — целевые показатели: объём, H2, фото, ссылки
+      refWords   — объём текста у  конкурентов (из анализа xlsx)
+      refH2rate  — доля страниц конкурента с H2 (из анализа)
+      sampleH2s  — примеры H2 со страниц конкурента
+      blocks     — список контентных блоков (схема страницы)
+    ══════════════════════════════════════════════════════════
+    */
+    const TYPES = [
+      {
+        id: 'homepage', label: 'Главная страница', group: 'Основные',
+        url: '/', schema: 'LocalBusiness',
+        title: '{Основной оффер} в Санкт-Петербурге | Фактура Ф',
+        titleLen: '50–70 символов',
+        meta: '{Описание услуг}. {Преимущества}. Заказать {услугу} в СПб. {CTA}.',
+        metaLen: '140–160 символов',
+        h1: '{Основной оффер} — {дополнительное описание}',
+        targets: { words: '1 500–2 500', h2: '4–6', images: '5–10', links: '10+' },
+        refWords: '2 063 слов (у конкурентов)',
+        refH2rate: '100%',
+        sampleH2s: ['Как заказать', 'Методы печати на одежде', 'Печать на одежде', 'Наши работы', 'Наши клиенты', 'Ответы на вопросы'],
+        blocks: [
+          { type: 'hero', tag: 'hero_block', title: 'Главный баннер', desc: 'Оффер + CTA-кнопка', words: '30–50' },
+          { type: 'intro', tag: 'intro_paragraph', title: 'Описание компании', desc: 'Краткий обзор услуг', words: '100–150' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Наши услуги', desc: 'Карточки услуг со ссылками', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Почему выбирают нас', desc: 'Преимущества компании', words: '150–200' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Как заказать', desc: 'Пошаговый процесс', words: '100–150' },
+          { type: 'gallery', tag: 'portfolio_block', title: 'Примеры работ', desc: 'Галерея (3–6 фото)', words: '50–100' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Отзывы клиентов', desc: 'Блок отзывов', words: '100–200' },
+          { type: 'cta', tag: 'cta_block', title: 'Финальный CTA', desc: 'Форма заказа', words: '30–50' },
+        ]
+      },
+      {
+        id: 'service_listing', label: 'Листинг услуг', group: 'Услуги',
+        url: '/uslugi/', schema: 'Service',
+        title: 'Услуги типографии в Санкт-Петербурге | Фактура Ф',
+        titleLen: '45–65 символов',
+        meta: 'Все услуги типографии Фактура Ф: печать на одежде, визитках, сувенирной продукции. {CTA} в СПб.',
+        metaLen: '140–160 символов',
+        h1: 'Услуги типографии',
+        targets: { words: '800–1 200', h2: '2–4', images: '3–6', links: '12+' },
+        refWords: '1 065 слов (у конкурентов)',
+        refH2rate: '100%',
+        sampleH2s: ['Наши работы: примеры методов нанесения'],
+        blocks: [
+          { type: 'intro', tag: 'intro_paragraph', title: 'Обзор направлений', desc: 'Краткое описание всех услуг', words: '100–150' },
+          { type: 'grid', tag: 'service_cards', title: 'Карточки услуг', desc: 'Иконки, описание, ссылки на каждую', words: '300–400' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Наши преимущества', desc: 'Почему стоит выбрать нас', words: '150–200' },
+          { type: 'cta', tag: 'cta_block', title: 'CTA + форма', desc: 'Контактная форма', words: '30–50' },
+        ]
+      },
+      {
+        id: 'service_detail', label: 'Страница услуги', group: 'Услуги',
+        url: '/uslugi/{slug}/', schema: 'Service',
+        title: '{Услуга} на заказ в Санкт-Петербурге | Фактура Ф',
+        titleLen: '50–65 символов',
+        meta: '{Описание услуги}. Заказать {услугу} в СПб от {цена}. {Сроки}. {CTA}.',
+        metaLen: '140–160 символов',
+        h1: '{Услуга} — {доп. описание}',
+        targets: { words: '2 000–3 000', h2: '4–6', images: '3–8', links: '5+' },
+        refWords: '2 116 слов (у конкурентов, мин 902 / макс 2 777)',
+        refH2rate: '100%',
+        sampleH2s: ['Возможности шелкографии', 'Спецэффекты', 'На чём печатаем?', 'Цены'],
+        blocks: [
+          { type: 'intro', tag: 'intro_paragraph', title: 'Описание услуги', desc: 'Для кого эта услуга', words: '100–150' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Методы и технологии', desc: 'Применяемые технологии', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Наши возможности', desc: 'Параметры услуги', words: '200–300' },
+          { type: 'table', tag: 'price_table', title: 'Таблица цен', desc: 'Калькулятор или прайс', words: '50–100' },
+          { type: 'gallery', tag: 'image_gallery', title: 'Примеры работ', desc: '3–5 фото с alt', words: '30–50' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Как заказать', desc: 'Пошаговая инструкция', words: '150–200' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Вопросы и ответы', desc: 'FAQ — 4–6 вопросов', words: '200–300' },
+          { type: 'cta', tag: 'cta_block', title: 'Кнопка заказа + форма', desc: 'Финальный призыв', words: '30–50' },
+        ]
+      },
+      {
+        id: 'product_listing', label: 'Продукция (листинг)', group: 'Продукция',
+        url: '/goods/', schema: 'ItemList',
+        title: 'Продукция под нанесение — одежда, сумки, пледы | Фактура Ф',
+        titleLen: '40–60 символов',
+        meta: 'Продукция под нанесение: одежда, сумки, пледы. Футболки, толстовки, поло, кепки — выберите для заказа в СПб.',
+        metaLen: '140–160 символов',
+        h1: 'Продукция под нанесение',
+        targets: { words: '800–1 500', h2: '2–4', images: '4–8', links: '10+' },
+        refWords: '1 822 слов (у конкурентов)',
+        refH2rate: '0%',
+        sampleH2s: [],
+        blocks: [
+          { type: 'intro', tag: 'intro_paragraph', title: 'Обзор каталога', desc: 'Краткое введение', words: '80–120' },
+          { type: 'grid', tag: 'category_cards', title: 'Карточки категорий', desc: 'Фото + ссылки на разделы', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Как выбрать одежду', desc: 'Советы по выбору', words: '200–300' },
+          { type: 'cta', tag: 'cta_block', title: 'CTA — подбор', desc: 'Ссылка на консультацию', words: '30–50' },
+        ]
+      },
+      {
+        id: 'product_detail', label: 'Категория товаров', group: 'Продукция',
+        url: '/goods/{slug}/', schema: 'Product',
+        title: '{Категория} для печати — купить в СПб | Фактура Ф',
+        titleLen: '45–65 символов',
+        meta: '{Категория} для нанесения логотипа и принта. {Описание}. Заказать в СПб. {CTA}.',
+        metaLen: '140–160 символов',
+        h1: '{Категория} для печати и нанесения',
+        targets: { words: '1 500–2 500', h2: '3–5', images: '4–8', links: '6+' },
+        refWords: '2 101 слов (у конкурентов, мин 799 / макс 2 458)',
+        refH2rate: '80%',
+        sampleH2s: ['Другой текстиль'],
+        blocks: [
+          { type: 'intro', tag: 'intro_paragraph', title: 'Описание категории', desc: 'Что это, для кого', words: '100–150' },
+          { type: 'grid', tag: 'product_grid', title: 'Сетка товаров', desc: 'Фото, цены, характеристики', words: '100–200' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Характеристики', desc: 'Материалы, размеры, цвета', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Методы нанесения', desc: 'Виды печати для этой категории', words: '150–200' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Часто задаваемые вопросы', desc: 'FAQ — 3–4 вопроса', words: '150–200' },
+          { type: 'cta', tag: 'cta_block', title: 'CTA заказа', desc: 'Кнопка + форма', words: '30–50' },
+        ]
+      },
+      {
+        id: 'landing_page', label: 'SEO-лендинг', group: 'Лендинги',
+        url: '/{slug}/', schema: 'Service',
+        title: '{Тема} на заказ в Санкт-Петербурге | Фактура Ф',
+        titleLen: '50–70 символов',
+        meta: '{Описание}. {Преимущества}. Заказать в СПб от {цена}. {Сроки, гарантии}.',
+        metaLen: '140–160 символов',
+        h1: '{Тема} — {УТП}',
+        targets: { words: '2 500–3 500', h2: '5–8', images: '5–10', links: '8+' },
+        refWords: '2 888 слов (у конкурентов, мин 741 / макс 4 409)',
+        refH2rate: '88%',
+        sampleH2s: ['Как оформить заказ', 'Почему стоит заказать у нас?', 'На чём печатаем?', 'Дополнительные услуги', 'Стоимость печати', 'Нам доверяют:'],
+        blocks: [
+          { type: 'hero', tag: 'hero_block', title: 'Оффер + CTA', desc: 'Главный баннер с кнопкой', words: '30–50' },
+          { type: 'intro', tag: 'intro_paragraph', title: 'Развёрнутое описание', desc: 'Детальное описание услуги/продукта', words: '150–200' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Что мы предлагаем', desc: 'Детальное описание предложения', words: '300–400' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Преимущества', desc: 'Список с иконками', words: '200–300' },
+          { type: 'gallery', tag: 'h2_section', title: 'H2: Примеры работ', desc: 'Портфолио / кейсы', words: '100–150' },
+          { type: 'table', tag: 'h2_section', title: 'H2: Цены', desc: 'Таблица цен или калькулятор', words: '100–150' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Как заказать', desc: 'Процесс заказа', words: '100–150' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Вопросы и ответы', desc: 'FAQ — 5–7 вопросов', words: '300–400' },
+          { type: 'cta', tag: 'cta_block', title: 'Финальный CTA', desc: 'Форма или кнопка', words: '30–50' },
+        ]
+      },
+      {
+        id: 'blog_listing', label: 'Листинг блога', group: 'Блог',
+        url: '/blog/', schema: 'Blog',
+        title: 'Блог типографии Фактура Ф — статьи о печати на одежде',
+        titleLen: '45–65 символов',
+        meta: 'Полезные статьи о печати на одежде, выборе ткани, методах нанесения. Блог Фактура Ф.',
+        metaLen: '130–155 символов',
+        h1: 'Блог',
+        targets: { words: '500–800', h2: '0–2', images: '0–3', links: '15+' },
+        refWords: '822 слов (у конкурентов)',
+        refH2rate: '0%',
+        sampleH2s: [],
+        blocks: [
+          { type: 'intro', tag: 'intro_paragraph', title: 'Описание блога', desc: '1–2 предложения', words: '50–80' },
+          { type: 'grid', tag: 'article_grid', title: 'Сетка статей', desc: 'Превью, дата, категория', words: '200–400' },
+          { type: 'filter', tag: 'category_filter', title: 'Фильтры по категориям', desc: 'Навигация по темам', words: '—' },
+          { type: 'filter', tag: 'pagination', title: 'Пагинация', desc: '', words: '—' },
+        ]
+      },
+      {
+        id: 'blog_post', label: 'Статья блога', group: 'Блог',
+        url: '/blog/{slug}/', schema: 'Article',
+        title: '{Заголовок статьи} | Блог Фактура Ф',
+        titleLen: '50–65 символов',
+        meta: '{Краткое содержание статьи}. {Ключевой вывод или польза для читателя}.',
+        metaLen: '140–160 символов',
+        h1: '{Заголовок статьи}',
+        targets: { words: '1 000–1 500', h2: '3–5', images: '2–5', links: '4+' },
+        refWords: '1 127 слов (у конкурентов, мин 791 / макс 2 033)',
+        refH2rate: '7%',
+        sampleH2s: ['Шелкография', 'Прямая печать', 'Термотрансфер', 'Читайте также:'],
+        blocks: [
+          { type: 'image', tag: 'featured_image', title: 'Главное изображение', desc: 'Обложка статьи', words: '—' },
+          { type: 'intro', tag: 'intro_paragraph', title: 'Вводный абзац', desc: 'Зачем читать статью', words: '80–120' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: {Подтема 1}', desc: 'Первый раздел', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: {Подтема 2}', desc: 'Второй раздел', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: {Подтема 3}', desc: 'Третий раздел', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Итоги / Заключение', desc: 'Резюме и выводы', words: '100–150' },
+          { type: 'cta', tag: 'cta_block', title: 'CTA', desc: 'Заказать или читать ещё', words: '30–50' },
+        ]
+      },
+      {
+        id: 'promo_listing', label: 'Листинг акций', group: 'Акции',
+        url: '/aktsii/', schema: 'OfferCatalog',
+        title: 'Акции и скидки на печать в СПб | Фактура Ф',
+        titleLen: '45–60 символов',
+        meta: 'Актуальные акции и спецпредложения на печать на одежде и сувенирной продукции в СПб.',
+        metaLen: '130–155 символов',
+        h1: 'Акции и спецпредложения',
+        targets: { words: '400–800', h2: '0–2', images: '2–5', links: '5+' },
+        refWords: '1 213 слов (у конкурентов)',
+        refH2rate: '0%',
+        sampleH2s: [],
+        blocks: [
+          { type: 'intro', tag: 'intro_paragraph', title: 'Описание акций', desc: 'Что сейчас актуально', words: '50–80' },
+          { type: 'grid', tag: 'promo_cards', title: 'Карточки акций', desc: 'Сроки, условия, CTA', words: '200–400' },
+        ]
+      },
+      {
+        id: 'promo_detail', label: 'Страница акции', group: 'Акции',
+        url: '/aktsii/{slug}/', schema: 'Offer',
+        title: '{Название акции} — скидки на печать | Фактура Ф',
+        titleLen: '45–65 символов',
+        meta: '{Описание акции}. {Условия и сроки}. {CTA}.',
+        metaLen: '130–155 символов',
+        h1: '{Название акции}',
+        targets: { words: '600–1 000', h2: '2–3', images: '1–3', links: '3+' },
+        refWords: '876 слов (у конкурентов, мин 801 / макс 970)',
+        refH2rate: '8%',
+        sampleH2s: ['КАК ПОЛУЧИТЬ КЭШБЕК?', 'СКОЛЬКО ПРОЦЕНТОВ КЭШБЕКА?', 'МОЖНО ОПЛАТИТЬ КЭШБЕКОМ?', 'Читайте также:'],
+        blocks: [
+          { type: 'banner', tag: 'promo_banner', title: 'Баннер акции', desc: 'Визуал + название', words: '20–40' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Условия акции', desc: 'Подробные условия', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: Как воспользоваться', desc: 'Инструкция', words: '100–150' },
+          { type: 'cta', tag: 'cta_block', title: 'CTA со скидкой', desc: 'Кнопка заказа', words: '30–50' },
+        ]
+      },
+      {
+        id: 'info_page', label: 'Информационная стр.', group: 'Прочие',
+        url: '/{slug}/', schema: 'WebPage',
+        title: '{Тема} | Фактура Ф',
+        titleLen: '40–60 символов',
+        meta: '{Краткое описание информации на странице}.',
+        metaLen: '130–155 символов',
+        h1: '{Тема страницы}',
+        targets: { words: '800–1 500', h2: '2–4', images: '1–3', links: '4+' },
+        refWords: '1 298 слов (у конкурентов, мин 763 / макс 2 555)',
+        refH2rate: '0%',
+        sampleH2s: ['ЗАКАЗ ОТ 1 ШТУКИ', 'ОПТОВЫЕ ЗАКАЗЫ (от 20 штук)', 'Читайте также:'],
+        blocks: [
+          { type: 'intro', tag: 'intro_paragraph', title: 'Введение', desc: 'Краткое вступление', words: '80–120' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: {Подраздел 1}', desc: 'Основной блок информации', words: '200–300' },
+          { type: 'h2', tag: 'h2_section', title: 'H2: {Подраздел 2}', desc: 'Дополнительная информация', words: '200–300' },
+          { type: 'contact', tag: 'contact_block', title: 'Контакты / карта', desc: 'Если применимо', words: '30–50' },
+        ]
+      },
+    ];
+
+    /* ── Группировка для сайдбара ────────────────── */
+    const groups = {};
+    TYPES.forEach(t => {
+      if (!groups[t.group]) groups[t.group] = [];
+      groups[t.group].push(t);
+    });
+
+    /* ── Построение навигации ────────────────────── */
+    const nav = document.getElementById('nav');
+    Object.entries(groups).forEach(([groupName, items]) => {
+      const label = document.createElement('div');
+      label.className = 'nav-group-label';
+      label.textContent = groupName;
+      nav.appendChild(label);
+      items.forEach(t => {
+        const btn = document.createElement('button');
+        btn.textContent = t.label;
+        btn.dataset.id = t.id;
+        btn.innerHTML += `<span class="badge">${t.blocks.length} бл.</span>`;
+        btn.onclick = () => render(t.id);
+        nav.appendChild(btn);
+      });
+    });
+
+    /* ── Справка: раскрыть/свернуть ─────────────── */
+    function toggleHelp() {
+      const toggle = document.getElementById('help-toggle');
+      const body = document.getElementById('help-body');
+      toggle.classList.toggle('open');
+      body.classList.toggle('open');
+    }
+
+    /* ── Вспомогательные функции ─────────────────── */
+
+    /* Маппинг типа блока → CSS-класс */
+    function blockClass(type) {
+      return {
+        hero: 'wf-hero', intro: 'wf-intro', h2: 'wf-h2', cta: 'wf-cta',
+        gallery: 'wf-gallery', table: 'wf-table', grid: 'wf-grid',
+        filter: 'wf-filter', image: 'wf-image', contact: 'wf-contact',
+        banner: 'wf-banner'
+      }[type] || 'wf-intro';
+    }
+
+    /* Ширина полоски объёма пропорционально макс. числу слов */
+    function barWidth(words) {
+      if (!words || words === '—') return 10;
+      const n = parseInt(words.split('–')[1] || words) || 50;
+      return Math.min(100, Math.round(n / 5));
+    }
+
+    /* Цвет полоски совпадает с цветом блока */
+    function barColor(type) {
+      return {
+        hero: '#fbbf24', intro: '#60a5fa', h2: '#34d399', cta: '#f87171',
+        gallery: '#a78bfa', table: '#fb923c', grid: '#38bdf8',
+        filter: '#94a3b8', image: '#818cf8', contact: '#2dd4bf',
+        banner: '#fbbf24'
+      }[type] || '#94a3b8';
+    }
+
+    /* ── Рендер выбранного типа страницы ─────────── */
+    function render(id) {
+      const t = TYPES.find(x => x.id === id);
+      if (!t) return;
+
+      /* Подсветка активной кнопки */
+      document.querySelectorAll('nav button').forEach(b =>
+        b.classList.toggle('active', b.dataset.id === id)
+      );
+
+      /* Шапка */
+      document.getElementById('top-name').textContent = t.label;
+      document.getElementById('top-url').textContent = t.url;
+      document.getElementById('top-schema').textContent = 'Schema: ' + t.schema;
+
+      /* Основной контент */
+      document.getElementById('content').innerHTML = `
+        <div class="content-grid">
+
+          <!-- ── Карточка 1: SEO-поля ─────────────────────────────────────
+               Title / Meta Description / H1 — шаблоны для данного типа.
+               Конкретные черновики для каждой страницы — в xlsx.
+          ──────────────────────────────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header">SEO-поля</div>
+            <div class="card-body">
+              <div class="seo-field">
+                <div class="seo-label">Title <span class="len">${t.titleLen}</span></div>
+                <div class="seo-value title-val">${t.title}</div>
+              </div>
+              <div class="seo-field">
+                <div class="seo-label">Meta Description <span class="len">${t.metaLen}</span></div>
+                <div class="seo-value">${t.meta}</div>
+              </div>
+              <div class="seo-field">
+                <div class="seo-label">H1</div>
+                <div class="seo-value h1-val">${t.h1}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Карточка 2: Целевые показатели (правая колонка, 2 строки)
+               Объём текста, H2, Schema — берётся из анализа конкурента.
+               refWords / refH2rate — статистика i-maika.ru по этому типу.
+          ──────────────────────────────────────────────────────────────── -->
+          <div class="card metrics-card">
+            <div class="card-header">Целевые показатели</div>
+            <div class="card-body">
+              <div class="metric-row">
+                <span class="metric-label">Объём текста</span>
+                <span class="metric-val">${t.targets.words} слов</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Кол-во H2</span>
+                <span class="metric-val">${t.targets.h2}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Изображения</span>
+                <span class="metric-val">${t.targets.images}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Внутренние ссылки</span>
+                <span class="metric-val">${t.targets.links}</span>
+              </div>
+              <div class="metric-row">
+                <!--
+                  Schema — разметка Schema.org (JSON-LD).
+                  Добавляется программистом в <head> страницы.
+                  Влияет на rich snippets в Google (цены, FAQ, звёздочки).
+                  Здесь указан нужный тип — разработчику/SEO-специалисту.
+                -->
+                <span class="metric-label">Schema.org (JSON-LD)</span>
+                <span class="metric-val">${t.schema}</span>
+              </div>
+
+              <!-- Данные  конкурентов из анализа xlsx -->
+              <div class="ref-box">
+                <strong>Данные  конкурентов</strong>
+                Средний объём: <b>${t.refWords}</b><br>
+                Сохраняем примерно такой же объём. Больше — лучше.<br>
+                Проверка уникальности и тошноты обязательна.<br>
+                Наличие H2: <b>${t.refH2rate}</b> страниц
+              </div>
+
+              ${t.sampleH2s.length ? `
+              <div class="h2-samples" style="margin-top:12px">
+                <strong>H2 у конкурента (примеры)</strong>
+                <ul>${t.sampleH2s.map(h => `<li>${h}</li>`).join('')}</ul>
+              </div>` : ''}
+            </div>
+          </div>
+
+          <!-- ── Карточка 3: Схема страницы (вайрфрейм) ─────────────────
+               Визуальный порядок блоков. Цвет = тип блока.
+               Полоска = относительный объём текста в блоке.
+          ──────────────────────────────────────────────────────────────── -->
+          <div class="card">
+            <div class="card-header">Схема страницы — структура контентных блоков</div>
+            <div class="wireframe">
+              ${t.blocks.map((b, i) => `
+                <div class="wf-block ${blockClass(b.type)}" title="[${b.tag}]">
+                  <div class="wf-num">${i + 1}</div>
+                  <div class="wf-info">
+                    <div class="wf-tag">[${b.tag}]</div>
+                    <div class="wf-title">${b.title}</div>
+                    ${b.desc ? `<div class="wf-desc">${b.desc}</div>` : ''}
+                    ${b.words !== '—' ? `<div class="wf-bar" style="width:${barWidth(b.words)}%;background:${barColor(b.type)}"></div>` : ''}
+                  </div>
+                  ${b.words ? `<div class="wf-words">${b.words} сл.</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div> Hero/Баннер</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div> Вводный текст</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div> H2-раздел</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div> CTA</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div> Галерея</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div> Таблица цен</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div> Сетка / карточки</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#818cf8"></div> Изображение</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#2dd4bf"></div> Контакты</div>
+            </div>
+          </div>
+
+        </div><!-- /content-grid -->
+      `;
+    }
+
+    /* Запуск с главной страницы */
+    render('homepage');
+  </script>
+</body>
+
+</html>

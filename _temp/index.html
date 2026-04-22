@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEO-план — Фактура Ф</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Шапка ── */
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 40px 48px 36px;
+    }
+
+    .header-inner {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .header-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #7c83fd;
+      margin-bottom: 10px;
+    }
+
+    header h1 {
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+
+    header h1 span {
+      color: #7c83fd;
+    }
+
+    .header-sub {
+      font-size: 15px;
+      color: #aab;
+      line-height: 1.6;
+      max-width: 580px;
+    }
+
+    .header-meta {
+      display: flex;
+      gap: 24px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .header-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #778;
+    }
+
+    .header-meta-item strong {
+      color: #ccd;
+      font-weight: 600;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #7c83fd;
+      flex-shrink: 0;
+    }
+
+    /* ── Основной контент ── */
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 48px 80px;
+    }
+
+    /* ── Файлы ── */
+    .files-section {
+      margin-bottom: 48px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 16px;
+    }
+
+    .files-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .file-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 22px 24px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      transition: box-shadow .18s, border-color .18s, transform .18s;
+    }
+
+    .file-card:hover {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .09);
+      border-color: #c7d2fe;
+      transform: translateY(-2px);
+    }
+
+    .file-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .file-icon.green {
+      background: #d1fae5;
+    }
+
+    .file-icon.blue {
+      background: #dbeafe;
+    }
+
+    .file-icon.purple {
+      background: #ede9fe;
+    }
+
+    .file-icon.orange {
+      background: #ffedd5;
+    }
+
+    /* ── Раздел навигации ── */
+    .nav-strip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #fff;
+      border: 1px solid #dde;
+      border-radius: 10px;
+      padding: 10px 16px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .nav-strip-logo {
+      font-size: 14px;
+      font-weight: 800;
+      color: #1a1a2e;
+      margin-right: 10px;
+      white-space: nowrap;
+    }
+
+    .nav-strip-logo span { color: #2563eb; }
+
+    .nav-pill {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12.5px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .nav-pill.exists { background: #eff6ff; color: #1e40af; }
+    .nav-pill.new-item { background: #d1fae5; color: #065f46; }
+    .nav-pill.cta { background: #2563eb; color: #fff; margin-left: auto; }
+
+    .nav-pill-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      display: block;
+      margin-top: 6px;
+      margin-left: 2px;
+    }
+
+    .nav-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #555;
+    }
+
+    .nav-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .nav-legend-dot.exists { background: #2563eb; }
+    .nav-legend-dot.new-item { background: #10b981; }
+    .nav-legend-dot.cta { background: #ef4444; }
+
+    .footer-nav-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .footer-nav-col {
+      background: #fff;
+      border: 1px solid #dde;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .footer-nav-col-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #7c83fd;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eef;
+    }
+
+    .footer-nav-col ul {
+      list-style: none;
+    }
+
+    .footer-nav-col ul li {
+      font-size: 12px;
+      color: #555;
+      padding: 3px 0;
+      border-bottom: 1px solid #f4f4f8;
+    }
+
+    .footer-nav-col ul li:last-child { border-bottom: none; }
+
+    .footer-nav-col ul li.grp {
+      font-weight: 700;
+      color: #1a1a2e;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-top: 8px;
+      border-bottom: none;
+    }
+
+    .nav-guide-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 10px 20px;
+      background: #1a1a2e;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background .15s;
+    }
+
+    .nav-guide-link:hover { background: #2d2d54; }
+
+    .file-info {
+      flex: 1;
+    }
+
+    .file-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 4px;
+    }
+
+    .file-desc {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .file-tag {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .file-tag.xlsx {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .file-tag.html {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .file-tag.csv {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    /* ── Разделитель ── */
+    hr {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 40px 0;
+    }
+
+    /* ── Что делать: шаги ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      position: relative;
+    }
+
+    .step:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 44px;
+      bottom: 0;
+      width: 2px;
+      background: #e5e7eb;
+    }
+
+    .step-num {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-num.s1 {
+      background: #ede9fe;
+      color: #5b21b6;
+    }
+
+    .step-num.s2 {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .step-num.s3 {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .step-num.s4 {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .step-num.s5 {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .step-body {
+      flex: 1;
+      padding-bottom: 32px;
+    }
+
+    .step:last-child .step-body {
+      padding-bottom: 0;
+    }
+
+    .step-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      padding-top: 8px;
+    }
+
+    .step-text {
+      font-size: 14px;
+      color: #555;
+      line-height: 1.65;
+    }
+
+    .step-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .step-tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: #f3f4f6;
+      color: #555;
+    }
+
+    /* ── Три понятия ── */
+    .concepts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 680px) {
+      .concepts {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .concept-card {
+      border-radius: 10px;
+      padding: 16px;
+      border-left: 4px solid;
+    }
+
+    .concept-card.razdel {
+      background: #f0f0ff;
+      border-color: #7c83fd;
+    }
+
+    .concept-card.type {
+      background: #f0fdf4;
+      border-color: #34d399;
+    }
+
+    .concept-card.schema {
+      background: #fff1f2;
+      border-color: #f87171;
+    }
+
+    .concept-q {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .concept-card.razdel .concept-q {
+      color: #4338ca;
+    }
+
+    .concept-card.type .concept-q {
+      color: #059669;
+    }
+
+    .concept-card.schema .concept-q {
+      color: #dc2626;
+    }
+
+    .concept-name {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 5px;
+    }
+
+    .concept-desc {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.5;
+    }
+
+    .concept-ex {
+      font-size: 12px;
+      margin-top: 8px;
+      color: #888;
+      font-style: italic;
+    }
+
+    /* ── Таблица соответствий ── */
+    .map-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+
+    .map-table th {
+      background: #f9fafb;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: #666;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .map-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f0f0f0;
+      color: #333;
+      vertical-align: top;
+    }
+
+    .map-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .map-table tr:hover td {
+      background: #fafbff;
+    }
+
+    .badge-razdel {
+      display: inline-block;
+      background: #ede9fe;
+      color: #5b21b6;
+      padding: 1px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-type {
+      display: inline-block;
+      background: #d1fae5;
+      color: #065f46;
+      padding: 1px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: monospace;
+    }
+
+    .badge-schema {
+      display: inline-block;
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 1px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-pages {
+      display: inline-block;
+      background: #f3f4f6;
+      color: #555;
+      padding: 1px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+    }
+
+    /* ── Приоритеты ── */
+    .priority-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 700px) {
+      .priority-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .priority-card {
+      border-radius: 10px;
+      padding: 14px;
+      border: 1px solid;
+      text-align: center;
+    }
+
+    .p1 {
+      background: #fff1f2;
+      border-color: #fca5a5;
+    }
+
+    .p2 {
+      background: #fff7ed;
+      border-color: #fdba74;
+    }
+
+    .p3 {
+      background: #fefce8;
+      border-color: #fde047;
+    }
+
+    .p4 {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+
+    .p5 {
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
+
+    .priority-num {
+      font-size: 22px;
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+
+    .p1 .priority-num {
+      color: #dc2626;
+    }
+
+    .p2 .priority-num {
+      color: #ea580c;
+    }
+
+    .p3 .priority-num {
+      color: #ca8a04;
+    }
+
+    .p4 .priority-num {
+      color: #16a34a;
+    }
+
+    .p5 .priority-num {
+      color: #2563eb;
+    }
+
+    .priority-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 3px;
+    }
+
+    .priority-desc {
+      font-size: 11px;
+      color: #888;
+      line-height: 1.4;
+    }
+
+    /* ── Инфо-блок ── */
+    .info-box {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-size: 13px;
+      color: #0c4a6e;
+      line-height: 1.65;
+      margin-top: 20px;
+    }
+
+    .info-box strong {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+      color: #0369a1;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══ Шапка ══════════════════════════════════════════════════ -->
+  <header>
+    <div class="header-inner">
+      <div class="header-label">SEO-план продвижения</div>
+      <h1>План продвижения для <span>fackturaf.com</span></h1>
+      <p class="header-sub">
+        Анализ конкурента i-maika.ru, структура нового сайта и готовые черновики
+        SEO-полей для 64 страниц типографии Фактура Ф в Санкт-Петербурге.
+      </p>
+      <div class="header-meta">
+        <div class="header-meta-item">
+          <div class="dot"></div> <strong>64</strong> страницы в плане
+        </div>
+        <div class="header-meta-item">
+          <div class="dot"></div> <strong>7</strong> разделов сайта
+        </div>
+        <div class="header-meta-item">
+          <div class="dot"></div> <strong>11</strong> типов страниц
+        </div>
+        <div class="header-meta-item">
+          <div class="dot"></div> Целевой конкурент:<strong>i-maika.ru</strong> (284 стр.)
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="page">
+
+    <!-- ══ Файлы ══════════════════════════════════════════════════ -->
+    <div class="files-section">
+      <div class="section-title">Рабочие файлы</div>
+      <div class="files-grid">
+
+        <!-- Контент-план xlsx -->
+        <a class="file-card" href="content_plan_fackturaf.xlsx" download>
+          <div class="file-icon green">📊</div>
+          <div class="file-info">
+            <div class="file-name">Контент-план</div>
+            <div class="file-desc">
+              64 страницы с готовыми черновиками: Title, Meta Description, H1, H2,
+              ключевые слова, целевой объём, Schema, внутренние ссылки.
+            </div>
+            <span class="file-tag xlsx">XLSX · 3 листа</span>
+          </div>
+        </a>
+
+        <!-- Шаблоны страниц HTML -->
+        <a class="file-card" href="templates_viewer.html" target="_blank">
+          <div class="file-icon blue">🗂</div>
+          <div class="file-info">
+            <div class="file-name">Шаблоны страниц</div>
+            <div class="file-desc">
+              Интерактивный просмотр структуры каждого типа страницы:
+              схема блоков, SEO-поля, целевые показатели, примеры конкурента.
+            </div>
+            <span class="file-tag html">HTML · 11 типов</span>
+          </div>
+        </a>
+
+        <!-- CSV -->
+        <a class="file-card" href="content_plan_fackturaf.csv" download>
+          <div class="file-icon purple">📄</div>
+          <div class="file-info">
+            <div class="file-name">Контент-план (CSV)</div>
+            <div class="file-desc">
+              Тот же контент-план в формате CSV (разделитель — точка с запятой,
+              UTF-8-BOM). Для импорта в Google Sheets или Notion.
+            </div>
+            <span class="file-tag csv">CSV · UTF-8</span>
+          </div>
+        </a>
+
+        <!-- Навигация -->
+        <a class="file-card" href="nav_guide.html" target="_blank">
+          <div class="file-icon orange">🧭</div>
+          <div class="file-info">
+            <div class="file-name">Структура навигации</div>
+            <div class="file-desc">
+              Рекомендуемые меню шапки и подвала: интерактивный демо шапки
+              с выпадающими списками, мобильное меню, схема подвала.
+            </div>
+            <span class="file-tag html">HTML · Header + Footer</span>
+          </div>
+        </a>
+
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- ══ Три понятия ══════════════════════════════════════════════ -->
+    <div class="section-title">Три ключевых понятия в контент-плане</div>
+    <p style="font-size:14px;color:#555;line-height:1.65;max-width:680px">
+      В xlsx-файле три колонки могут выглядеть похоже, но описывают разные вещи.
+      Вот чёткое разграничение:
+    </p>
+
+    <div class="concepts">
+
+      <!-- Раздел -->
+      <div class="concept-card razdel">
+        <div class="concept-q">Колонка B</div>
+        <div class="concept-name">Раздел</div>
+        <div class="concept-desc">
+          Навигационная группа страниц — <strong>где</strong> страница
+          находится в меню сайта. Один раздел содержит несколько страниц.
+        </div>
+        <div class="concept-ex">
+          Примеры: «Услуги», «Продукция под нанесение», «Блог», «Акции»
+        </div>
+      </div>
+
+      <!-- Тип страницы -->
+      <div class="concept-card type">
+        <div class="concept-q">Колонка C</div>
+        <div class="concept-name">Тип страницы</div>
+        <div class="concept-desc">
+          Функциональный шаблон — <strong>что делает</strong> страница.
+          Определяет структуру блоков, количество H2, целевой объём текста.
+          Разные разделы могут использовать один тип.
+        </div>
+        <div class="concept-ex">
+          Примеры: <code>service_detail</code>, <code>blog_post</code>, <code>landing_page</code>
+        </div>
+      </div>
+
+      <!-- Schema -->
+      <div class="concept-card schema">
+        <div class="concept-q">Колонка P</div>
+        <div class="concept-name">Schema</div>
+        <div class="concept-desc">
+          Разметка Schema.org (JSON-LD) — <strong>что говорим Google</strong>
+          об этой странице. Добавляется программистом в код.
+          Влияет на rich snippets: цены, FAQs, звёздочки рейтинга.
+        </div>
+        <div class="concept-ex">
+          Примеры: <code>Service</code>, <code>Product</code>, <code>Article</code>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Таблица соответствий -->
+    <table class="map-table">
+      <thead>
+        <tr>
+          <th>Раздел</th>
+          <th>Тип страницы</th>
+          <th>Schema</th>
+          <th>Страниц</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge-razdel">Главная</span></td>
+          <td><span class="badge-type">homepage</span></td>
+          <td><span class="badge-schema">LocalBusiness</span></td>
+          <td><span class="badge-pages">1</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge-razdel">Услуги</span></td>
+          <td><span class="badge-type">service_listing</span> / <span class="badge-type">service_detail</span></td>
+          <td><span class="badge-schema">Service</span></td>
+          <td><span class="badge-pages">13</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge-razdel">Продукция под нанесение</span></td>
+          <td><span class="badge-type">product_listing</span> / <span class="badge-type">product_detail</span></td>
+          <td><span class="badge-schema">ItemList / Product</span></td>
+          <td><span class="badge-pages">12</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge-razdel">Методы печати (лендинги)</span></td>
+          <td><span class="badge-type">landing_page</span></td>
+          <td><span class="badge-schema">Service</span></td>
+          <td><span class="badge-pages">8</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge-razdel">Блог</span></td>
+          <td><span class="badge-type">blog_listing</span> / <span class="badge-type">blog_post</span></td>
+          <td><span class="badge-schema">Blog / Article</span></td>
+          <td><span class="badge-pages">20</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge-razdel">Акции</span></td>
+          <td><span class="badge-type">promo_listing</span> / <span class="badge-type">promo_detail</span></td>
+          <td><span class="badge-schema">OfferCatalog / Offer</span></td>
+          <td><span class="badge-pages">4</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge-razdel">Информация</span></td>
+          <td><span class="badge-type">info_page</span></td>
+          <td><span class="badge-schema">WebPage</span></td>
+          <td><span class="badge-pages">6</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <!-- ══ Приоритеты ══════════════════════════════════════════════ -->
+    <div class="section-title">Приоритеты: с чего начинать</div>
+    <p style="font-size:14px;color:#555;line-height:1.65;max-width:680px;margin-bottom:0">
+      В колонке «Приоритет» xlsx-файла стоит цифра от 1 до 5.
+      Рекомендуемый порядок работы:
+    </p>
+
+    <div class="priority-grid">
+      <div class="priority-card p1">
+        <div class="priority-num">1</div>
+        <div class="priority-label">Сначала</div>
+        <div class="priority-desc">Главная, ключевые услуги, лендинги с высоким спросом</div>
+      </div>
+      <div class="priority-card p2">
+        <div class="priority-num">2</div>
+        <div class="priority-label">Затем</div>
+        <div class="priority-desc">Листинг и категории каталога, услуги второго уровня</div>
+      </div>
+      <div class="priority-card p3">
+        <div class="priority-num">3</div>
+        <div class="priority-label">Параллельно</div>
+        <div class="priority-desc">Информационные страницы: О нас, доставка, FAQ, контакты</div>
+      </div>
+      <div class="priority-card p4">
+        <div class="priority-num">4</div>
+        <div class="priority-label">Блог</div>
+        <div class="priority-desc">Первые 10–15 статей, дают органический трафик через 2–4 мес.</div>
+      </div>
+      <div class="priority-card p5">
+        <div class="priority-num">5</div>
+        <div class="priority-label">Потом</div>
+        <div class="priority-desc">Акции, редкие статьи блога, страницы с низким спросом</div>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- ══ Навигация ════════════════════════════════════════════════ -->
+    <div class="section-title">Структура навигации сайта</div>
+    <p style="font-size:14px;color:#555;line-height:1.65;max-width:680px;margin-bottom:0">
+      Рекомендуемое меню шапки учитывает существующие разделы сайта и новые,
+      которые создаются по этому плану. Синий — уже есть, зелёный — нужно добавить.
+    </p>
+
+    <!-- Мини-шапка -->
+    <span class="nav-pill-label" style="color:#888">Шапка сайта (Header):</span>
+    <div class="nav-strip">
+      <span class="nav-strip-logo">Фактура <span>Ф</span></span>
+      <span class="nav-pill new-item">Услуги ▾</span>
+      <span class="nav-pill exists">Продукция ▾</span>
+      <span class="nav-pill exists">Прайс</span>
+      <span class="nav-pill exists">Проекты</span>
+      <span class="nav-pill new-item">Блог</span>
+      <span class="nav-pill exists">Скидки</span>
+      <span class="nav-pill exists">О нас</span>
+      <span class="nav-pill cta">Заказать</span>
+    </div>
+
+    <div class="nav-legend">
+      <div class="nav-legend-item">
+        <div class="nav-legend-dot new-item"></div>
+        Новый пункт (создаётся по плану)
+      </div>
+      <div class="nav-legend-item">
+        <div class="nav-legend-dot exists"></div>
+        Уже существует на сайте
+      </div>
+      <div class="nav-legend-item">
+        <div class="nav-legend-dot cta"></div>
+        Кнопка-призыв к действию
+      </div>
+    </div>
+
+    <!-- Мини-подвал -->
+    <span class="nav-pill-label" style="color:#888;margin-top:24px;display:block">Подвал сайта (Footer) — 4 колонки:</span>
+    <div class="footer-nav-grid">
+      <div class="footer-nav-col">
+        <div class="footer-nav-col-title">Компания</div>
+        <ul>
+          <li>Лого + описание</li>
+          <li>Адрес, телефон, email</li>
+          <li>Иконки соцсетей</li>
+        </ul>
+      </div>
+      <div class="footer-nav-col">
+        <div class="footer-nav-col-title">Услуги</div>
+        <ul>
+          <li>Шелкография</li>
+          <li>DTF печать</li>
+          <li>Прямая печать (DTG)</li>
+          <li>Вышивка на одежде</li>
+          <li>Лазерная гравировка</li>
+          <li>Печать на футболках</li>
+          <li>Печать визиток</li>
+          <li>→ Все услуги</li>
+        </ul>
+      </div>
+      <div class="footer-nav-col">
+        <div class="footer-nav-col-title">Продукция</div>
+        <ul>
+          <li class="grp">Одежда</li>
+          <li>Футболки, Поло, Толстовки</li>
+          <li>Кепки, Куртки, Детская</li>
+          <li class="grp">Сумки</li>
+          <li>Для ноутбука, Шопперы</li>
+          <li class="grp">Дом</li>
+          <li>Пледы</li>
+        </ul>
+      </div>
+      <div class="footer-nav-col">
+        <div class="footer-nav-col-title">Информация</div>
+        <ul>
+          <li>О компании</li>
+          <li>Доставка и оплата</li>
+          <li>FAQ</li>
+          <li>Отзывы</li>
+          <li>Портфолио</li>
+          <li>Блог</li>
+          <li>Акции</li>
+          <li>Контакты</li>
+        </ul>
+      </div>
+    </div>
+
+    <a class="nav-guide-link" href="nav_guide.html" target="_blank">
+      Открыть интерактивный гайд по навигации →
+    </a>
+
+    <hr>
+
+    <!-- ══ Что делать: шаги ════════════════════════════════════════ -->
+    <div class="section-title">Как работать с контент-планом</div>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num s1">1</div>
+        <div class="step-body">
+          <div class="step-title">Открыть шаблоны и понять структуру каждого типа</div>
+          <div class="step-text">
+            Перед написанием текстов откройте
+            <a href="templates_viewer.html" target="_blank" style="color:#5b21b6;font-weight:600">интерактивные
+              шаблоны</a>
+            и изучите схему блоков нужного типа страницы.
+            Там указан порядок разделов, целевой объём каждого блока
+            и примеры H2 с сайта конкурента i-maika.ru.
+          </div>
+          <div class="step-tags">
+            <span class="step-tag">templates_viewer.html</span>
+            <span class="step-tag">Схема блоков</span>
+            <span class="step-tag">Объём текста</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num s2">2</div>
+        <div class="step-body">
+          <div class="step-title">Взять черновик из xlsx и передать копирайтеру (в нашем случае - делаем сами)</div>
+          <div class="step-text">
+            В xlsx уже готовы черновики <strong>Title, Meta Description, H1</strong>
+            и четыре варианта <strong>H2</strong> для каждой страницы.
+            Черновики — стартовая точка, не финальный текст.
+            Копирайтер дорабатывает их под реальную страницу.
+            Ключевые слова в колонке Q можно использовать как ТЗ на оптимизацию.
+          </div>
+          <div class="step-tags">
+            <span class="step-tag">content_plan_fackturaf.xlsx</span>
+            <span class="step-tag">Лист «Контент-план»</span>
+            <span class="step-tag">Колонки F, H, J, K–N</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num s3">3</div>
+        <div class="step-body">
+          <div class="step-title">Проверить длины Title и Meta Description</div>
+          <div class="step-text">
+            Title — <strong>50–65 символов</strong>, Meta Description — <strong>140–160 символов</strong>.
+            В колонках G и I xlsx уже посчитана длина черновика.
+            Если копирайтер меняет текст — перепроверьте длину вручную.
+            Удобный инструмент: просто вставьте текст в поле поиска Google
+            и посмотрите, как выглядит сниппет.
+          </div>
+          <div class="step-tags">
+            <span class="step-tag">Колонка G — длина Title</span>
+            <span class="step-tag">Колонка I — длина Meta Desc</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num s4">4</div>
+        <div class="step-body">
+          <div class="step-title">Добавить Schema-разметку на каждый тип страниц</div>
+          <div class="step-text">
+            В колонке P указан нужный тип Schema.org.
+            Разметка добавляется программистом один раз как шаблон для типа страницы —
+            не для каждой страницы отдельно.
+            Например: все страницы <code>service_detail</code> получают
+            <code>Schema: Service</code>, все <code>blog_post</code> — <code>Article</code>.
+            Проверить корректность разметки:
+            <a href="https://search.google.com/test/rich-results" target="_blank" style="color:#5b21b6">Rich Results
+              Test</a>.
+          </div>
+          <div class="step-tags">
+            <span class="step-tag">Колонка P — Schema</span>
+            <span class="step-tag">JSON-LD</span>
+            <span class="step-tag">Rich Snippets</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num s5">5</div>
+        <div class="step-body">
+          <div class="step-title">Обновлять статус в таблице и следить за индексацией</div>
+          <div class="step-text">
+            Колонка E «Статус» — для отметки прогресса («В работе», «Готово», «Опубликовано»).
+            После публикации добавьте URL в
+            Google Search Console → Проверка URL для ускоренной индексации.
+            Первые результаты в поиске по коммерческим запросам — через 1–3 месяца,
+            по блогу — через 2–4 месяца.
+          </div>
+          <div class="step-tags">
+            <span class="step-tag">Колонка E — Статус</span>
+            <span class="step-tag">Google Search Console</span>
+            <span class="step-tag">Индексация URL</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="info-box">
+      <strong>Важно об объёме текста</strong>
+      Целевые объёмы взяты из анализа конкурента i-maika.ru.
+      Для коммерческих страниц (услуги, лендинги) — 2 000–3 500 слов.
+      Для блога — 1 000–1 500 слов. Больше текста само по себе не даёт позиций —
+      важна польза для читателя и уникальность. Обязательна проверка
+      уникальности (от 90%) и «тошноты» (не выше 8%) перед публикацией.
+    </div>
+
+  </div><!-- /page -->
+
+</body>
+
+</html>

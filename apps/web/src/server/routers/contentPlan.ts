@@ -11,6 +11,12 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
+import {
+  getDefaultSchema,
+  getDefaultWordCount,
+  getDefaultPriority,
+  guessPageTypeFromSection,
+} from "@seosh/shared/seo";
 
 // ─── Shared Zod schemas ───────────────────────────────────────────────────────
 
@@ -167,6 +173,121 @@ export const contentPlanRouter = router({
         )
       );
       return { success: true };
+    }),
+
+  // ─── Bridge: Semantic Core → Content Plan ──────────────────────────────────
+
+  /** Generate content plan rows from a semantic core's categorized keywords */
+  generateFromSemanticCore: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        semanticCoreId: z.string(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // 1. Verify ownership
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.user.id },
+        include: { companyProfile: true },
+      });
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+
+      const core = await prisma.semanticCore.findFirst({
+        where: { id: input.semanticCoreId, userId: ctx.user.id },
+      });
+      if (!core) throw new TRPCError({ code: "NOT_FOUND", message: "Semantic core not found" });
+
+      // 2. Load all queries with their categories and groups
+      const queries = await prisma.query.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        include: {
+          category: true,
+          group: true,
+        },
+      });
+
+      if (queries.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No keywords found in this semantic core. Run the keyword grouping step first.",
+        });
+      }
+
+      // 3. Group queries by category (or "Uncategorized" if none)
+      const byCategory = new Map<string, typeof queries>();
+      for (const q of queries) {
+        const catName = q.category?.name || "Uncategorized";
+        if (!byCategory.has(catName)) byCategory.set(catName, []);
+        byCategory.get(catName)!.push(q);
+      }
+
+      // 4. Get or create the content plan
+      const plan = await getOrCreatePlan(input.projectId);
+      const existingCount = await prisma.contentItem.count({
+        where: { contentPlanId: plan.id },
+      });
+
+      // 5. Create a ContentItem for each category group
+      const created: Array<{ title: string; section: string; keywords: number }> = [];
+      let sortOrder = existingCount;
+
+      for (const [categoryName, categoryQueries] of byCategory) {
+        // Deduplicate keywords
+        const uniqueKeywords = Array.from(
+          new Set(categoryQueries.map((q) => q.text))
+        );
+
+        // Pick the section name from the category
+        const section = categoryName;
+
+        // Guess page type from the section name
+        const pageType = guessPageTypeFromSection(section);
+
+        // Build a representative query for the title/h1
+        const representative =
+          categoryQueries.find((q) => q.group?.representativeQuery === q.text)?.text
+          || uniqueKeywords[0]
+          || categoryName;
+
+        // Generate a draft meta title
+        const companyName = project.companyProfile?.companyName || project.name;
+        const metaTitle = `${representative.charAt(0).toUpperCase() + representative.slice(1)} — ${companyName}`;
+
+        await prisma.contentItem.create({
+          data: {
+            contentPlanId: plan.id,
+            sortOrder: sortOrder++,
+            title: representative,
+            url: "",
+            section,
+            pageType,
+            priority: getDefaultPriority(pageType),
+            status: "DRAFT",
+            metaTitle,
+            titleLength: metaTitle.length,
+            h1: representative.charAt(0).toUpperCase() + representative.slice(1),
+            targetWordCount: getDefaultWordCount(pageType),
+            targetKeywords: uniqueKeywords.slice(0, 20), // Cap at 20 per page
+            schemaType: getDefaultSchema(pageType),
+            h2Headings: [],
+            notes: `Auto-generated from semantic core. Category: ${categoryName}. Total keywords: ${uniqueKeywords.length}.`,
+          },
+        });
+
+        created.push({
+          title: representative,
+          section,
+          keywords: uniqueKeywords.length,
+        });
+      }
+
+      return {
+        created: created.length,
+        totalKeywords: queries.length,
+        categories: Array.from(byCategory.keys()),
+        items: created,
+      };
     }),
 
   // ─── Sharing ─────────────────────────────────────────────────────────────

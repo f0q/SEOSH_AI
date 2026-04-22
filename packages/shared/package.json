@@ -5,7 +5,8 @@
   "exports": {
     "./types": "./types/index.ts",
     "./i18n": "./i18n/index.ts",
-    "./utils": "./utils/index.ts"
+    "./utils": "./utils/index.ts",
+    "./seo": "./seo/pageTypes.ts"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
