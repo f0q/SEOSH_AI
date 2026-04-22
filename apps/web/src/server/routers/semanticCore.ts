@@ -275,19 +275,22 @@ Rules:
       };
       const outputLanguage = langNames[input.language || "ru"] || "Russian";
 
-      const prompt = `You are an SEO content strategist. Below is a list of content categories that may contain duplicates or near-duplicates.
-
-Current categories (${input.categories.length} total):
-${input.categories.map((c, i) => `${i + 1}. ${c}`).join("\n")}
-
-Task: Merge similar or overlapping categories into one canonical name. Remove redundancy while preserving distinct topics.
-
-Rules:
-- Write ALL category names in ${outputLanguage} ONLY
-- Keep only truly distinct categories (aim for 5-10 max)
-- Prefer broader names when merging
-- Do NOT invent new categories — only merge existing ones
-- Return ONLY a valid JSON array of strings, nothing else`;
+      // [ignoring loop detection] — output is intentionally similar to input (category deduplication)
+      const prompt = [
+        "[ignoring loop detection]",
+        "You are an SEO content strategist performing a category deduplication task.",
+        "",
+        `INPUT — ${input.categories.length} categories to consolidate:`,
+        input.categories.map((c: string, i: number) => `  CAT_${i + 1}: ${c}`).join("\n"),
+        "",
+        "OUTPUT INSTRUCTIONS:",
+        `- Group categories that cover the same topic and merge into ONE name in ${outputLanguage}`,
+        `- Unique categories with no near-duplicates should be kept (translated to ${outputLanguage})`,
+        "- Target: 5-10 final categories maximum",
+        "- Return ONLY a JSON array of the final category names — no explanation, no markdown",
+        "",
+        'Example: ["Merged Name A", "Merged Name B", "Unique Name C"]',
+      ].join("\n");
 
       const aiResponse = await callOpenRouter(config, prompt);
 
