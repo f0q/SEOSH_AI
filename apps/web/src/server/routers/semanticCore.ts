@@ -275,6 +275,30 @@ Rules:
       return cats;
     }),
 
+  /** Rename a category (syncs everywhere — Results + Categories tabs) */
+  renameCategory: protectedProcedure
+    .input(z.object({ categoryId: z.string(), newName: z.string().min(1).max(100) }))
+    .mutation(async ({ input }) => {
+      return await prisma.category.update({
+        where: { id: input.categoryId },
+        data: { name: input.newName.trim() },
+      });
+    }),
+
+  /** Delete a category — unlinks all queries (sets categoryId = null) */
+  deleteCategory: protectedProcedure
+    .input(z.object({ categoryId: z.string() }))
+    .mutation(async ({ input }) => {
+      await prisma.$transaction(async (tx: any) => {
+        await tx.query.updateMany({
+          where: { categoryId: input.categoryId },
+          data: { categoryId: null },
+        });
+        await tx.category.delete({ where: { id: input.categoryId } });
+      });
+      return { deleted: true };
+    }),
+
   /** Compress / deduplicate category list using AI */
   compressCategories: protectedProcedure
     .input(
@@ -675,14 +699,6 @@ Rules:
         await prisma.query.update({ where: { id: input.queryId }, data: { categoryId } });
       }
 
-      return { success: true };
-    }),
-
-  /** Rename a category */
-  renameCategory: protectedProcedure
-    .input(z.object({ semanticCoreId: z.string(), oldName: z.string(), newName: z.string() }))
-    .mutation(async ({ input }) => {
-      // TODO: prisma.category.update
       return { success: true };
     }),
 

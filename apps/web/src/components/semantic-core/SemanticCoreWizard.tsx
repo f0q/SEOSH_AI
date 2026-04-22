@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import {
   Brain, Globe, Upload, Tags, BarChart3,
   LayoutList, Loader2, CheckCircle2, X, Plus, Wand2, ChevronDown,
+  Pencil, Trash2, Check,
 } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
@@ -594,13 +595,26 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
     onError: (e) => setCatError(e.message),
   });
 
+  const renameCatMut = trpc.semanticCore.renameCategory.useMutation({
+    onSuccess: () => { catData.refetch(); refetch(); },
+    onError: (e) => setCatError(e.message),
+  });
+  const deleteCatMut = trpc.semanticCore.deleteCategory.useMutation({
+    onSuccess: () => { catData.refetch(); refetch(); },
+    onError: (e) => setCatError(e.message),
+  });
+
+  // Category editing state (for distribution bar)
+  const [editingCat, setEditingCat] = useState<{ id: string; name: string } | null>(null);
+
   const generatePlan = trpc.contentPlan.generateFromSemanticCore.useMutation({
     onSuccess: (result) => { setGenResult(result); setGenStatus("done"); },
     onError: (err) => { setGenError(err.message); setGenStatus("idle"); },
   });
 
   const totalResults = data?.results?.length ?? 0;
-  const catNames = (catData.data ?? []).map((c: any) => c.name);
+  const cats = (catData.data ?? []) as { id: string; name: string; approved: boolean }[];
+  const catNames = cats.map((c) => c.name);
   const summary: Record<string, number> = (data?.summary as any) ?? {};
 
   // Auto-categorize: if categories exist and ALL queries are uncategorized, auto-start
@@ -668,21 +682,67 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
         <button className="btn-secondary text-sm">Export CSV</button>
       </div>
 
-      {/* Category distribution bar */}
+      {/* Category distribution bar — editable */}
       {catNames.length > 0 && (
         <div className="rounded-xl border border-surface-700/25 bg-surface-800/15 p-4">
           <p className="text-xs text-surface-500 uppercase tracking-wide mb-3">Categories</p>
           <div className="flex flex-wrap gap-2">
-            {catNames.map((name: string) => {
-              const count = summary[name] ?? 0;
+            {cats.map((cat) => {
+              const count = summary[cat.name] ?? 0;
               const pct = totalResults > 0 ? Math.round((count / totalResults) * 100) : 0;
-              const clr = getCatColor(name);
+              const clr = getCatColor(cat.name);
+              const isEditing = editingCat?.id === cat.id;
+
+              if (isEditing) {
+                return (
+                  <div key={cat.id} className="flex items-center gap-1 px-2 py-1 rounded-lg" style={clr.badge}>
+                    <input
+                      autoFocus
+                      value={editingCat.name}
+                      onChange={(e) => setEditingCat({ ...editingCat, name: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && editingCat.name.trim()) {
+                          renameCatMut.mutate({ categoryId: cat.id, newName: editingCat.name.trim() });
+                          setEditingCat(null);
+                        }
+                        if (e.key === "Escape") setEditingCat(null);
+                      }}
+                      className="bg-transparent border-none outline-none text-xs font-medium w-32"
+                      style={{ color: clr.badge.color }}
+                    />
+                    <button
+                      onClick={() => { if (editingCat.name.trim()) { renameCatMut.mutate({ categoryId: cat.id, newName: editingCat.name.trim() }); setEditingCat(null); } }}
+                      className="opacity-70 hover:opacity-100 transition-opacity"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                    <button onClick={() => setEditingCat(null)} className="opacity-50 hover:opacity-100 transition-opacity">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              }
+
               return (
-                <div key={name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={clr.badge}>
+                <div key={cat.id} className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={clr.badge}>
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: clr.dot }} />
-                  <span className="text-xs font-medium">{name}</span>
+                  <span className="text-xs font-medium">{cat.name}</span>
                   <span className="text-xs opacity-60">{count}</span>
                   {pct > 0 && <span className="text-[10px] opacity-40">{pct}%</span>}
+                  <button
+                    onClick={() => setEditingCat({ id: cat.id, name: cat.name })}
+                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity ml-0.5"
+                    title="Rename"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`Delete "${cat.name}"? ${count} keywords will become uncategorized.`)) deleteCatMut.mutate({ categoryId: cat.id }); }}
+                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-red-400"
+                    title="Delete category"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               );
             })}
@@ -825,7 +885,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
       )}
 
       {/* Results table */}
-      <div className="overflow-auto rounded-xl border border-surface-700/30">
+      <div className="overflow-x-auto overflow-y-visible rounded-xl border border-surface-700/30">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-700/30 bg-surface-800/20">
@@ -895,7 +955,7 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
           <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0" />
         </button>
         {open && (
-          <div className="absolute left-0 top-full mt-1 z-20 bg-surface-900 border border-surface-700/50 rounded-xl shadow-xl min-w-52 py-1 animate-fade-in">
+          <div className="absolute left-0 top-full mt-1 z-50 bg-surface-900 border border-surface-700/50 rounded-xl shadow-2xl min-w-52 max-h-60 overflow-y-auto py-1 animate-fade-in">
             <p className="text-[10px] text-surface-600 px-3 py-1 uppercase tracking-wide">Assign to category</p>
             {catNames.map((name) => {
               const itemClr = getCatColor(name);
