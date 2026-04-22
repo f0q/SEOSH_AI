@@ -65,6 +65,21 @@ export const semanticCoreRouter = router({
       orderBy: { createdAt: 'desc' }
     });
   }),
+
+  /** Get the latest semantic core for the current user (auto-restore on wizard mount) */
+  getLatest: protectedProcedure
+    .input(z.object({ projectId: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      return await prisma.semanticCore.findFirst({
+        where: {
+          userId: ctx.user.id,
+          ...(input?.projectId ? { projectId: input.projectId } : {}),
+        },
+        select: { id: true, siteUrl: true, projectId: true },
+        orderBy: { createdAt: 'desc' },
+      });
+    }),
+
   /** Initiate a Semantic Core session *after* sitemap is fetched */
   createSession: protectedProcedure
     .input(z.object({ projectId: z.string().optional(), siteUrl: z.string() }))

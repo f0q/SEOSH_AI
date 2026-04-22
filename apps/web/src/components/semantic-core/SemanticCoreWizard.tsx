@@ -97,6 +97,18 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
     { enabled: !!semanticCoreId }
   );
 
+  // Auto-restore semanticCoreId from DB when wizard mounts
+  const latestCore = trpc.semanticCore.getLatest.useQuery(
+    { projectId: selectedProjectId },
+    { enabled: !semanticCoreId }  // only query if we don't already have one
+  );
+  if (latestCore.data && !semanticCoreId) {
+    setSemanticCoreId(latestCore.data.id);
+    if (latestCore.data.siteUrl && !sitemapUrl) {
+      setSitemapUrl(latestCore.data.siteUrl);
+    }
+  }
+
   // Sync groupsDone from query data
   if ((groupsQuery.data?.totalGroups ?? 0) > 0 && !groupsDone) setGroupsDone(true);
 
@@ -179,7 +191,7 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
       </div>
 
       {/* Step content */}
-      <div className="glass-card p-8 min-h-[400px] flex flex-col" key={step}>
+      <div className="glass-card p-8 min-h-[400px] flex flex-col">
         {step === 1 && (
           <StepSitemap
             projectId={projectId}
