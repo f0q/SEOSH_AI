@@ -208,6 +208,12 @@ function StepCategories({
     { enabled: !!semanticCoreId }
   );
 
+  // Check if keyword groups actually exist (Step 2 output)
+  const groupsData = trpc.semanticCore.getGroups.useQuery(
+    { semanticCoreId: semanticCoreId || "" },
+    { enabled: !!semanticCoreId }
+  );
+
   // Sync DB categories into local state (only on first load)
   if (existingCats.data && existingCats.data.length > 0 && categories.length === 0) {
     setCategories(existingCats.data.map((c: any) => c.name));
@@ -245,7 +251,8 @@ function StepCategories({
     setNewCat("");
   };
 
-  const hasGroups = (existingCats.data?.length ?? 0) > 0 || categories.length > 0;
+  // hasGroups now checks the actual lexical groups from Step 2, not the categories
+  const hasKeywordGroups = (groupsData.data?.totalGroups ?? 0) > 0;
   const isGenerating = generateCats.isPending;
   const isApproving = approveCats.isPending;
 
@@ -259,16 +266,36 @@ function StepCategories({
         </p>
       </div>
 
-      {/* No groups warning */}
+      {/* Keyword groups status / no-groups warning */}
       {!semanticCoreId && (
         <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
           <p className="text-sm text-amber-300">⚠ Complete Step 1 (Sitemap) first to create a session.</p>
         </div>
       )}
 
-      {semanticCoreId && !hasGroups && !isGenerating && (
+      {semanticCoreId && !groupsData.isLoading && !hasKeywordGroups && !isGenerating && (
         <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-          <p className="text-sm text-amber-300">⚠ No keyword groups yet. Go to Step 2 and upload your keywords first.</p>
+          <p className="text-sm text-amber-300">
+            ⚠ No keyword groups found. Go to <strong>Step 2</strong> and upload your keywords first.
+          </p>
+        </div>
+      )}
+
+      {/* Info: no-AI grouping explanation */}
+      {semanticCoreId && hasKeywordGroups && (
+        <div className="flex gap-3 p-3 rounded-xl border border-surface-700/25 bg-surface-800/20">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm">⚡</span>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-surface-200">
+              {groupsData.data?.totalGroups} groups · {groupsData.data?.totalQueries} keywords ready
+            </p>
+            <p className="text-xs text-surface-500 mt-0.5">
+              Groups were built using a pure N-gram script — no AI used. This compresses your keyword list
+              by ~{groupsData.data?.compressionPct}% before sending it to the AI, saving tokens and reducing cost significantly.
+            </p>
+          </div>
         </div>
       )}
 

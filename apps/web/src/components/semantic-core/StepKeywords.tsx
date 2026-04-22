@@ -71,8 +71,16 @@ export function StepKeywords({ semanticCoreId }: Props) {
       <div>
         <h2 className="text-lg font-semibold text-surface-100 mb-1">Keyword Grouping</h2>
         <p className="text-sm text-surface-400">
-          Paste keywords (one per line) — we&apos;ll cluster them using N-gram lexical analysis. No AI tokens used.
+          Paste your keywords (one per line) and we&apos;ll cluster them with N-gram lexical analysis.
         </p>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-2.5 py-1">
+            <span>⚡</span> Script only — zero AI tokens
+          </span>
+          <span className="text-xs text-surface-500">
+            Groups are built locally, so only representative queries (1 per group) are sent to the AI — cutting cost by up to 90%.
+          </span>
+        </div>
       </div>
 
       {/* Input area — only show if no groups yet or editing */}
@@ -132,13 +140,14 @@ export function StepKeywords({ semanticCoreId }: Props) {
 
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Total queries", value: groupsData.totalQueries, color: "text-brand-400" },
-              { label: "Lexical groups", value: groupsData.totalGroups, color: "text-emerald-400" },
-              { label: "AI compression", value: `${groupsData.compressionPct}%`, color: "text-amber-400" },
+              { label: "Total queries", value: groupsData.totalQueries, color: "text-brand-400", hint: "Keywords you uploaded" },
+              { label: "Lexical groups", value: groupsData.totalGroups, color: "text-emerald-400", hint: "Clusters built by script" },
+              { label: "AI compression", value: `${groupsData.compressionPct}%`, color: "text-amber-400", hint: "Tokens saved vs sending all keywords" },
             ].map((s) => (
-              <div key={s.label} className="rounded-xl bg-surface-800/30 border border-surface-700/20 p-4">
+              <div key={s.label} className="rounded-xl bg-surface-800/30 border border-surface-700/20 p-4" title={s.hint}>
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-surface-500 mt-1">{s.label}</p>
+                <p className="text-[10px] text-surface-700 mt-0.5 leading-tight">{s.hint}</p>
               </div>
             ))}
           </div>
