@@ -17,48 +17,8 @@ import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
 import { StepSitemap } from "./StepSitemap";
 import { StepKeywords } from "./StepKeywords";
+import { getCatColor } from "@/lib/categoryColors";
 
-// ─── Category color palette ───────────────────────────────────────────────────
-// 12 distinct hues that look good on dark backgrounds.
-// Using inline styles (not dynamic Tailwind classes) for reliable rendering.
-
-const CAT_PALETTE = [
-  { h: 186 }, // cyan
-  { h: 270 }, // violet
-  { h: 150 }, // emerald
-  { h: 35  }, // amber
-  { h: 330 }, // pink
-  { h: 220 }, // blue
-  { h: 175 }, // teal
-  { h: 15  }, // orange
-  { h: 250 }, // indigo
-  { h: 90  }, // lime
-  { h: 350 }, // rose
-  { h: 200 }, // sky
-];
-
-/** Hash a string to a number (djb2) — stable across renders / page loads */
-function hashStr(s: string): number {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i);
-  return Math.abs(h);
-}
-
-/** Returns inline-style objects for a category badge, dot, and checkmark.
- *  Color is derived from the category NAME (not its list position),
- *  so the same name always gets the same hue. */
-function getCatColor(name: string) {
-  const { h } = CAT_PALETTE[hashStr(name) % CAT_PALETTE.length];
-  return {
-    badge: {
-      color:      `hsl(${h} 80% 72%)`,
-      background: `hsl(${h} 70% 30% / 0.15)`,
-      border:     `1px solid hsl(${h} 60% 50% / 0.30)`,
-    },
-    dot:   `hsl(${h} 80% 65%)`,
-    check: `hsl(${h} 80% 70%)`,
-  };
-}
 
 // ─── Step config ─────────────────────────────────────────────────────────────
 
@@ -443,30 +403,41 @@ function StepCategories({
           </div>
 
           <div className="space-y-2">
-            {categories.map((cat, i) => (
-              <div key={i} className="flex items-center gap-2 group">
-                <div className="w-6 h-6 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs text-cyan-400 font-bold">{i + 1}</span>
+            {categories.map((cat, i) => {
+              const clr = getCatColor(cat);
+              return (
+                <div key={i} className="flex items-center gap-2 group">
+                  <div 
+                    className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: clr.badge.background, border: clr.badge.border }}
+                  >
+                    <span className="text-xs font-bold" style={{ color: clr.dot }}>{i + 1}</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={cat}
+                    onChange={(e) => {
+                      const next = [...categories];
+                      next[i] = e.target.value;
+                      setCategories(next);
+                    }}
+                    className="input-field flex-1"
+                    style={{ 
+                      color: clr.badge.color,
+                      borderColor: 'transparent',
+                      backgroundColor: clr.badge.background
+                    }}
+                    placeholder="Category name"
+                  />
+                  <button
+                    onClick={() => setCategories(categories.filter((_, j) => j !== i))}
+                    className="p-2 rounded-lg text-surface-600 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <input
-                  type="text"
-                  value={cat}
-                  onChange={(e) => {
-                    const next = [...categories];
-                    next[i] = e.target.value;
-                    setCategories(next);
-                  }}
-                  className="input-field flex-1"
-                  placeholder="Category name"
-                />
-                <button
-                  onClick={() => setCategories(categories.filter((_, j) => j !== i))}
-                  className="p-2 rounded-lg text-surface-600 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Add category manually */}
