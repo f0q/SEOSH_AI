@@ -197,6 +197,7 @@ function StepCategories({
 }) {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedModelId, setSelectedModelId] = useState("");
+  const [language, setLanguage] = useState("ru");
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
   const [newCat, setNewCat] = useState("");
@@ -230,7 +231,7 @@ function StepCategories({
   const handleGenerate = () => {
     if (!semanticCoreId) return;
     setError(null);
-    generateCats.mutate({ semanticCoreId, modelId: selectedModelId || undefined });
+    generateCats.mutate({ semanticCoreId, modelId: selectedModelId || undefined, language });
   };
 
   const handleApprove = () => {
@@ -281,6 +282,27 @@ function StepCategories({
             expectedOutputTokens={300}
           />
         </div>
+        {/* Language selector */}
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="input-field !py-1.5 !px-3 !text-sm !w-auto"
+          title="Output language for category names"
+        >
+          <option value="ru">🇷🇺 Русский</option>
+          <option value="en">🇬🇧 English</option>
+          <option value="de">🇩🇪 Deutsch</option>
+          <option value="es">🇪🇸 Español</option>
+          <option value="fr">🇫🇷 Français</option>
+          <option value="pt">🇵🇹 Português</option>
+          <option value="it">🇮🇹 Italiano</option>
+          <option value="pl">🇵🇱 Polski</option>
+          <option value="tr">🇹🇷 Türkçe</option>
+          <option value="uk">🇺🇦 Українська</option>
+          <option value="kk">🇰🇿 Қазақша</option>
+          <option value="zh">🇨🇳 中文</option>
+          <option value="ar">🇸🇦 العربية</option>
+        </select>
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !semanticCoreId}

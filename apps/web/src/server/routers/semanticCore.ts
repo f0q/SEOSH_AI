@@ -165,6 +165,7 @@ export const semanticCoreRouter = router({
         semanticCoreId: z.string(),
         websiteUrl: z.string().optional(),
         modelId: z.string().optional(),
+        language: z.string().optional(), // e.g. "ru", "en", "de"
       })
     )
     .mutation(async ({ input }) => {
@@ -190,6 +191,13 @@ export const semanticCoreRouter = router({
       if (repStrings.length === 0)
         throw new Error("No keyword groups found. Complete Step 2 (upload keywords) first.");
 
+      const langNames: Record<string, string> = {
+        ru: "Russian", en: "English", de: "German", es: "Spanish",
+        fr: "French", pt: "Portuguese", it: "Italian", pl: "Polish",
+        tr: "Turkish", uk: "Ukrainian", kk: "Kazakh", zh: "Chinese", ar: "Arabic",
+      };
+      const outputLanguage = langNames[input.language || "ru"] || "Russian";
+
       const prompt = `You are a senior SEO strategist. Below are the most representative keyword queries from a website: ${siteUrl}
 
 Keyword representatives:
@@ -198,11 +206,12 @@ ${repStrings.slice(0, 80).map((q, i) => `${i + 1}. ${q}`).join("\n")}
 Task: Suggest 5-12 broad content categories to organize these keywords into a semantic content plan. Categories should reflect the website's main topics and match its structure.
 
 Rules:
+- Write ALL category names in ${outputLanguage} language ONLY
 - Each category name should be 2-5 words, clear and descriptive
 - Think like an SEO strategist planning a site's content sections
 - Avoid generic names like "Other" or "Miscellaneous"
 - Return ONLY a valid JSON array of strings, nothing else
-- Example output: ["Product Reviews", "How-To Guides", "Service Pages", "Company Blog"]`;
+- Example output (in ${outputLanguage}): ["Category One", "Category Two", "Category Three"]`;
 
       const aiResponse = await callOpenRouter(config, prompt);
 
