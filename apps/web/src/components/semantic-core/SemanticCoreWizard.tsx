@@ -6,7 +6,7 @@
  * Navigation is free (any step accessible at any time).
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Brain, Globe, Upload, Tags, BarChart3,
@@ -565,7 +565,8 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
   const [catError, setCatError] = useState<string | null>(null);
   const [catProgress, setCatProgress] = useState<{ done: number; total: number } | null>(null);
   const [catRunning, setCatRunning] = useState(false);
-  const cancelRef = { current: false };
+  const cancelRef = useRef(false);
+  const autoTriggered = useRef(false);
 
   const { data, isLoading, refetch } = trpc.semanticCore.getResults.useQuery(
     { semanticCoreId: semanticCoreId || "" },
@@ -601,6 +602,11 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
   const totalResults = data?.results?.length ?? 0;
   const catNames = (catData.data ?? []).map((c: any) => c.name);
   const summary: Record<string, number> = (data?.summary as any) ?? {};
+
+  // Auto-categorize: if categories exist and ALL queries are uncategorized, auto-start
+  const uncategorizedCount = summary["Uncategorized"] ?? 0;
+  const hasCategories = catNames.length > 0;
+  const allUncategorized = totalResults > 0 && uncategorizedCount === totalResults;
 
   // Batched AI categorization with progress
   const handleCategorizeAll = async () => {
@@ -643,6 +649,14 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
   };
 
   const handleCancel = () => { cancelRef.current = true; };
+
+  // Auto-trigger categorization once when all queries are uncategorized
+  useEffect(() => {
+    if (hasCategories && allUncategorized && !catRunning && !autoTriggered.current && !isLoading) {
+      autoTriggered.current = true;
+      handleCategorizeAll();
+    }
+  }, [hasCategories, allUncategorized, catRunning, isLoading]);
 
   return (
     <div className="space-y-5">
