@@ -387,11 +387,130 @@ Rules:
       return { success: true };
     }),
 
-  /** Move a query to a different category */
-  updateQueryCategory: protectedProcedure
-    .input(z.object({ queryId: z.string(), categoryName: z.string() }))
+  /** AI categorization: assign every keyword group to the best matching category */
+  categorizeQueries: protectedProcedure
+    .input(z.object({
+      semanticCoreId: z.string(),
+      modelId: z.string().optional(),
+      language: z.string().optional(),
+    }))
     .mutation(async ({ input }) => {
-      // TODO: prisma.query.update
+      const config = getAIConfig(input.modelId);
+      if (!config.apiKey) throw new Error("OpenRouter API key not configured");
+
+      // Fetch approved categories
+      const cats = await prisma.category.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        select: { id: true, name: true },
+      });
+      if (cats.length === 0)
+        throw new Error("No categories found. Complete Step 3 and approve categories first.");
+
+      // Fetch lexical groups with their representative query
+      const groups = await prisma.lexicalGroup.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        select: { id: true, representativeQuery: true },
+      });
+      if (groups.length === 0)
+        throw new Error("No keyword groups found. Complete Step 2 first.");
+
+      const langNames: Record<string, string> = {
+        ru: "Russian", en: "English", de: "German", es: "Spanish",
+        fr: "French", pt: "Portuguese", it: "Italian", pl: "Polish",
+        tr: "Turkish", uk: "Ukrainian", kk: "Kazakh", zh: "Chinese", ar: "Arabic",
+      };
+      const outputLanguage = langNames[input.language || "ru"] || "Russian";
+
+      const catList = cats.map((c) => c.name).join(", ");
+      const prompt = [
+        "You are an SEO content strategist. Assign each keyword group to the best matching category.",
+        "",
+        `Categories available: ${catList}`,
+        "",
+        "Keyword groups (ID: representative query):",
+        groups.map((g) => `  GROUP_${g.id}: ${g.representativeQuery}`).join("\n"),
+        "",
+        "Rules:",
+        "- Assign EACH group to exactly ONE category from the list above",
+        "- Use the category name EXACTLY as written (case-sensitive)",
+        `- Think in ${outputLanguage} context`,
+        "- Return ONLY a valid JSON object: { \"GROUP_<id>\": \"CategoryName\", ... }",
+        "- No explanation, no markdown, just the JSON object",
+      ].join("\n");
+
+      const aiResponse = await callOpenRouter(config, prompt);
+
+      let mapping: Record<string, string> = {};
+      try {
+        const match = aiResponse.match(/\{[\s\S]*?\}/);
+        if (match) mapping = JSON.parse(match[0]);
+      } catch {
+        throw new Error("AI returned invalid JSON mapping. Try again.");
+      }
+
+      if (Object.keys(mapping).length === 0)
+        throw new Error("AI returned empty mapping. Try a different model.");
+
+      // Build categoryName → categoryId lookup
+      const catById: Record<string, string> = {};
+      cats.forEach((c) => { catById[c.name] = c.id; });
+
+      // Apply assignments: for each group, find the category and update all queries in that group
+      let assigned = 0;
+      const updates: Promise<any>[] = [];
+
+      for (const [key, catName] of Object.entries(mapping)) {
+        const groupId = key.replace("GROUP_", "");
+        const categoryId = catById[catName as string];
+        if (!categoryId) continue;
+        updates.push(
+          prisma.query.updateMany({
+            where: { groupId },
+            data: { categoryId },
+          }).then((r) => { assigned += r.count; })
+        );
+      }
+
+      await Promise.all(updates);
+
+      return { assigned, totalGroups: groups.length, mappedGroups: Object.keys(mapping).length };
+    }),
+
+  /** Move a query (or all queries in a group) to a different category */
+  updateQueryCategory: protectedProcedure
+    .input(z.object({
+      queryId: z.string(),
+      categoryName: z.string().nullable(), // null = remove from category
+      semanticCoreId: z.string(),
+      applyToGroup: z.boolean().default(false), // update all queries in same group
+    }))
+    .mutation(async ({ input }) => {
+      // Resolve category id
+      let categoryId: string | null = null;
+      if (input.categoryName) {
+        const cat = await prisma.category.findFirst({
+          where: { semanticCoreId: input.semanticCoreId, name: input.categoryName },
+          select: { id: true },
+        });
+        if (!cat) throw new Error(`Category "${input.categoryName}" not found`);
+        categoryId = cat.id;
+      }
+
+      if (input.applyToGroup) {
+        // Find the group of this query then update all queries in the group
+        const q = await prisma.query.findUnique({ where: { id: input.queryId }, select: { groupId: true } });
+        if (q?.groupId) {
+          await prisma.query.updateMany({
+            where: { groupId: q.groupId },
+            data: { categoryId },
+          });
+        } else {
+          await prisma.query.update({ where: { id: input.queryId }, data: { categoryId } });
+        }
+      } else {
+        await prisma.query.update({ where: { id: input.queryId }, data: { categoryId } });
+      }
+
       return { success: true };
     }),
 

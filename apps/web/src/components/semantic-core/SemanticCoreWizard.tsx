@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Brain, Globe, Upload, Tags, BarChart3,
-  LayoutList, Loader2, CheckCircle2, X, Plus, Wand2,
+  LayoutList, Loader2, CheckCircle2, X, Plus, Wand2, ChevronDown,
 } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
@@ -495,18 +495,37 @@ function StepCategories({
 }
 
 
-// ─── Step 4: Results ──────────────────────────────────────────────────────────
+// ─── Step 4: Results ────────────────────────────────────────────────────────
 
 function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | null; projectId: string | undefined }) {
   const router = useRouter();
   const [genStatus, setGenStatus] = useState<"idle" | "generating" | "done">("idle");
   const [genResult, setGenResult] = useState<{ created: number; categories: string[] } | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  const [catModelId, setCatModelId] = useState("");
+  const [catLanguage, setCatLanguage] = useState("ru");
+  const [catError, setCatError] = useState<string | null>(null);
+  const [catResult, setCatResult] = useState<{ assigned: number; totalGroups: number } | null>(null);
 
-  const { data, isLoading } = trpc.semanticCore.getResults.useQuery(
+  const { data, isLoading, refetch } = trpc.semanticCore.getResults.useQuery(
     { semanticCoreId: semanticCoreId || "" },
     { enabled: !!semanticCoreId }
   );
+
+  const catData = trpc.semanticCore.getCategories.useQuery(
+    { semanticCoreId: semanticCoreId || "" },
+    { enabled: !!semanticCoreId }
+  );
+
+  const categorizeMut = trpc.semanticCore.categorizeQueries.useMutation({
+    onSuccess: (res) => { setCatResult(res); setCatError(null); refetch(); },
+    onError: (e) => setCatError(e.message),
+  });
+
+  const updateCatMut = trpc.semanticCore.updateQueryCategory.useMutation({
+    onSuccess: () => refetch(),
+    onError: (e) => setCatError(e.message),
+  });
 
   const generatePlan = trpc.contentPlan.generateFromSemanticCore.useMutation({
     onSuccess: (result) => { setGenResult(result); setGenStatus("done"); },
@@ -514,7 +533,8 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
   });
 
   const totalResults = data?.results?.length ?? 0;
-  const cats = data?.summary ? Object.keys(data.summary) : [];
+  const catNames = (catData.data ?? []).map((c: any) => c.name);
+  const isCategorizePending = categorizeMut.isPending;
 
   return (
     <div className="space-y-5">
@@ -523,10 +543,61 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
           <h2 className="text-lg font-semibold text-surface-100 mb-1">Results</h2>
           <p className="text-sm text-surface-400">Keyword → Category → Page mapping</p>
         </div>
-        <button className="btn-secondary">Export CSV</button>
+        <button className="btn-secondary text-sm">Export CSV</button>
       </div>
 
-      {/* Generate content plan banner */}
+      {/* AI categorize panel */}
+      {semanticCoreId && (
+        <div className="rounded-xl border border-surface-700/25 bg-surface-800/15 p-4 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-surface-200">Assign Keywords to Categories with AI</p>
+              <p className="text-xs text-surface-500 mt-0.5">
+                AI reads each keyword group and assigns it to the best matching category. All keywords in a group share the same category.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select value={catLanguage} onChange={(e) => setCatLanguage(e.target.value)} className="input-field !py-1.5 !px-3 !text-sm !w-auto">
+                <option value="ru">RU</option>
+                <option value="en">EN</option>
+                <option value="de">DE</option>
+                <option value="es">ES</option>
+                <option value="fr">FR</option>
+                <option value="uk">UK</option>
+              </select>
+              <div className="w-40">
+                <AIModelSelector onModelSelect={setCatModelId} selectedModelId={catModelId} estimatedPromptTokens={800} expectedOutputTokens={400} />
+              </div>
+              <button
+                onClick={() => {
+                  setCatError(null);
+                  setCatResult(null);
+                  categorizeMut.mutate({ semanticCoreId: semanticCoreId!, modelId: catModelId || undefined, language: catLanguage });
+                }}
+                disabled={isCategorizePending}
+                className="btn-primary gap-2 text-sm"
+              >
+                {isCategorizePending
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Categorizing...</>
+                  : <><Brain className="w-4 h-4" /> Categorize All</>}
+              </button>
+            </div>
+          </div>
+          {catError && (
+            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{catError}</p>
+          )}
+          {catResult && (
+            <div className="flex items-center gap-2 text-xs animate-fade-in">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-emerald-400 font-medium">{catResult.assigned} keywords assigned</span>
+              <span className="text-surface-600">·</span>
+              <span className="text-surface-500">{catResult.totalGroups} groups processed</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Generate content plan */}
       {projectId && totalResults > 0 && (
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
           {genStatus === "done" && genResult ? (
@@ -534,12 +605,8 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-emerald-300">
-                    Created {genResult.created} content plan rows from {genResult.categories.length} categories
-                  </p>
-                  <p className="text-xs text-surface-500 mt-0.5">
-                    {genResult.categories.join(", ")}
-                  </p>
+                  <p className="text-sm font-medium text-emerald-300">Created {genResult.created} content plan rows</p>
+                  <p className="text-xs text-surface-500 mt-0.5">{genResult.categories.join(", ")}</p>
                 </div>
               </div>
               <button onClick={() => router.push("/autopilot/content-planner")} className="btn-primary gap-2 text-sm">
@@ -552,68 +619,132 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 <LayoutList className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-surface-200">Generate Content Plan</p>
-                  <p className="text-xs text-surface-500 mt-0.5">
-                    Create {cats.length} rows from keyword categories with auto-filled page type, schema, and word count.
-                  </p>
+                  <p className="text-xs text-surface-500 mt-0.5">Create rows from categories with page type, schema, and word count.</p>
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setGenStatus("generating");
-                  setGenError(null);
-                  generatePlan.mutate({ semanticCoreId: semanticCoreId!, projectId });
-                }}
+                onClick={() => { setGenStatus("generating"); setGenError(null); generatePlan.mutate({ semanticCoreId: semanticCoreId!, projectId }); }}
                 disabled={genStatus === "generating"}
                 className="btn-primary gap-2 text-sm flex-shrink-0"
               >
-                {genStatus === "generating" ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
-                ) : (
-                  <><LayoutList className="w-4 h-4" /> Generate Plan</>
-                )}
+                {genStatus === "generating"
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+                  : <><LayoutList className="w-4 h-4" /> Generate Plan</>}
               </button>
             </div>
           )}
-          {genError && (
-            <p className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{genError}</p>
-          )}
+          {genError && <p className="mt-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{genError}</p>}
         </div>
       )}
 
       {!projectId && totalResults > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <p className="text-sm text-amber-300">⚠ Link this core to a project (top-right) to generate a content plan.</p>
+          <p className="text-sm text-amber-300">⚠ Link this core to a project to generate a content plan.</p>
         </div>
       )}
 
+      {/* Results table */}
       <div className="overflow-auto rounded-xl border border-surface-700/30">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-700/30 bg-surface-800/20">
+              <th className="text-left px-4 py-3 text-surface-400 font-medium w-8">#</th>
               <th className="text-left px-4 py-3 text-surface-400 font-medium">Keyword</th>
-              <th className="text-left px-4 py-3 text-surface-400 font-medium">Category</th>
+              <th className="text-left px-4 py-3 text-surface-400 font-medium w-44">Category</th>
+              <th className="text-left px-4 py-3 text-surface-400 font-medium w-40">Group</th>
               <th className="text-left px-4 py-3 text-surface-400 font-medium">Page</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={3} className="px-4 py-8 text-center text-surface-500">Loading...</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-surface-500">Loading...</td></tr>
             ) : data?.results && data.results.length > 0 ? (
               data.results.map((r: any, i: number) => (
-                <tr key={i} className="border-b border-surface-700/20 hover:bg-surface-800/20 transition-colors">
-                  <td className="px-4 py-3 text-surface-200">{r.query}</td>
-                  <td className="px-4 py-3">
-                    <span className="badge badge-brand">{r.category || "Uncategorized"}</span>
-                  </td>
-                  <td className="px-4 py-3 text-brand-400 font-mono text-xs">{r.page || "Needs Content"}</td>
-                </tr>
+                <ResultRow
+                  key={r.id || i}
+                  index={i + 1}
+                  row={r}
+                  catNames={catNames}
+                  onCategoryChange={(queryId, catName, applyToGroup) =>
+                    updateCatMut.mutate({ queryId, categoryName: catName, semanticCoreId: semanticCoreId || "", applyToGroup })
+                  }
+                />
               ))
             ) : (
-              <tr><td colSpan={3} className="px-4 py-8 text-center text-surface-500">No results found</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-surface-500">No results yet — complete Steps 1 &amp; 2 first.</td></tr>
             )}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+// ─── Per-row component with inline category picker ──────────────────────────────────────────────
+
+function ResultRow({ index, row, catNames, onCategoryChange }: {
+  index: number;
+  row: any;
+  catNames: string[];
+  onCategoryChange: (queryId: string, catName: string | null, applyToGroup: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const isUncategorized = !row.category || row.category === "Uncategorized";
+
+  return (
+    <tr className="border-b border-surface-700/20 hover:bg-surface-800/20 transition-colors">
+      <td className="px-4 py-2.5 text-surface-600 text-xs">{index}</td>
+      <td className="px-4 py-2.5 text-surface-200 max-w-xs truncate">{row.query}</td>
+      <td className="px-4 py-2.5 relative">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+            isUncategorized
+              ? "text-surface-500 bg-surface-800/40 border-surface-700/30 hover:border-surface-600/50"
+              : "text-cyan-300 bg-cyan-500/10 border-cyan-500/20 hover:border-cyan-500/40"
+          }`}
+        >
+          {row.category || "Uncategorized"}
+          <ChevronDown className="w-3 h-3 opacity-60" />
+        </button>
+        {open && (
+          <div className="absolute left-0 top-full mt-1 z-20 bg-surface-900 border border-surface-700/50 rounded-xl shadow-xl min-w-52 py-1 animate-fade-in">
+            <p className="text-[10px] text-surface-600 px-3 py-1 uppercase tracking-wide">Assign to category</p>
+            {catNames.map((name) => (
+              <div key={name} className="group flex items-center">
+                <button
+                  onClick={() => { onCategoryChange(row.id, name, false); setOpen(false); }}
+                  className={`flex-1 text-left text-xs px-3 py-1.5 hover:bg-surface-800 transition-colors ${name === row.category ? "text-cyan-400" : "text-surface-300"}`}
+                >
+                  {name === row.category && "✓ "}{name}
+                </button>
+                <button
+                  onClick={() => { onCategoryChange(row.id, name, true); setOpen(false); }}
+                  title="Apply to entire group"
+                  className="text-[10px] text-surface-600 hover:text-surface-400 px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+                >
+                  all group
+                </button>
+              </div>
+            ))}
+            {!isUncategorized && (
+              <>
+                <div className="border-t border-surface-700/30 my-1" />
+                <button
+                  onClick={() => { onCategoryChange(row.id, null, false); setOpen(false); }}
+                  className="w-full text-left text-xs px-3 py-1.5 text-surface-500 hover:text-red-400 hover:bg-surface-800 transition-colors"
+                >
+                  Remove category
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-surface-500 text-xs truncate max-w-[160px]">{row.group || "—"}</td>
+      <td className="px-4 py-2.5 text-brand-400 font-mono text-xs truncate max-w-[180px]">
+        {row.page || <span className="text-surface-600">Needs Content</span>}
+      </td>
+    </tr>
   );
 }
