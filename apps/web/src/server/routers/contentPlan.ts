@@ -454,10 +454,21 @@ export const contentPlanRouter = router({
       return { topic: randomQuery.text };
     }),
 
+  getProjectTitles: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ input }) => {
+      const plan = await prisma.contentPlan.findFirst({
+        where: { projectId: input.projectId },
+        include: { items: { select: { title: true } } }
+      });
+      if (!plan) return [];
+      return plan.items.map(item => item.title.toLowerCase());
+    }),
+
   proposeIdeas: protectedProcedure
-    .input(z.object({ topic: z.string() }))
+    .input(z.object({ topic: z.string(), modelId: z.string().optional() }))
     .mutation(async ({ input }) => {
-      const config = getAIConfig();
+      const config = getAIConfig(input.modelId);
       const prompt = `You are an expert SEO content strategist.
 The user wants to build a topical silo/cluster around the topic: "${input.topic}".
 Propose exactly 5 distinct, high-quality article ideas that comprehensively cover this topic.
@@ -488,9 +499,12 @@ Do not output any markdown formatting, only the JSON object.`;
     }),
 
   chat: protectedProcedure
-    .input(z.object({ messages: z.array(z.object({ role: z.string(), content: z.string() })) }))
+    .input(z.object({ 
+      messages: z.array(z.object({ role: z.string(), content: z.string() })),
+      modelId: z.string().optional() 
+    }))
     .mutation(async ({ input }) => {
-      const config = getAIConfig();
+      const config = getAIConfig(input.modelId);
       // Inject a system prompt context at the start
       const msgs = [
         { role: "system", content: "You are an expert SEO content strategist and planner. Help the user brainstorm silos, structures, and content ideas for their website." },
@@ -509,7 +523,7 @@ Do not output any markdown formatting, only the JSON object.`;
     }),
 
   analyzeRss: protectedProcedure
-    .input(z.object({ url: z.string().url() }))
+    .input(z.object({ url: z.string().url(), modelId: z.string().optional() }))
     .mutation(async ({ input }) => {
       try {
         const parser = new Parser();
@@ -525,7 +539,7 @@ Do not output any markdown formatting, only the JSON object.`;
           throw new Error("No articles found in RSS feed.");
         }
 
-        const config = getAIConfig();
+        const config = getAIConfig(input.modelId);
         const prompt = `You are an expert SEO content strategist.
 A competitor just published these recent articles via their RSS feed:
 ${JSON.stringify(articles, null, 2)}
@@ -552,6 +566,59 @@ Do not output any markdown formatting, only the JSON object.`;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to analyze RSS feed and generate ideas.",
+        });
+      }
+    }),
+
+  fleshOutIdeas: protectedProcedure
+    .input(z.object({ 
+      ideas: z.array(z.object({
+        title: z.string(),
+        type: z.string(),
+        intent: z.string()
+      })),
+      topic: z.string(),
+      modelId: z.string().optional()
+    }))
+    .mutation(async ({ input }) => {
+      const config = getAIConfig(input.modelId);
+      const prompt = `You are an expert SEO specialist.
+I have a list of basic content ideas for the topic: "${input.topic}".
+For each idea, I need you to flesh out the SEO details.
+
+Here are the ideas:
+${JSON.stringify(input.ideas, null, 2)}
+
+For each idea, generate:
+- "url": A short, SEO-friendly slug (e.g. "best-running-shoes").
+- "metaDesc": A compelling meta description (max 155 chars).
+- "h1": An optimized, catchy H1 heading (can be the same as title or refined).
+- "h2Headings": An array of 3 to 6 logical H2 subheadings.
+- "targetKeywords": An array of 3 to 5 LSI/target keywords.
+
+Output strictly valid JSON matching this schema:
+{
+  "enrichedIdeas": [
+    {
+      "url": string,
+      "metaDesc": string,
+      "h1": string,
+      "h2Headings": [string],
+      "targetKeywords": [string]
+    }
+  ]
+}
+The output array must be in the exact same order as the input ideas. Do not output any markdown formatting, only the JSON object.`;
+
+      try {
+        const aiResponse = await callOpenRouter(config, prompt, true);
+        const parsed = JSON.parse(aiResponse);
+        return { enrichedIdeas: parsed.enrichedIdeas || [] };
+      } catch (err) {
+        console.error("AI Flesh Out Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to flesh out ideas with AI.",
         });
       }
     }),

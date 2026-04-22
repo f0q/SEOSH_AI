@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { X, Sparkles, Rss, BrainCircuit, Search, Loader2 } from "lucide-react";
+import { X, Sparkles, Rss, BrainCircuit, Search, Loader2, AlertCircle } from "lucide-react";
 import { trpc } from "@/trpc/client";
+import { AIModelSelector } from "../ui/AIModelSelector";
 
 export function IdeationModal({
   projectId,
@@ -16,6 +17,12 @@ export function IdeationModal({
   const [rssUrl, setRssUrl] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [chatLog, setChatLog] = useState<{ role: "user" | "ai"; content: string }[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const [fleshOutModelId, setFleshOutModelId] = useState("");
+  const [selectedIdeas, setSelectedIdeas] = useState<Set<number>>(new Set());
+
+  const titlesQuery = trpc.contentPlan.getProjectTitles.useQuery({ projectId });
+  const existingTitles = new Set(titlesQuery.data || []);
 
   const randomTopicQuery = trpc.contentPlan.getRandomTopic.useQuery(
     { projectId },
@@ -23,7 +30,10 @@ export function IdeationModal({
   );
 
   const proposeIdeasMut = trpc.contentPlan.proposeIdeas.useMutation({
-    onSuccess: (data) => setProposedIdeas(data.ideas),
+    onSuccess: (data) => {
+      setProposedIdeas(data.ideas);
+      setSelectedIdeas(new Set(data.ideas.map((_: any, i: number) => i))); // select all by default
+    },
   });
 
   const chatMut = trpc.contentPlan.chat.useMutation({
@@ -47,28 +57,51 @@ export function IdeationModal({
     onError: (err) => alert(err.message),
   });
 
+  const fleshOutMut = trpc.contentPlan.fleshOutIdeas.useMutation({
+    onSuccess: (data) => {
+      // Merge the fleshed out data back into the proposedIdeas array
+      setProposedIdeas(prev => prev.map((idea, i) => {
+        if (selectedIdeas.has(i)) {
+          // Find corresponding enriched idea
+          // We know the returned array maps 1:1 with the selected ideas
+          const enrichedIdx = Array.from(selectedIdeas).indexOf(i);
+          const enriched = data.enrichedIdeas[enrichedIdx];
+          return { ...idea, ...enriched };
+        }
+        return idea;
+      }));
+    },
+    onError: (err) => alert(err.message),
+  });
+
   const createItemMut = trpc.contentPlan.createItem.useMutation();
 
   const [proposedIdeas, setProposedIdeas] = useState<any[]>([]);
 
   const handleProposeIdeas = () => {
     if (!topic.trim()) return;
-    proposeIdeasMut.mutate({ topic });
+    proposeIdeasMut.mutate({ topic, modelId: selectedModelId || undefined });
   };
 
   const handleSaveToPlan = async () => {
+    const ideasToSave = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
+    if (ideasToSave.length === 0) return;
+
     try {
       await Promise.all(
-        proposedIdeas.map((idea, idx) =>
+        ideasToSave.map((idea) =>
           createItemMut.mutateAsync({
             projectId,
             data: {
-              url: "",
-              section: topic, // Using the topic as the overarching section/silo name
+              url: idea.url || "",
+              section: topic,
               pageType: idea.type,
               priority: 1,
               metaTitle: idea.title,
-              h1: idea.title,
+              metaDesc: idea.metaDesc,
+              h1: idea.h1 || idea.title,
+              h2Headings: idea.h2Headings,
+              targetKeywords: idea.targetKeywords,
             },
           })
         )
@@ -112,18 +145,6 @@ export function IdeationModal({
               <Search className="w-4 h-4" /> Topic Analysis
             </button>
             <button
-              onClick={async () => {
-                const res = await randomTopicQuery.refetch();
-                if (res.data?.topic) setTopic(res.data.topic);
-                setMode("manual");
-              }}
-              disabled={randomTopicQuery.isFetching}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-surface-400 hover:bg-surface-800 hover:text-surface-200 transition-colors"
-            >
-              {randomTopicQuery.isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} 
-              Random from Core
-            </button>
-            <button
               onClick={() => setMode("rss")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 mode === "rss" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
@@ -146,7 +167,20 @@ export function IdeationModal({
             {mode === "manual" && (
               <div className="space-y-6 animate-fade-in">
                 <div>
-                  <label className="block text-sm font-medium text-surface-300 mb-2">Target Topic</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-surface-300">Target Topic</label>
+                    <button
+                      onClick={async () => {
+                        const res = await randomTopicQuery.refetch();
+                        if (res.data?.topic) setTopic(res.data.topic);
+                      }}
+                      disabled={randomTopicQuery.isFetching}
+                      className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors"
+                    >
+                      {randomTopicQuery.isFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 
+                      Random from Core
+                    </button>
+                  </div>
                   <div className="flex gap-3">
                     <input
                       type="text"
@@ -156,35 +190,103 @@ export function IdeationModal({
                       className="input-field flex-1"
                       onKeyDown={(e) => e.key === "Enter" && handleProposeIdeas()}
                     />
-                    <button
-                      onClick={handleProposeIdeas}
-                      disabled={!topic || proposeIdeasMut.isPending}
-                      className="btn-primary gap-2 px-6"
-                    >
-                      {proposeIdeasMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                      Propose Ideas
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <AIModelSelector
+                        onModelSelect={setSelectedModelId}
+                        selectedModelId={selectedModelId}
+                        estimatedPromptTokens={200}
+                        expectedOutputTokens={300}
+                      />
+                      <button
+                        onClick={handleProposeIdeas}
+                        disabled={!topic || proposeIdeasMut.isPending}
+                        className="btn-primary gap-2"
+                      >
+                        {proposeIdeasMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        Propose Ideas
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {proposedIdeas.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-surface-100 border-b border-surface-800 pb-2">Proposed Structure</h3>
+                    <h3 className="font-semibold text-surface-100 border-b border-surface-800 pb-2">Content Strategy Ideas</h3>
                     <div className="grid gap-3">
-                      {proposedIdeas.map((idea, idx) => (
-                        <div key={idx} className="p-4 rounded-xl border border-surface-700/50 bg-surface-800/30 flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-surface-200">{idea.title}</p>
-                            <p className="text-xs text-surface-500 mt-1">Intent: {idea.intent}</p>
+                      {proposedIdeas.map((idea, idx) => {
+                        const isSelected = selectedIdeas.has(idx);
+                        const isDuplicate = existingTitles.has(idea.title.toLowerCase());
+                        
+                        return (
+                          <div key={idx} className={`p-4 rounded-xl border flex items-start gap-4 transition-colors ${
+                            isSelected ? "border-brand-500/50 bg-brand-500/5" : "border-surface-700/50 bg-surface-800/30"
+                          }`}>
+                            <input 
+                              type="checkbox" 
+                              className="mt-1"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const newSet = new Set(selectedIdeas);
+                                if (e.target.checked) newSet.add(idx);
+                                else newSet.delete(idx);
+                                setSelectedIdeas(newSet);
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-surface-200 truncate">{idea.title}</p>
+                                {isDuplicate && (
+                                  <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" title="A similar title already exists in your plan">
+                                    <AlertCircle className="w-3 h-3" /> Duplicate
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="badge text-[10px]">{idea.type}</span>
+                                <p className="text-xs text-surface-500">Intent: {idea.intent}</p>
+                              </div>
+                              {idea.metaDesc && (
+                                <div className="mt-3 p-3 bg-surface-900/50 rounded-lg border border-surface-700/30 text-xs text-surface-300 space-y-2">
+                                  <p><strong className="text-surface-100">URL:</strong> /{idea.url}</p>
+                                  <p><strong className="text-surface-100">H1:</strong> {idea.h1}</p>
+                                  <p><strong className="text-surface-100">Meta:</strong> {idea.metaDesc}</p>
+                                  {idea.targetKeywords?.length > 0 && (
+                                    <p><strong className="text-surface-100">Keywords:</strong> {idea.targetKeywords.join(', ')}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <span className="badge text-xs">{idea.type}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                    <div className="flex justify-end pt-4">
-                      <button onClick={handleSaveToPlan} disabled={createItemMut.isPending} className="btn-primary gap-2">
+                    <div className="flex items-center justify-between pt-4">
+                      <div className="flex items-center gap-2">
+                        <AIModelSelector
+                          onModelSelect={setFleshOutModelId}
+                          selectedModelId={fleshOutModelId}
+                          estimatedPromptTokens={500}
+                          expectedOutputTokens={800}
+                        />
+                        <button 
+                          onClick={() => {
+                            const ideasToFleshOut = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
+                            fleshOutMut.mutate({
+                              topic,
+                              ideas: ideasToFleshOut.map(id => ({ title: id.title, type: id.type, intent: id.intent })),
+                              modelId: fleshOutModelId || undefined
+                            });
+                          }}
+                          disabled={fleshOutMut.isPending || selectedIdeas.size === 0} 
+                          className="btn-secondary gap-2 text-brand-300"
+                        >
+                          {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
+                          Flesh out SEO details
+                        </button>
+                      </div>
+                      <button onClick={handleSaveToPlan} disabled={createItemMut.isPending || selectedIdeas.size === 0 || fleshOutMut.isPending} className="btn-primary gap-2">
                         {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                        Add {proposedIdeas.length} items to Plan
+                        Add {selectedIdeas.size} items to Plan
                       </button>
                     </div>
                   </div>
@@ -209,14 +311,14 @@ export function IdeationModal({
                     className="input-field flex-1"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && rssUrl) {
-                        analyzeRssMut.mutate({ url: rssUrl });
+                        analyzeRssMut.mutate({ url: rssUrl, modelId: selectedModelId || undefined });
                       }
                     }}
                   />
                   <button 
                     className="btn-secondary gap-2" 
                     disabled={!rssUrl || analyzeRssMut.isPending}
-                    onClick={() => analyzeRssMut.mutate({ url: rssUrl })}
+                    onClick={() => analyzeRssMut.mutate({ url: rssUrl, modelId: selectedModelId || undefined })}
                   >
                     {analyzeRssMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
                     Analyze Feed
@@ -282,20 +384,26 @@ export function IdeationModal({
                         const newMsg = { role: "user" as const, content: chatInput };
                         setChatLog([...chatLog, newMsg, { role: "ai", content: "Thinking... (Simulated Response)" }]);
                         setChatInput("");
-                        chatMut.mutate({ messages: [...chatLog, newMsg] });
+                        chatMut.mutate({ messages: [...chatLog, newMsg], modelId: selectedModelId || undefined });
                       }
                     }}
                   />
-                  <button className="btn-primary" disabled={chatMut.isPending || !chatInput} onClick={() => {
-                    if (chatInput && !chatMut.isPending) {
-                      const newMsg = { role: "user" as const, content: chatInput };
-                      setChatLog([...chatLog, newMsg, { role: "ai", content: "Thinking... (Simulated Response)" }]);
-                      setChatInput("");
-                      chatMut.mutate({ messages: [...chatLog, newMsg] });
-                    }
-                  }}>
-                    {chatMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask AI"}
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <AIModelSelector
+                      onModelSelect={setSelectedModelId}
+                      selectedModelId={selectedModelId}
+                    />
+                    <button className="btn-primary w-full" disabled={chatMut.isPending || !chatInput} onClick={() => {
+                      if (chatInput && !chatMut.isPending) {
+                        const newMsg = { role: "user" as const, content: chatInput };
+                        setChatLog([...chatLog, newMsg, { role: "ai", content: "Thinking... (Simulated Response)" }]);
+                        setChatInput("");
+                        chatMut.mutate({ messages: [...chatLog, newMsg], modelId: selectedModelId || undefined });
+                      }
+                    }}>
+                      {chatMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask AI"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
