@@ -133,7 +133,14 @@ export function StepKeywords({ semanticCoreId }: Props) {
               </p>
             </div>
             <button
-              onClick={() => { setShowInput(true); }}
+              onClick={() => {
+                // Restore keywords from DB groups into textarea
+                const allQueries = (groupsData?.groups ?? []).flatMap((g: any) => g.queries);
+                if (allQueries.length > 0 && !text.trim()) {
+                  setText(allQueries.join("\n"));
+                }
+                setShowInput(true);
+              }}
               className="btn-secondary text-xs gap-1.5"
             >
               <Pencil className="w-3 h-3" /> Re-upload
