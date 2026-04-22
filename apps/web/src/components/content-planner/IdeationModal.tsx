@@ -26,6 +26,27 @@ export function IdeationModal({
     onSuccess: (data) => setProposedIdeas(data.ideas),
   });
 
+  const chatMut = trpc.contentPlan.chat.useMutation({
+    onSuccess: (data) => {
+      setChatLog((prev) => {
+        // Remove the "Thinking..." message
+        const newLog = prev.filter(m => m.content !== "Thinking... (Simulated Response)");
+        return [...newLog, { role: "ai", content: data.message }];
+      });
+    },
+    onError: (err) => {
+      setChatLog((prev) => {
+        const newLog = prev.filter(m => m.content !== "Thinking... (Simulated Response)");
+        return [...newLog, { role: "ai", content: `Error: ${err.message}` }];
+      });
+    }
+  });
+
+  const analyzeRssMut = trpc.contentPlan.analyzeRss.useMutation({
+    onSuccess: (data) => setProposedIdeas(data.ideas),
+    onError: (err) => alert(err.message),
+  });
+
   const createItemMut = trpc.contentPlan.createItem.useMutation();
 
   const [proposedIdeas, setProposedIdeas] = useState<any[]>([]);
@@ -186,11 +207,44 @@ export function IdeationModal({
                     onChange={(e) => setRssUrl(e.target.value)}
                     placeholder="https://competitor.com/feed.xml"
                     className="input-field flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && rssUrl) {
+                        analyzeRssMut.mutate({ url: rssUrl });
+                      }
+                    }}
                   />
-                  <button className="btn-secondary gap-2" onClick={() => alert("RSS parsing coming soon")}>
+                  <button 
+                    className="btn-secondary gap-2" 
+                    disabled={!rssUrl || analyzeRssMut.isPending}
+                    onClick={() => analyzeRssMut.mutate({ url: rssUrl })}
+                  >
+                    {analyzeRssMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
                     Analyze Feed
                   </button>
                 </div>
+
+                {proposedIdeas.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-surface-100 border-b border-surface-800 pb-2">Proposed Counter-Strategies</h3>
+                    <div className="grid gap-3">
+                      {proposedIdeas.map((idea, idx) => (
+                        <div key={idx} className="p-4 rounded-xl border border-surface-700/50 bg-surface-800/30 flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-surface-200">{idea.title}</p>
+                            <p className="text-xs text-surface-500 mt-1">Intent: {idea.intent}</p>
+                          </div>
+                          <span className="badge text-xs">{idea.type}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end pt-4">
+                      <button onClick={handleSaveToPlan} disabled={createItemMut.isPending} className="btn-primary gap-2">
+                        {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        Add {proposedIdeas.length} items to Plan
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -224,19 +278,23 @@ export function IdeationModal({
                     placeholder="e.g. 'Give me 5 article ideas for beginner runners...'"
                     className="input-field flex-1"
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && chatInput) {
-                        setChatLog([...chatLog, { role: "user", content: chatInput }, { role: "ai", content: "Thinking... (Simulated Response)" }]);
+                      if (e.key === "Enter" && chatInput && !chatMut.isPending) {
+                        const newMsg = { role: "user" as const, content: chatInput };
+                        setChatLog([...chatLog, newMsg, { role: "ai", content: "Thinking... (Simulated Response)" }]);
                         setChatInput("");
+                        chatMut.mutate({ messages: [...chatLog, newMsg] });
                       }
                     }}
                   />
-                  <button className="btn-primary" onClick={() => {
-                    if (chatInput) {
-                      setChatLog([...chatLog, { role: "user", content: chatInput }, { role: "ai", content: "Thinking... (Simulated Response)" }]);
+                  <button className="btn-primary" disabled={chatMut.isPending || !chatInput} onClick={() => {
+                    if (chatInput && !chatMut.isPending) {
+                      const newMsg = { role: "user" as const, content: chatInput };
+                      setChatLog([...chatLog, newMsg, { role: "ai", content: "Thinking... (Simulated Response)" }]);
                       setChatInput("");
+                      chatMut.mutate({ messages: [...chatLog, newMsg] });
                     }
                   }}>
-                    Ask AI
+                    {chatMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask AI"}
                   </button>
                 </div>
               </div>

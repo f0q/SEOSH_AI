@@ -11,6 +11,8 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
+import Parser from "rss-parser";
+import { callOpenRouter, getAIConfig, callOpenRouterChat } from "../services/ai";
 import {
   getDefaultSchema,
   getDefaultWordCount,
@@ -455,16 +457,102 @@ export const contentPlanRouter = router({
   proposeIdeas: protectedProcedure
     .input(z.object({ topic: z.string() }))
     .mutation(async ({ input }) => {
-      // Stub for real AI generation. In a full implementation, we'd call OpenRouter here.
-      // This will let the user test the workflow safely.
-      return {
-        ideas: [
-          { title: `Ultimate Guide to ${input.topic}`, type: "blog_post", intent: "Informational" },
-          { title: `Top 10 ${input.topic} trends in 2026`, type: "listicle", intent: "Commercial" },
-          { title: `How to choose the best ${input.topic}`, type: "how_to", intent: "Informational" },
-          { title: `${input.topic} vs Alternatives`, type: "comparison", intent: "Commercial" },
-          { title: `${input.topic} Case Study`, type: "case_study", intent: "Navigational" },
-        ]
-      };
+      const config = getAIConfig();
+      const prompt = `You are an expert SEO content strategist.
+The user wants to build a topical silo/cluster around the topic: "${input.topic}".
+Propose exactly 5 distinct, high-quality article ideas that comprehensively cover this topic.
+For each article, define:
+- "title": A catchy, SEO-optimized H1 title.
+- "type": The page format. MUST be one of: "blog_post", "listicle", "how_to", "comparison", "case_study", "review", "pillar_page".
+- "intent": The search intent. MUST be one of: "Informational", "Commercial", "Navigational", "Transactional".
+
+Output strictly valid JSON matching this schema:
+{
+  "ideas": [
+    { "title": string, "type": string, "intent": string }
+  ]
+}
+Do not output any markdown formatting, only the JSON object.`;
+
+      try {
+        const aiResponse = await callOpenRouter(config, prompt, true);
+        const parsed = JSON.parse(aiResponse);
+        return { ideas: parsed.ideas || [] };
+      } catch (err) {
+        console.error("AI Generation Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to generate ideas from AI.",
+        });
+      }
+    }),
+
+  chat: protectedProcedure
+    .input(z.object({ messages: z.array(z.object({ role: z.string(), content: z.string() })) }))
+    .mutation(async ({ input }) => {
+      const config = getAIConfig();
+      // Inject a system prompt context at the start
+      const msgs = [
+        { role: "system", content: "You are an expert SEO content strategist and planner. Help the user brainstorm silos, structures, and content ideas for their website." },
+        ...input.messages
+      ];
+      try {
+        const response = await callOpenRouterChat(config, msgs);
+        return { message: response };
+      } catch (err) {
+        console.error("AI Chat Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to get AI response.",
+        });
+      }
+    }),
+
+  analyzeRss: protectedProcedure
+    .input(z.object({ url: z.string().url() }))
+    .mutation(async ({ input }) => {
+      try {
+        const parser = new Parser();
+        const feed = await parser.parseURL(input.url);
+        
+        // Extract top 10 titles and summaries
+        const articles = feed.items.slice(0, 10).map(item => ({
+          title: item.title,
+          summary: item.contentSnippet || item.content || "No summary available."
+        }));
+
+        if (!articles.length) {
+          throw new Error("No articles found in RSS feed.");
+        }
+
+        const config = getAIConfig();
+        const prompt = `You are an expert SEO content strategist.
+A competitor just published these recent articles via their RSS feed:
+${JSON.stringify(articles, null, 2)}
+
+Identify their content strategy and gaps. Propose exactly 5 distinct, high-quality "counter-articles" we should write to outrank or provide better value.
+For each article, define:
+- "title": A catchy, SEO-optimized H1 title.
+- "type": The page format. MUST be one of: "blog_post", "listicle", "how_to", "comparison", "case_study", "review", "pillar_page".
+- "intent": The search intent. MUST be one of: "Informational", "Commercial", "Navigational", "Transactional".
+
+Output strictly valid JSON matching this schema:
+{
+  "ideas": [
+    { "title": string, "type": string, "intent": string }
+  ]
+}
+Do not output any markdown formatting, only the JSON object.`;
+
+        const aiResponse = await callOpenRouter(config, prompt, true);
+        const parsed = JSON.parse(aiResponse);
+        return { ideas: parsed.ideas || [] };
+      } catch (err) {
+        console.error("RSS Analysis Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to analyze RSS feed and generate ideas.",
+        });
+      }
     }),
 });
