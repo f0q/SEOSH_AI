@@ -1,10 +1,11 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
 import { ChevronLeft, Download, Brain, Globe, Search, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { getCatColor } from "@/lib/categoryColors";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -16,6 +17,12 @@ export default function SemanticCoreDetail({ params }: PageProps) {
   const id = resolvedParams.id;
 
   const { data, isLoading } = trpc.semanticCore.getResults.useQuery({ semanticCoreId: id });
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const filteredResults = data?.results.filter((row: any) => {
+    if (selectedCategory && row.category !== selectedCategory) return false;
+    return true;
+  }) || [];
 
   return (
     <DashboardLayout>
@@ -32,7 +39,7 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                 Semantic Core Details
               </h1>
               <p className="text-surface-400 mt-1">
-                Viewing generated AI categories and keyword clusters.
+                Viewing generated categories and keyword clusters.
               </p>
             </div>
             <button className="btn-secondary" onClick={() => alert("CSV Export coming soon")}>
@@ -54,16 +61,39 @@ export default function SemanticCoreDetail({ params }: PageProps) {
             {/* Sidebar Summary */}
             <div className="lg:col-span-1 space-y-4">
               <div className="glass-card p-5">
-                <h3 className="text-sm font-semibold text-surface-100 mb-4 uppercase tracking-wider">
-                  AI Categories
+                <h3 className="text-sm font-semibold text-surface-100 mb-4 uppercase tracking-wider flex items-center justify-between">
+                  <span>Categories</span>
+                  {selectedCategory && (
+                    <button 
+                      onClick={() => setSelectedCategory(null)}
+                      className="text-xs text-brand-400 hover:text-brand-300 normal-case font-normal"
+                    >
+                      Clear Filter
+                    </button>
+                  )}
                 </h3>
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                  {Object.entries(data.summary).map(([category, count]) => (
-                    <div key={category} className="flex items-center justify-between p-2 rounded-lg bg-surface-800/30 border border-surface-700/30">
-                      <span className="text-sm text-surface-200 truncate pr-2">{category}</span>
-                      <span className="badge badge-brand text-xs">{count as number}</span>
-                    </div>
-                  ))}
+                  {Object.entries(data.summary).map(([category, count]) => {
+                    const clr = getCatColor(category);
+                    const isSelected = selectedCategory === category;
+                    return (
+                      <div 
+                        key={category} 
+                        onClick={() => setSelectedCategory(isSelected ? null : category)}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                          isSelected 
+                            ? "border-brand-500/50 bg-brand-500/10 shadow-[0_0_10px_rgba(var(--brand-500),0.1)]" 
+                            : "bg-surface-800/30 border-surface-700/30 hover:bg-surface-800/50 hover:border-surface-600/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden pr-2">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: clr.dot }} />
+                          <span className="text-sm text-surface-200 truncate">{category}</span>
+                        </div>
+                        <span className="badge badge-brand text-xs flex-shrink-0">{count as number}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -71,7 +101,7 @@ export default function SemanticCoreDetail({ params }: PageProps) {
             {/* Keyword Table */}
             <div className="lg:col-span-3 glass-card overflow-hidden">
               <div className="p-4 border-b border-surface-800/50 flex items-center justify-between">
-                <h3 className="font-semibold text-surface-100">All Keywords ({data.results.length})</h3>
+                <h3 className="font-semibold text-surface-100">All Keywords ({filteredResults.length})</h3>
                 <div className="relative w-64">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
                   <input type="text" placeholder="Search keywords..." className="input-field !pl-9 !py-1.5 !text-sm" />
@@ -82,12 +112,14 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                   <thead className="sticky top-0 bg-surface-900 shadow-md z-10">
                     <tr className="border-b border-surface-800/50">
                       <th className="p-3 font-medium text-surface-400">Keyword</th>
-                      <th className="p-3 font-medium text-surface-400">AI Category</th>
+                      <th className="p-3 font-medium text-surface-400">Category</th>
                       <th className="p-3 font-medium text-surface-400">Target Page</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-800/30">
-                    {data.results.map((row: any) => (
+                    {filteredResults.map((row: any) => {
+                      const clr = getCatColor(row.category);
+                      return (
                       <tr key={row.id} className="hover:bg-surface-800/20">
                         <td className="p-3">
                           <div className="font-medium text-surface-200">{row.query}</div>
@@ -98,7 +130,11 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                           )}
                         </td>
                         <td className="p-3">
-                          <span className="inline-flex items-center px-2 py-1 rounded bg-surface-800 text-surface-300 text-xs">
+                          <span 
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border"
+                            style={clr.badge}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: clr.dot }} />
                             {row.category}
                           </span>
                         </td>
@@ -113,7 +149,8 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

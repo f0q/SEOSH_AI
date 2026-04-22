@@ -12,8 +12,11 @@ import {
   CheckCircle2,
   Loader2,
   ExternalLink,
+  Pencil,
+  X,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   ONBOARDING: { label: "Onboarding", className: "badge-warning" },
@@ -23,8 +26,18 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
 };
 
 export default function ProjectsPage() {
-  const { data: projects, isLoading } = trpc.projects.list.useQuery();
+  const { data: projects, isLoading, refetch } = trpc.projects.list.useQuery();
   const { activeProject, setActiveProjectId } = useProject();
+  
+  const [editingProject, setEditingProject] = useState<{ id: string; name: string; url: string } | null>(null);
+  
+  const updateProjectMut = trpc.projects.update.useMutation({
+    onSuccess: () => {
+      refetch();
+      setEditingProject(null);
+    },
+    onError: (e) => alert(e.message),
+  });
 
   return (
     <DashboardLayout>
@@ -109,9 +122,21 @@ export default function ProjectsPage() {
                         )}
                       </div>
                     </div>
-                    <span className={`badge ${status.className} text-xs flex-shrink-0`}>
-                      {status.label}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingProject({ id: project.id, name: project.name, url: project.url || "" });
+                        }}
+                        className="p-1.5 rounded-lg text-surface-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Edit project"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <span className={`badge ${status.className} text-xs`}>
+                        {status.label}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Meta */}
@@ -146,6 +171,65 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingProject && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-surface-900 border border-surface-700/50 rounded-2xl w-full max-w-md shadow-2xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-surface-50">Edit Project</h2>
+              <button
+                onClick={() => setEditingProject(null)}
+                className="text-surface-500 hover:text-surface-200 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1.5">Project Name *</label>
+                <input
+                  type="text"
+                  value={editingProject.name}
+                  onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                  className="input-field w-full"
+                  placeholder="e.g. Acme Corp"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-surface-300 mb-1.5">Website URL</label>
+                <input
+                  type="url"
+                  value={editingProject.url}
+                  onChange={(e) => setEditingProject({ ...editingProject, url: e.target.value })}
+                  className="input-field w-full"
+                  placeholder="https://example.com"
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-8">
+                <button
+                  onClick={() => setEditingProject(null)}
+                  className="btn-ghost"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (!editingProject.name.trim()) return alert("Name is required");
+                    updateProjectMut.mutate(editingProject);
+                  }}
+                  disabled={updateProjectMut.isPending}
+                  className="btn-primary"
+                >
+                  {updateProjectMut.isPending ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

@@ -26,9 +26,8 @@ export default function StepDataSources({ data, updateData }: Props) {
   const [parseStatus, setParseStatus] = useState<"idle" | "parsing" | "done" | "error">("idle");
   const [parseResult, setParseResult] = useState<{ pages: number } | null>(null);
 
-  // Normalize URL: strip any protocol prefix, then prepend https://
   const normalizeUrl = (raw: string) => {
-    const stripped = raw.replace(/^https?:\///i, "").trim();
+    const stripped = raw.replace(/^https?:\/\//i, "").trim();
     return stripped ? `https://${stripped}` : "";
   };
 

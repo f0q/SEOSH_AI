@@ -12,6 +12,8 @@ export default function SemanticCoreDashboard() {
   const { data: cores, isLoading } = trpc.semanticCore.getMany.useQuery();
   const { data: projects } = trpc.projects.list.useQuery();
   const linkMutation = trpc.semanticCore.linkToProject.useMutation();
+  
+  const assignedProjectIds = new Set(cores?.map((c: any) => c.projectId).filter(Boolean));
   const deleteMutation = trpc.semanticCore.delete.useMutation();
 
   const handleLinkProject = async (coreId: string, projectId: string | null) => {
@@ -125,7 +127,7 @@ export default function SemanticCoreDashboard() {
                           className="input-field !py-1 !px-2 !text-xs !w-auto min-w-[140px]"
                         >
                           <option value="">Unassigned</option>
-                          {projects?.map((p: any) => (
+                          {projects?.filter((p: any) => !assignedProjectIds.has(p.id) || p.id === core.projectId).map((p: any) => (
                             <option key={p.id} value={p.id}>
                               {p.companyProfile?.companyName || p.name}
                             </option>

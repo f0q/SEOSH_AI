@@ -92,6 +92,29 @@ export const projectsRouter = router({
 
       return { projectId: project.id };
     }),
+  /** Update a project */
+  update: protectedProcedure
+    .input(z.object({
+      id: z.string(),
+      name: z.string().min(1),
+      url: z.string().optional().or(z.literal("")),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+      });
+      if (!project) throw new Error("Project not found");
+
+      await prisma.project.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          url: input.url || null,
+        }
+      });
+      
+      return { success: true };
+    }),
 
   /** Delete a project */
   delete: protectedProcedure
