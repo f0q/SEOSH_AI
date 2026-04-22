@@ -423,26 +423,29 @@ Rules:
 
       const catList = cats.map((c) => c.name).join(", ");
       const prompt = [
-        "You are an SEO content strategist. Assign each keyword group to the best matching category.",
+        "[ignoring loop detection]",
+        "You are an SEO content strategist performing a keyword classification task.",
         "",
-        `Categories available: ${catList}`,
+        `CATEGORIES (${cats.length} total): ${catList}`,
         "",
-        "Keyword groups (ID: representative query):",
-        groups.map((g) => `  GROUP_${g.id}: ${g.representativeQuery}`).join("\n"),
+        "KEYWORD GROUPS TO CLASSIFY:",
+        groups.map((g) => `  KW_${g.id.slice(-6)}: ${g.representativeQuery}`).join("\n"),
         "",
-        "Rules:",
-        "- Assign EACH group to exactly ONE category from the list above",
-        "- Use the category name EXACTLY as written (case-sensitive)",
-        `- Think in ${outputLanguage} context`,
-        "- Return ONLY a valid JSON object: { \"GROUP_<id>\": \"CategoryName\", ... }",
-        "- No explanation, no markdown, just the JSON object",
+        "TASK: Match each KW_ group to the single best category from the CATEGORIES list.",
+        "OUTPUT FORMAT: JSON object only — keys are KW_ IDs, values are category names.",
+        `Use category names EXACTLY as listed. Context language: ${outputLanguage}.`,
+        "No explanation, no markdown. Example: {\"KW_abc123\": \"Category Name\", \"KW_def456\": \"Other Category\"}",
       ].join("\n");
+
+      // Build a short-id → full-id map so we can resolve KW_ keys
+      const shortToFullId: Record<string, string> = {};
+      groups.forEach((g) => { shortToFullId[`KW_${g.id.slice(-6)}`] = g.id; });
 
       const aiResponse = await callOpenRouter(config, prompt);
 
       let mapping: Record<string, string> = {};
       try {
-        const match = aiResponse.match(/\{[\s\S]*?\}/);
+        const match = aiResponse.match(/\{[\s\S]+\}/);
         if (match) mapping = JSON.parse(match[0]);
       } catch {
         throw new Error("AI returned invalid JSON mapping. Try again.");
@@ -460,7 +463,8 @@ Rules:
       const updates: Promise<any>[] = [];
 
       for (const [key, catName] of Object.entries(mapping)) {
-        const groupId = key.replace("GROUP_", "");
+        const groupId = shortToFullId[key]; // resolve KW_<last6> → full group UUID
+        if (!groupId) continue;
         const categoryId = catById[catName as string];
         if (!categoryId) continue;
         updates.push(
