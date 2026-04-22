@@ -11,6 +11,7 @@ interface Props {
 export function StepKeywords({ semanticCoreId }: Props) {
   const [text, setText] = useState("");
   const [status, setStatus] = useState<"idle" | "grouping" | "done">("idle");
+  const [showInput, setShowInput] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [editingGroup, setEditingGroup] = useState<{ id: string; value: string } | null>(null);
   const [starredGroups, setStarredGroups] = useState<Set<string>>(new Set());
@@ -33,6 +34,7 @@ export function StepKeywords({ semanticCoreId }: Props) {
       await groupQueries.mutateAsync({ semanticCoreId, queries });
       await refetchGroups();
       setStatus("done");
+      setShowInput(false);
     } catch (e) {
       console.error(e);
       setStatus("idle");
@@ -83,8 +85,8 @@ export function StepKeywords({ semanticCoreId }: Props) {
         </div>
       </div>
 
-      {/* Input area — only show if no groups yet or editing */}
-      {!hasGroups && (
+      {/* Input area — show if no groups yet, or user clicked Re-upload */}
+      {(!hasGroups || showInput) && (
         <div className="space-y-3">
           <div className="relative">
             <textarea
@@ -131,7 +133,7 @@ export function StepKeywords({ semanticCoreId }: Props) {
               </p>
             </div>
             <button
-              onClick={() => setStatus("idle")}
+              onClick={() => { setShowInput(true); }}
               className="btn-secondary text-xs gap-1.5"
             >
               <Pencil className="w-3 h-3" /> Re-upload

@@ -198,16 +198,22 @@ export const semanticCoreRouter = router({
       };
       const outputLanguage = langNames[input.language || "ru"] || "Russian";
 
+      // Scale target category count to keyword volume
+      const repCount = repStrings.length;
+      const minCats = repCount <= 2 ? 1 : repCount <= 5 ? 2 : repCount <= 10 ? 3 : 5;
+      const maxCats = repCount <= 2 ? Math.max(repCount, 1) : repCount <= 5 ? 5 : repCount <= 10 ? 8 : 12;
+
       const prompt = `You are a senior SEO strategist. Below are the most representative keyword queries from a website: ${siteUrl}
 
-Keyword representatives:
+Keyword representatives (${repCount} total):
 ${repStrings.slice(0, 80).map((q, i) => `${i + 1}. ${q}`).join("\n")}
 
-Task: Suggest 5-12 broad content categories to organize these keywords into a semantic content plan. Categories should reflect the website's main topics and match its structure.
+Task: Suggest ${minCats}-${maxCats} broad content categories to organize these keywords into a semantic content plan. Categories should reflect the website's main topics and match its structure.
 
 Rules:
 - Write ALL category names in ${outputLanguage} language ONLY
 - Each category name should be 2-5 words, clear and descriptive
+- The number of categories MUST be between ${minCats} and ${maxCats} — no more, no less
 - Think like an SEO strategist planning a site's content sections
 - Avoid generic names like "Other" or "Miscellaneous"
 - Return ONLY a valid JSON array of strings, nothing else
