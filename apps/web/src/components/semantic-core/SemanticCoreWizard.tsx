@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
-import { StepSitemap } from "./StepSitemap";
 import { StepKeywords } from "./StepKeywords";
 import { getCatColor } from "@/lib/categoryColors";
 
@@ -23,30 +22,24 @@ import { getCatColor } from "@/lib/categoryColors";
 // ─── Step config ─────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { id: 1, title: "Sitemap",    icon: Globe,     description: "Parse site or competitor" },
-  { id: 2, title: "Keywords",   icon: Upload,    description: "Upload & cluster keywords" },
-  { id: 3, title: "Categories", icon: Tags,      description: "AI generates, you approve" },
-  { id: 4, title: "Results",    icon: BarChart3, description: "Keyword → Category → Page" },
+  { id: 1, title: "Keywords",   icon: Upload,    description: "Upload & cluster keywords" },
+  { id: 2, title: "Categories", icon: Tags,      description: "AI generates, you approve" },
+  { id: 3, title: "Results",    icon: BarChart3, description: "Keyword → Category → Page" },
 ];
 
 // ─── Completion heuristics (for progress dots) ────────────────────────────────
 function stepDone(step: number, semanticCoreId: string | null, groupsDone: boolean, catsDone: boolean) {
-  if (step === 1) return !!semanticCoreId;
-  if (step === 2) return groupsDone;
-  if (step === 3) return catsDone;
+  if (step === 1) return groupsDone;
+  if (step === 2) return catsDone;
   return false;
 }
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
-export default function SemanticCoreWizard({ projectId: initialProjectId }: { projectId?: string }) {
+export default function SemanticCoreWizard({ projectId: initialProjectId, isNew }: { projectId?: string, isNew?: boolean }) {
   const [step, setStep] = useState(1);
   const [semanticCoreId, setSemanticCoreId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(initialProjectId);
-
-  // Sitemap state (lifted so StepSitemap is re-mountable without losing data)
-  const [sitemapUrl, setSitemapUrl] = useState("");
-  const [competitors, setCompetitors] = useState<{ url: string; label: string }[]>([]);
 
   // Step completion flags
   const [groupsDone, setGroupsDone] = useState(false);
@@ -61,17 +54,24 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
   // Auto-restore semanticCoreId from DB when wizard mounts
   const latestCore = trpc.semanticCore.getLatest.useQuery(
     { projectId: selectedProjectId },
-    { enabled: !semanticCoreId }  // only query if we don't already have one
+    { enabled: !semanticCoreId && !isNew }  // only query if we don't already have one and we aren't explicitly creating a new one
   );
-  if (latestCore.data && !semanticCoreId) {
+  if (latestCore.data && !semanticCoreId && !isNew) {
     setSemanticCoreId(latestCore.data.id);
-    if (latestCore.data.siteUrl && !sitemapUrl) {
-      setSitemapUrl(latestCore.data.siteUrl);
-    }
   }
+
+  const createSession = trpc.semanticCore.createSession.useMutation();
 
   // Sync groupsDone from query data
   if ((groupsQuery.data?.totalGroups ?? 0) > 0 && !groupsDone) setGroupsDone(true);
+
+  // Auto-create session if needed when visiting StepKeywords
+  const ensureSession = async () => {
+    if (semanticCoreId) return semanticCoreId;
+    const res = await createSession.mutateAsync({ projectId: selectedProjectId });
+    setSemanticCoreId(res.id);
+    return res.id;
+  };
 
   const projectId = selectedProjectId;
 
@@ -154,26 +154,15 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
       {/* Step content */}
       <div className="glass-card p-8 min-h-[400px] flex flex-col">
         {step === 1 && (
-          <StepSitemap
-            projectId={projectId}
-            sitemapUrl={sitemapUrl}
-            setSitemapUrl={setSitemapUrl}
-            competitors={competitors}
-            setCompetitors={setCompetitors}
-            semanticCoreId={semanticCoreId}
-            onComplete={(id) => {
-              setSemanticCoreId(id);
-              // No auto-advance — user reviews pages and clicks Continue
-            }}
+          <StepKeywords 
+            semanticCoreId={semanticCoreId} 
+            onRequireSession={ensureSession}
           />
         )}
         {step === 2 && (
-          <StepKeywords semanticCoreId={semanticCoreId} />
-        )}
-        {step === 3 && (
           <StepCategories semanticCoreId={semanticCoreId} onDone={() => setCatsDone(true)} />
         )}
-        {step === 4 && (
+        {step === 3 && (
           <StepResults semanticCoreId={semanticCoreId} projectId={projectId} />
         )}
       </div>
@@ -187,7 +176,7 @@ export default function SemanticCoreWizard({ projectId: initialProjectId }: { pr
         >
           ← Back
         </button>
-        {step < 4 ? (
+        {step < 3 ? (
           <button onClick={() => setStep((s) => s + 1)} className="btn-primary gap-2">
             Continue →
           </button>
@@ -955,7 +944,16 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
   return (
     <tr className="border-b border-surface-700/20 hover:bg-surface-800/20 transition-colors">
       <td className="px-4 py-2.5 text-surface-600 text-xs">{index}</td>
-      <td className="px-4 py-2.5 text-surface-200 max-w-xs truncate">{row.query}</td>
+      <td className="px-4 py-2.5 max-w-xs">
+        <div className="flex items-center gap-2">
+          <span className={`truncate ${row.usageCount > 0 ? 'text-surface-400' : 'text-surface-200'}`}>{row.query}</span>
+          {row.usageCount > 0 && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+              row.usageCount === 1 ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+            }`}>×{row.usageCount}</span>
+          )}
+        </div>
+      </td>
       <td className="px-4 py-2.5 relative">
         <button
           onClick={() => setOpen((o) => !o)}

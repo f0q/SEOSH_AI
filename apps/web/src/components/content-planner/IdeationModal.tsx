@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Sparkles, Rss, BrainCircuit, Search, Loader2, AlertCircle } from "lucide-react";
+import { X, Sparkles, Rss, BrainCircuit, Search, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
 
@@ -20,6 +20,8 @@ export function IdeationModal({
   const [selectedModelId, setSelectedModelId] = useState("");
   const [fleshOutModelId, setFleshOutModelId] = useState("");
   const [selectedIdeas, setSelectedIdeas] = useState<Set<number>>(new Set());
+  const [ideaError, setIdeaError] = useState<string | null>(null);
+  const [rssError, setRssError] = useState<string | null>(null);
 
   const titlesQuery = trpc.contentPlan.getProjectTitles.useQuery({ projectId });
   const existingTitles = new Set(titlesQuery.data || []);
@@ -31,9 +33,11 @@ export function IdeationModal({
 
   const proposeIdeasMut = trpc.contentPlan.proposeIdeas.useMutation({
     onSuccess: (data) => {
+      setIdeaError(null);
       setProposedIdeas(data.ideas);
       setSelectedIdeas(new Set(data.ideas.map((_: any, i: number) => i))); // select all by default
     },
+    onError: (err) => setIdeaError(err.message),
   });
 
   const chatMut = trpc.contentPlan.chat.useMutation({
@@ -52,9 +56,16 @@ export function IdeationModal({
     }
   });
 
+  // Load project RSS feeds from settings
+  const { data: projectData } = trpc.projects.get.useQuery(
+    { id: projectId },
+    { enabled: !!projectId }
+  );
+  const savedRssFeeds: string[] = (projectData?.companyProfile as any)?.rssFeeds || [];
+
   const analyzeRssMut = trpc.contentPlan.analyzeRss.useMutation({
-    onSuccess: (data) => setProposedIdeas(data.ideas),
-    onError: (err) => alert(err.message),
+    onSuccess: (data) => { setRssError(null); setProposedIdeas(data.ideas); },
+    onError: (err) => setRssError(err.message),
   });
 
   const fleshOutMut = trpc.contentPlan.fleshOutIdeas.useMutation({
@@ -79,7 +90,8 @@ export function IdeationModal({
   const [proposedIdeas, setProposedIdeas] = useState<any[]>([]);
 
   const handleProposeIdeas = () => {
-    if (!topic.trim()) return;
+    if (!topic.trim()) { setIdeaError("Please enter a topic first."); return; }
+    setIdeaError(null);
     proposeIdeasMut.mutate({ topic, projectId, modelId: selectedModelId || undefined });
   };
 
@@ -210,8 +222,58 @@ export function IdeationModal({
                   </div>
                 </div>
 
+                {/* Error banner */}
+                {ideaError && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs text-red-400">{ideaError}</p>
+                    </div>
+                    <button onClick={() => setIdeaError(null)} className="text-red-400/60 hover:text-red-400">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 {proposedIdeas.length > 0 && (
                   <div className="space-y-4">
+                    {/* AI Action Block — above results */}
+                    <div className="p-4 bg-surface-800/30 rounded-xl border border-surface-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-medium text-surface-200 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-brand-400" />
+                          Deep SEO Generation
+                        </h4>
+                        <p className="text-xs text-surface-500">
+                          Generate URLs, Meta Descriptions, H1s, H2s, and Tags for selected ideas.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <AIModelSelector
+                          onModelSelect={setFleshOutModelId}
+                          selectedModelId={fleshOutModelId}
+                          estimatedPromptTokens={500}
+                          expectedOutputTokens={800}
+                        />
+                        <button 
+                          onClick={() => {
+                            const ideasToFleshOut = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
+                            fleshOutMut.mutate({
+                              topic,
+                              projectId,
+                              ideas: ideasToFleshOut.map(id => ({ title: id.title, type: id.type, intent: id.intent })),
+                              modelId: fleshOutModelId || undefined
+                            });
+                          }}
+                          disabled={fleshOutMut.isPending || selectedIdeas.size === 0} 
+                          className="btn-secondary gap-2 text-brand-300"
+                        >
+                          {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
+                          Generate SEO Data
+                        </button>
+                      </div>
+                    </div>
+
                     <h3 className="font-semibold text-surface-100 border-b border-surface-800 pb-2">Content Strategy Ideas</h3>
                     <div className="grid gap-3">
                       {proposedIdeas.map((idea, idx) => {
@@ -264,55 +326,17 @@ export function IdeationModal({
                         );
                       })}
                     </div>
-                    <div className="pt-6 space-y-4 border-t border-surface-800 mt-4">
-                      {/* AI Action Block */}
-                      <div className="p-4 bg-surface-800/30 rounded-xl border border-surface-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-medium text-surface-200 flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-brand-400" />
-                            Deep SEO Generation
-                          </h4>
-                          <p className="text-xs text-surface-500">
-                            Generate URLs, Meta Descriptions, H1s, H2s, and Tags for selected ideas.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <AIModelSelector
-                            onModelSelect={setFleshOutModelId}
-                            selectedModelId={fleshOutModelId}
-                            estimatedPromptTokens={500}
-                            expectedOutputTokens={800}
-                          />
-                          <button 
-                            onClick={() => {
-                              const ideasToFleshOut = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
-                              fleshOutMut.mutate({
-                                topic,
-                                projectId,
-                                ideas: ideasToFleshOut.map(id => ({ title: id.title, type: id.type, intent: id.intent })),
-                                modelId: fleshOutModelId || undefined
-                              });
-                            }}
-                            disabled={fleshOutMut.isPending || selectedIdeas.size === 0} 
-                            className="btn-secondary gap-2 text-brand-300"
-                          >
-                            {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
-                            Generate SEO
-                          </button>
-                        </div>
-                      </div>
 
-                      {/* Save Block */}
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-surface-500 flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500/50"></span>
-                          Saving to plan does not consume AI tokens.
-                        </p>
-                        <button onClick={handleSaveToPlan} disabled={createItemMut.isPending || selectedIdeas.size === 0 || fleshOutMut.isPending} className="btn-primary gap-2">
-                          {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                          Add {selectedIdeas.size} items to Plan
-                        </button>
-                      </div>
+                    {/* Save Block */}
+                    <div className="pt-4 border-t border-surface-800 flex items-center justify-between">
+                      <p className="text-xs text-surface-500 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500/50"></span>
+                        Adding data to plan without generation does not consume tokens.
+                      </p>
+                      <button onClick={handleSaveToPlan} disabled={createItemMut.isPending || selectedIdeas.size === 0 || fleshOutMut.isPending} className="btn-primary gap-2">
+                        {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        Add {selectedIdeas.size} items to Plan
+                      </button>
                     </div>
                   </div>
                 )}
@@ -325,8 +349,32 @@ export function IdeationModal({
                   <h3 className="text-sm font-medium text-amber-400 mb-1 flex items-center gap-2">
                     <Rss className="w-4 h-4" /> RSS Feed Analysis
                   </h3>
-                  <p className="text-xs text-amber-400/80">Paste a competitor's RSS feed URL to extract their latest topics and generate counter-strategies.</p>
+                  <p className="text-xs text-amber-400/80">Analyze competitor RSS feeds to extract their latest topics and generate counter-strategies.</p>
                 </div>
+
+                {/* Saved feeds from project settings */}
+                {savedRssFeeds.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-surface-500 uppercase tracking-wider">Saved Feeds</p>
+                    <div className="flex flex-wrap gap-2">
+                      {savedRssFeeds.map((feed, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setRssUrl(feed)}
+                          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                            rssUrl === feed
+                              ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                              : 'border-surface-700/30 bg-surface-800/30 text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
+                          }`}
+                        >
+                          <Rss className="w-3 h-3 inline mr-1.5" />
+                          {(() => { try { return new URL(feed).hostname; } catch { return feed; } })()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   <input
                     type="url"
@@ -336,6 +384,7 @@ export function IdeationModal({
                     className="input-field flex-1"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && rssUrl) {
+                        setRssError(null);
                         analyzeRssMut.mutate({ url: rssUrl, modelId: selectedModelId || undefined });
                       }
                     }}
@@ -343,12 +392,20 @@ export function IdeationModal({
                   <button 
                     className="btn-secondary gap-2" 
                     disabled={!rssUrl || analyzeRssMut.isPending}
-                    onClick={() => analyzeRssMut.mutate({ url: rssUrl, modelId: selectedModelId || undefined })}
+                    onClick={() => { setRssError(null); analyzeRssMut.mutate({ url: rssUrl, modelId: selectedModelId || undefined }); }}
                   >
                     {analyzeRssMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
                     Analyze Feed
                   </button>
                 </div>
+
+                {rssError && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-400 flex-1">{rssError}</p>
+                    <button onClick={() => setRssError(null)} className="text-red-400/60 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                )}
 
                 {proposedIdeas.length > 0 && (
                   <div className="space-y-4">

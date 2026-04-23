@@ -176,6 +176,8 @@ model CompanyProfile {
   usp              String?  @db.Text // Unique Selling Proposition
   geography        String?  // Target geography
   existingChannels Json?    // { website, socials: [], other: [] }
+  siteStructure    Json?    // AI-generated approved site structure tree
+  rssFeeds         String[] // Competitor RSS feed URLs for content analysis
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -235,7 +237,6 @@ model SemanticCore {
   project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   siteUrl     String   // URL being analyzed
   status      String   @default("draft") // draft | analyzing | completed
-  siteStructure Json?  // AI-generated site structure tree
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -297,6 +298,9 @@ model Query {
 
   pageUrl        String?       // Matched or manually selected page
   hasContent     Boolean       @default(false) // Content exists for this keyword?
+  usageCount     Int           @default(0)     // How many content items target this keyword
+
+  contentItems   ContentItemQuery[]
 
   @@map("queries")
 }
@@ -366,11 +370,26 @@ model ContentItem {
   publishedAt   DateTime?
   publishedUrl  String?
 
+  // ── Keyword tracking ─────────────────────────────────────────────────────
+  linkedQueries  ContentItemQuery[]
+
   sortOrder     Int           @default(0)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   @@map("content_items")
+}
+
+/// Join table: tracks which semantic core keywords are targeted by which content items
+model ContentItemQuery {
+  id            String      @id @default(uuid())
+  queryId       String
+  query         Query       @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  contentItemId String
+  contentItem   ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@unique([queryId, contentItemId])
+  @@map("content_item_queries")
 }
 
 /// Media attached to content

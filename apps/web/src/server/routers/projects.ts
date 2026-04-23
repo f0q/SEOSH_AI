@@ -53,6 +53,7 @@ export const projectsRouter = router({
           name: z.string(),
           notes: z.string(),
         })).optional(),
+        siteStructure: z.any().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -73,6 +74,7 @@ export const projectsRouter = router({
                 painPoints: input.painPoints || [],
               },
               competitors: input.competitors,
+              siteStructure: input.siteStructure,
             }
           }
         }
@@ -92,6 +94,122 @@ export const projectsRouter = router({
 
       return { projectId: project.id };
     }),
+    
+  upsertOnboarding: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().optional(),
+        companyName: z.string().min(1, "Company name is required"),
+        industry: z.string(),
+        description: z.string(),
+        geography: z.string(),
+        products: z.array(z.object({
+          name: z.string(),
+          description: z.string(),
+          priceRange: z.string(),
+        })),
+        audienceSegments: z.array(z.string()).optional(),
+        painPoints: z.array(z.string()).optional(),
+        websiteUrl: z.string().optional(),
+        competitors: z.array(z.object({
+          url: z.string(),
+          name: z.string(),
+          notes: z.string(),
+        })).optional(),
+        siteStructure: z.any().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      let project;
+      
+      if (input.projectId) {
+        project = await prisma.project.findFirst({
+          where: { id: input.projectId, userId: ctx.user.id }
+        });
+        if (!project) throw new Error("Project not found");
+        
+        project = await prisma.project.update({
+          where: { id: input.projectId },
+          data: {
+            name: input.companyName,
+            url: input.websiteUrl || null,
+            companyProfile: {
+              upsert: {
+                create: {
+                  companyName: input.companyName,
+                  industry: input.industry,
+                  description: input.description,
+                  geography: input.geography,
+                  productsServices: input.products,
+                  targetAudience: {
+                    segments: input.audienceSegments || [],
+                    painPoints: input.painPoints || [],
+                  },
+                  competitors: input.competitors,
+                  siteStructure: input.siteStructure,
+                },
+                update: {
+                  companyName: input.companyName,
+                  industry: input.industry,
+                  description: input.description,
+                  geography: input.geography,
+                  productsServices: input.products,
+                  targetAudience: {
+                    segments: input.audienceSegments || [],
+                    painPoints: input.painPoints || [],
+                  },
+                  competitors: input.competitors,
+                  siteStructure: input.siteStructure,
+                }
+              }
+            }
+          }
+        });
+      } else {
+        project = await prisma.project.create({
+          data: {
+            name: input.companyName,
+            url: input.websiteUrl || null,
+            userId: ctx.user.id,
+            companyProfile: {
+              create: {
+                companyName: input.companyName,
+                industry: input.industry,
+                description: input.description,
+                geography: input.geography,
+                productsServices: input.products,
+                targetAudience: {
+                  segments: input.audienceSegments || [],
+                  painPoints: input.painPoints || [],
+                },
+                competitors: input.competitors,
+                siteStructure: input.siteStructure,
+              }
+            }
+          }
+        });
+      }
+
+      // Ensure DataSource exists if there is a website URL
+      if (input.websiteUrl) {
+        const existingDs = await prisma.dataSource.findFirst({
+          where: { projectId: project.id, url: input.websiteUrl, type: "WEBSITE" }
+        });
+        if (!existingDs) {
+          await prisma.dataSource.create({
+            data: {
+              projectId: project.id,
+              type: "WEBSITE",
+              url: input.websiteUrl,
+              status: "PENDING"
+            }
+          });
+        }
+      }
+
+      return { projectId: project.id };
+    }),
+
   /** Update a project */
   update: protectedProcedure
     .input(z.object({
@@ -130,6 +248,25 @@ export const projectsRouter = router({
         where: { id: input.id },
       });
       
+      return { success: true };
+    }),
+
+  /** Update RSS feeds for a project's company profile */
+  updateRssFeeds: protectedProcedure
+    .input(z.object({ projectId: z.string(), rssFeeds: z.array(z.string()) }))
+    .mutation(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.user.id },
+        include: { companyProfile: true },
+      });
+      if (!project) throw new Error("Project not found");
+      if (!project.companyProfile) throw new Error("No company profile found");
+
+      await prisma.companyProfile.update({
+        where: { id: project.companyProfile.id },
+        data: { rssFeeds: input.rssFeeds },
+      });
+
       return { success: true };
     }),
 });

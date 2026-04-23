@@ -88,6 +88,34 @@ export const contentPlanRouter = router({
       return { keywords: uniqueKeywords, total: uniqueKeywords.length };
     }),
 
+  /** Get keyword usage statistics for a project's semantic core */
+  getKeywordUsageStats: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ input }) => {
+      const core = await prisma.semanticCore.findFirst({
+        where: { projectId: input.projectId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!core) return { total: 0, used: 0, unused: 0, overUsed: 0 };
+
+      const total = await prisma.query.count({
+        where: { semanticCoreId: core.id },
+      });
+      const used = await prisma.query.count({
+        where: { semanticCoreId: core.id, usageCount: { gt: 0 } },
+      });
+      const overUsed = await prisma.query.count({
+        where: { semanticCoreId: core.id, usageCount: { gt: 1 } },
+      });
+
+      return {
+        total,
+        used,
+        unused: total - used,
+        overUsed,
+      };
+    }),
+
   /** Add a new row */
   createItem: protectedProcedure
     .input(
@@ -157,6 +185,23 @@ export const contentPlanRouter = router({
   deleteItem: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
+      // Decrement usageCount on all linked keywords before deletion
+      const links = await prisma.contentItemQuery.findMany({
+        where: { contentItemId: input.id },
+        select: { queryId: true },
+      });
+      if (links.length > 0) {
+        const queryIds = links.map((l) => l.queryId);
+        await prisma.query.updateMany({
+          where: { id: { in: queryIds } },
+          data: { usageCount: { decrement: 1 } },
+        });
+        // Reset hasContent for queries that now have 0 usage
+        await prisma.query.updateMany({
+          where: { id: { in: queryIds }, usageCount: { lte: 0 } },
+          data: { hasContent: false, usageCount: 0 },
+        });
+      }
       return prisma.contentItem.delete({ where: { id: input.id } });
     }),
 
@@ -232,7 +277,25 @@ export const contentPlanRouter = router({
         where: { contentPlanId: plan.id },
       });
 
-      // 5. Create a ContentItem for each category group
+      // 5. Extract site structure sections if available
+      const siteStructure = Array.isArray(project.companyProfile?.siteStructure) ? project.companyProfile.siteStructure : [];
+      const sections = siteStructure.map((s: any) => ({
+        label: s.label,
+        pageType: s.pageType,
+        url: s.url,
+      }));
+
+      // Helper to map category to best matching section
+      const mapCategoryToSection = (catName: string) => {
+        if (!catName || catName === "Uncategorized") return null;
+        // Simple case-insensitive match
+        const exact = sections.find(s => s.label.toLowerCase() === catName.toLowerCase());
+        if (exact) return exact;
+        // Partial match
+        return sections.find(s => catName.toLowerCase().includes(s.label.toLowerCase()) || s.label.toLowerCase().includes(catName.toLowerCase())) || null;
+      };
+
+      // 6. Create a ContentItem for each category group
       const created: Array<{ title: string; section: string; keywords: number }> = [];
       let sortOrder = existingCount;
 
@@ -242,11 +305,12 @@ export const contentPlanRouter = router({
           new Set(categoryQueries.map((q) => q.text))
         );
 
-        // Pick the section name from the category
-        const section = categoryName;
-
-        // Guess page type from the section name
-        const pageType = guessPageTypeFromSection(section);
+        // Map the category to a site section
+        const matchedSection = mapCategoryToSection(categoryName);
+        const section = matchedSection ? matchedSection.label : categoryName;
+        
+        // Guess page type from the section or use the one from site structure
+        const pageType = matchedSection?.pageType || guessPageTypeFromSection(section);
 
         // Build a representative query for the title/h1
         const representative =
@@ -258,7 +322,7 @@ export const contentPlanRouter = router({
         const companyName = project.companyProfile?.companyName || project.name;
         const metaTitle = `${representative.charAt(0).toUpperCase() + representative.slice(1)} — ${companyName}`;
 
-        await prisma.contentItem.create({
+        const contentItem = await prisma.contentItem.create({
           data: {
             contentPlanId: plan.id,
             sortOrder: sortOrder++,
@@ -278,6 +342,25 @@ export const contentPlanRouter = router({
             notes: `Auto-generated from semantic core. Category: ${categoryName}. Total keywords: ${uniqueKeywords.length}.`,
           },
         });
+
+        // Link keywords to this content item and increment usage counts
+        const queryIds = categoryQueries.map((q) => q.id);
+        if (queryIds.length > 0) {
+          await prisma.contentItemQuery.createMany({
+            data: queryIds.map((qId) => ({
+              queryId: qId,
+              contentItemId: contentItem.id,
+            })),
+            skipDuplicates: true,
+          });
+          await prisma.query.updateMany({
+            where: { id: { in: queryIds } },
+            data: {
+              usageCount: { increment: 1 },
+              hasContent: true,
+            },
+          });
+        }
 
         created.push({
           title: representative,
@@ -472,39 +555,62 @@ export const contentPlanRouter = router({
     .mutation(async ({ input }) => {
       const config = getAIConfig(input.modelId);
       
-      // Fetch existing sections (categories) and tags to provide context
+      // Fetch project domain
+      const project = await prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { url: true }
+      });
+      const domain = project?.url?.replace(/\/+$/, "") || "https://example.com";
+
+      // Fetch existing sections (categories), tags, and page types from plan
       const plan = await prisma.contentPlan.findFirst({
         where: { projectId: input.projectId },
-        include: { items: { select: { section: true, tags: true, pageType: true } } }
+        include: { items: { select: { section: true, tags: true, pageType: true, schemaType: true } } }
       });
       
       const existingSections = new Set<string>();
       const existingTags = new Set<string>();
+      const existingPageTypes = new Set<string>();
+      const existingSchemas = new Set<string>();
       
       if (plan) {
         plan.items.forEach(item => {
           if (item.section) existingSections.add(item.section);
           if (item.tags) item.tags.forEach(t => existingTags.add(t));
+          if (item.pageType) existingPageTypes.add(item.pageType);
+          if (item.schemaType) existingSchemas.add(item.schemaType);
         });
       }
 
+      // All available page type slugs from the system
+      const allPageTypeSlugs = ["homepage", "service_listing", "service_detail", "product_listing", "product_detail", "landing_page", "blog_listing", "blog_post", "promo_listing", "promo_detail", "info_page"];
+      const allSchemaTypes = ["LocalBusiness", "Service", "ItemList", "Product", "Offer", "OfferCatalog", "Blog", "Article", "WebPage"];
+
       const sectionContext = existingSections.size > 0 
-        ? `\nHere are the existing website categories/sections you should try to align with if relevant:\n${Array.from(existingSections).join(", ")}` 
+        ? `\nExisting website categories/sections in this project:\n${Array.from(existingSections).join(", ")}\nYou MUST pick from these categories when relevant. Only invent a new section if none of the existing ones fit.` 
+        : "";
+
+      const tagsContext = existingTags.size > 0 
+        ? `\nExisting tag cloud for this project:\n${Array.from(existingTags).join(", ")}\nPrioritize these existing tags. You may add new ones if absolutely necessary.` 
         : "";
 
       const prompt = `You are an expert SEO content strategist.
-The user wants to build a topical silo/cluster around the topic: "${input.topic}".${sectionContext}
+The user wants to build a topical silo/cluster around the topic: "${input.topic}".
+The target domain is: ${domain}${sectionContext}${tagsContext}
 
 Propose exactly 5 distinct, high-quality article ideas that comprehensively cover this topic.
-For each article, define:
-- "title": A catchy, SEO-optimized H1 title.
-- "type": The page format. MUST be one of: "blog_post", "listicle", "how_to", "comparison", "case_study", "review", "pillar_page".
+For each article, you MUST define ALL of the following fields:
+- "title": A catchy, SEO-optimized page title.
+- "section": The website category this page belongs to.${existingSections.size > 0 ? " MUST be one of the existing sections listed above, unless none fit." : ""}
+- "pageType": MUST be one of: ${JSON.stringify(allPageTypeSlugs)}.
+- "schemaType": MUST be one of: ${JSON.stringify(allSchemaTypes)}.
 - "intent": The search intent. MUST be one of: "Informational", "Commercial", "Navigational", "Transactional".
+- "url": A full URL path starting from the domain root using the pattern: /{section-slug}/{seo-friendly-slug}. Do NOT include the domain itself. Example: /blog/best-running-shoes
 
 Output strictly valid JSON matching this schema:
 {
   "ideas": [
-    { "title": string, "type": string, "intent": string }
+    { "title": string, "section": string, "pageType": string, "schemaType": string, "intent": string, "url": string }
   ]
 }
 Do not output any markdown formatting, only the JSON object.`;
@@ -512,7 +618,7 @@ Do not output any markdown formatting, only the JSON object.`;
       try {
         const aiResponse = await callOpenRouter(config, prompt, true);
         const parsed = JSON.parse(aiResponse);
-        return { ideas: parsed.ideas || [] };
+        return { ideas: parsed.ideas || [], domain };
       } catch (err) {
         console.error("AI Generation Error:", err);
         throw new TRPCError({
@@ -598,8 +704,11 @@ Do not output any markdown formatting, only the JSON object.`;
     .input(z.object({ 
       ideas: z.array(z.object({
         title: z.string(),
-        type: z.string(),
-        intent: z.string()
+        section: z.string().optional(),
+        pageType: z.string().optional(),
+        schemaType: z.string().optional(),
+        intent: z.string().optional(),
+        url: z.string().optional(),
       })),
       topic: z.string(),
       projectId: z.string(),
@@ -607,6 +716,13 @@ Do not output any markdown formatting, only the JSON object.`;
     }))
     .mutation(async ({ input }) => {
       const config = getAIConfig(input.modelId);
+
+      // Fetch project domain
+      const project = await prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { url: true }
+      });
+      const domain = project?.url?.replace(/\/+$/, "") || "https://example.com";
 
       // Fetch existing tags to provide context
       const plan = await prisma.contentPlan.findFirst({
@@ -621,30 +737,27 @@ Do not output any markdown formatting, only the JSON object.`;
       }
 
       const tagsContext = existingTags.size > 0 
-        ? `\nHere is the existing tag cloud for the project. Please prioritize using these exact tags where appropriate, but you may invent new ones if needed:\n${Array.from(existingTags).join(", ")}` 
+        ? `\nExisting tag cloud for this project (prioritize these):\n${Array.from(existingTags).join(", ")}` 
         : "";
 
       const prompt = `You are an expert SEO specialist.
-I have a list of basic content ideas for the topic: "${input.topic}".${tagsContext}
+I have a list of content ideas for the topic: "${input.topic}".
+The target domain is: ${domain}${tagsContext}
 
-For each idea, I need you to flesh out the SEO details.
-
-Here are the ideas:
+Here are the ideas (each already has a title, section, pageType, schemaType, intent, and url):
 ${JSON.stringify(input.ideas, null, 2)}
 
-For each idea, generate:
-- "url": A short, SEO-friendly slug (e.g. "best-running-shoes").
+For each idea, generate ONLY the missing SEO details:
 - "metaDesc": A compelling meta description (max 155 chars).
-- "h1": An optimized, catchy H1 heading (can be the same as title or refined).
+- "h1": An optimized, catchy H1 heading.
 - "h2Headings": An array of 3 to 6 logical H2 subheadings.
 - "targetKeywords": An array of 3 to 5 LSI/target keywords.
-- "tags": An array of 3 to 5 related website tags from a typical tag cloud (e.g. "marathon", "fitness", "footwear").
+- "tags": An array of 3 to 5 related website tags.${existingTags.size > 0 ? " Prioritize the existing tags listed above." : ""}
 
 Output strictly valid JSON matching this schema:
 {
   "enrichedIdeas": [
     {
-      "url": string,
       "metaDesc": string,
       "h1": string,
       "h2Headings": [string],
@@ -666,5 +779,175 @@ The output array must be in the exact same order as the input ideas. Do not outp
           message: "Failed to flesh out ideas with AI.",
         });
       }
+    }),
+
+  // ─── CSV Import ──────────────────────────────────────────────────────────
+
+  /** Import content items from CSV text */
+  importCsv: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      csvText: z.string().min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Verify project ownership
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.user.id },
+      });
+      if (!project)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+
+      const plan = await getOrCreatePlan(input.projectId);
+      const existingCount = await prisma.contentItem.count({
+        where: { contentPlanId: plan.id },
+      });
+
+      // ── Parse CSV ─────────────────────────────────────────────────────
+      const lines = input.csvText
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      if (lines.length < 2)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "CSV must have a header row and at least one data row.",
+        });
+
+      // Parse a CSV line respecting quoted fields
+      const parseCsvLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (ch === "," && !inQuotes) {
+            result.push(current.trim());
+            current = "";
+          } else if (ch === ";" && !inQuotes) {
+            // Support semicolon delimiter too (common in EU Excel exports)
+            result.push(current.trim());
+            current = "";
+          } else {
+            current += ch;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      };
+
+      const headers = parseCsvLine(lines[0]).map((h) =>
+        h.toLowerCase().replace(/[\ufeff]/g, "").trim()
+      );
+
+      // Flexible header mapping (English + Russian)
+      const headerMap: Record<string, string> = {};
+      const mappings: Record<string, string[]> = {
+        url: ["url", "ссылка", "адрес", "link"],
+        section: ["section", "раздел", "категория", "category"],
+        pageType: ["page type", "pagetype", "тип страницы", "тип", "type"],
+        priority: ["priority", "приоритет", "pri"],
+        status: ["status", "статус"],
+        metaTitle: ["title", "meta title", "metatitle", "заголовок", "заголовок страницы"],
+        metaDesc: ["meta desc", "meta description", "metadesc", "описание", "meta описание"],
+        h1: ["h1", "заголовок h1"],
+        targetWordCount: ["words", "word count", "target words", "targetwordcount", "объём", "объем", "слова"],
+        h2Headings: ["h2", "h2 headings", "h2headings", "подзаголовки"],
+        targetKeywords: ["keywords", "keyword", "ключевые слова", "ключи", "ключевики"],
+        tags: ["tags", "теги", "метки"],
+        schemaType: ["schema", "schematype", "schema type", "schema.org"],
+        internalLinks: ["internal links", "internallinks", "внутренние ссылки", "перелинковка"],
+        notes: ["notes", "примечания", "заметки", "комментарии"],
+      };
+
+      for (const [field, aliases] of Object.entries(mappings)) {
+        const idx = headers.findIndex((h) =>
+          aliases.some((a) => h === a || h.includes(a))
+        );
+        if (idx !== -1) headerMap[field] = String(idx);
+      }
+
+      const get = (row: string[], field: string): string => {
+        const idx = headerMap[field];
+        if (idx === undefined) return "";
+        return row[Number(idx)] ?? "";
+      };
+
+      // ── Create items ────────────────────────────────────────────────
+      const dataRows = lines.slice(1).map(parseCsvLine);
+      let created = 0;
+      let skipped = 0;
+      let sortOrder = existingCount;
+
+      for (const row of dataRows) {
+        const title = get(row, "metaTitle") || get(row, "h1") || get(row, "url") || `Row ${created + 1}`;
+        if (!title.trim() && !get(row, "url").trim()) {
+          skipped++;
+          continue;
+        }
+
+        const priority = parseInt(get(row, "priority")) || 1;
+        const wordCount = parseInt(get(row, "targetWordCount")) || undefined;
+
+        const h2Raw = get(row, "h2Headings");
+        const h2Headings = h2Raw
+          ? h2Raw.split(/[|;]/).map((s) => s.trim()).filter(Boolean)
+          : [];
+
+        const kwRaw = get(row, "targetKeywords");
+        const keywords = kwRaw
+          ? kwRaw.split(",").map((s) => s.trim()).filter(Boolean)
+          : [];
+
+        const tagsRaw = get(row, "tags");
+        const tags = tagsRaw
+          ? tagsRaw.split(",").map((s) => s.trim()).filter(Boolean)
+          : [];
+
+        const metaTitle = get(row, "metaTitle") || title;
+
+        await prisma.contentItem.create({
+          data: {
+            contentPlanId: plan.id,
+            sortOrder: sortOrder++,
+            title: metaTitle,
+            url: get(row, "url") || undefined,
+            section: get(row, "section") || undefined,
+            pageType: get(row, "pageType") || "blog_post",
+            priority: Math.min(5, Math.max(1, priority)),
+            status: "DRAFT" as import("@prisma/client").ContentStatus,
+            metaTitle,
+            titleLength: metaTitle.length,
+            metaDesc: get(row, "metaDesc") || undefined,
+            metaDescLength: get(row, "metaDesc") ? get(row, "metaDesc").length : undefined,
+            h1: get(row, "h1") || undefined,
+            targetWordCount: wordCount,
+            h2Headings,
+            targetKeywords: keywords,
+            tags,
+            schemaType: get(row, "schemaType") || undefined,
+            internalLinks: get(row, "internalLinks") || undefined,
+            notes: get(row, "notes") || undefined,
+          },
+        });
+        created++;
+      }
+
+      return {
+        created,
+        skipped,
+        total: dataRows.length,
+        mappedColumns: Object.keys(headerMap),
+      };
     }),
 });

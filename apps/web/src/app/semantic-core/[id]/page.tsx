@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
-import { ChevronLeft, Download, Brain, Globe, Search, Loader2 } from "lucide-react";
+import { ChevronLeft, Download, Brain, Globe, Search, Loader2, RefreshCw, Tag, Layers, BarChart3, FileText, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { getCatColor } from "@/lib/categoryColors";
 
@@ -12,15 +12,25 @@ interface PageProps {
 }
 
 export default function SemanticCoreDetail({ params }: PageProps) {
-  // Use React.use() to unwrap the Promise
   const resolvedParams = use(params);
   const id = resolvedParams.id;
+  const utils = trpc.useUtils();
 
-  const { data, isLoading } = trpc.semanticCore.getResults.useQuery({ semanticCoreId: id });
+  const { data, isLoading, refetch } = trpc.semanticCore.getResults.useQuery({ semanticCoreId: id });
+  const { data: stats, refetch: refetchStats } = trpc.semanticCore.getCoreStats.useQuery({ semanticCoreId: id });
+  const syncMut = trpc.semanticCore.syncKeywordUsage.useMutation({
+    onSuccess: () => {
+      refetch();
+      refetchStats();
+    },
+  });
+
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showOnlyUnused, setShowOnlyUnused] = useState(false);
 
   const filteredResults = data?.results.filter((row: any) => {
     if (selectedCategory && row.category !== selectedCategory) return false;
+    if (showOnlyUnused && row.usageCount > 0) return false;
     return true;
   }) || [];
 
@@ -42,11 +52,75 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                 Viewing generated categories and keyword clusters.
               </p>
             </div>
-            <button className="btn-secondary" onClick={() => alert("CSV Export coming soon")}>
-              <Download className="w-4 h-4" /> Export CSV
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => syncMut.mutate({ semanticCoreId: id })}
+                disabled={syncMut.isPending}
+                className="btn-secondary gap-2 text-sm"
+                title="Cross-reference all keywords against the content plan to update usage stats"
+              >
+                {syncMut.isPending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Syncing...</>
+                ) : (
+                  <><RefreshCw className="w-4 h-4" /> Sync Usage</>
+                )}
+              </button>
+              <button className="btn-secondary" onClick={() => alert("CSV Export coming soon")}>
+                <Download className="w-4 h-4" /> Export CSV
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Stats Dashboard */}
+        {stats && stats.totalKeywords > 0 && (
+          <div className="glass-card p-0 overflow-hidden">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-surface-700/30">
+              {[
+                { label: "Keywords", value: stats.totalKeywords, icon: Tag, color: "text-brand-400", bg: "bg-brand-500/10" },
+                { label: "Categories", value: stats.totalCategories, icon: Layers, color: "text-purple-400", bg: "bg-purple-500/10" },
+                { label: "Groups", value: stats.totalGroups, icon: BarChart3, color: "text-cyan-400", bg: "bg-cyan-500/10" },
+                { label: "Covered", value: stats.usedKeywords, icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+                { label: "Available", value: stats.unusedKeywords, icon: FileText, color: "text-surface-300", bg: "bg-surface-800/30" },
+                { label: "Content Items", value: stats.contentItemCount, icon: FileText, color: "text-indigo-400", bg: "bg-indigo-500/10" },
+              ].map((stat) => (
+                <div key={stat.label} className="px-4 py-4 flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
+                    <stat.icon className={`w-4.5 h-4.5 ${stat.color}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
+                    <p className="text-[10px] text-surface-500 uppercase tracking-wider">{stat.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Coverage progress bar */}
+            <div className="px-5 py-3 border-t border-surface-700/30 bg-surface-800/10 flex items-center gap-4">
+              <span className="text-xs text-surface-500 flex-shrink-0">Content Plan Coverage</span>
+              <div className="flex-1 h-2.5 rounded-full bg-surface-800/50 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    stats.coveragePct >= 80 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+                    stats.coveragePct >= 40 ? 'bg-gradient-to-r from-brand-500 to-cyan-500' :
+                    'bg-gradient-to-r from-amber-500 to-orange-500'
+                  }`}
+                  style={{ width: `${stats.coveragePct}%` }}
+                />
+              </div>
+              <span className={`text-sm font-bold flex-shrink-0 ${
+                stats.coveragePct >= 80 ? 'text-emerald-400' :
+                stats.coveragePct >= 40 ? 'text-brand-400' :
+                'text-amber-400'
+              }`}>{stats.coveragePct}%</span>
+            </div>
+            {syncMut.isSuccess && (
+              <div className="px-5 py-2 border-t border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400">
+                ✓ Synced {syncMut.data.synced} keywords — {syncMut.data.matched} matched to content plan items
+              </div>
+            )}
+          </div>
+        )}
 
         {isLoading ? (
           <div className="glass-card p-12 flex justify-center">
@@ -96,6 +170,19 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                   })}
                 </div>
               </div>
+
+              {/* Filter toggles */}
+              <div className="glass-card p-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showOnlyUnused}
+                    onChange={(e) => setShowOnlyUnused(e.target.checked)}
+                    className="w-4 h-4 rounded border-surface-600 bg-surface-800 text-brand-500 focus:ring-brand-500/50"
+                  />
+                  <span className="text-sm text-surface-300">Show only unused keywords</span>
+                </label>
+              </div>
             </div>
 
             {/* Keyword Table */}
@@ -113,6 +200,7 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                     <tr className="border-b border-surface-800/50">
                       <th className="p-3 font-medium text-surface-400">Keyword</th>
                       <th className="p-3 font-medium text-surface-400">Category</th>
+                      <th className="p-3 font-medium text-surface-400 w-20 text-center">Usage</th>
                       <th className="p-3 font-medium text-surface-400">Target Page</th>
                     </tr>
                   </thead>
@@ -122,12 +210,16 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                       return (
                       <tr key={row.id} className="hover:bg-surface-800/20">
                         <td className="p-3">
-                          <div className="font-medium text-surface-200">{row.query}</div>
-                          {row.isRepresentative && (
-                            <span className="text-[10px] uppercase tracking-wider text-brand-400 mt-1 block">
-                              Cluster Leader
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <div className={`font-medium ${row.usageCount > 0 ? 'text-surface-400' : 'text-surface-200'}`}>{row.query}</div>
+                              {row.isRepresentative && (
+                                <span className="text-[10px] uppercase tracking-wider text-brand-400 mt-1 block">
+                                  Cluster Leader
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="p-3">
                           <span 
@@ -137,6 +229,15 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                             <span className="w-1.5 h-1.5 rounded-full" style={{ background: clr.dot }} />
                             {row.category}
                           </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {row.usageCount === 0 ? (
+                            <span className="text-xs text-surface-600">—</span>
+                          ) : (
+                            <span className={`text-xs font-bold px-2 py-1 rounded ${
+                              row.usageCount === 1 ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                            }`}>×{row.usageCount}</span>
+                          )}
                         </td>
                         <td className="p-3">
                           {row.page ? (

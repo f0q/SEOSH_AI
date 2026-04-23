@@ -25,6 +25,7 @@ import {
   Check,
   Plus,
   Zap,
+  Settings2,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/trpc/client";
@@ -43,7 +44,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, cb: () => voi
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/projects", icon: FolderKanban, label: "Projects" },
+  { href: "/project-settings", icon: Settings2, label: "Project Settings" },
   { href: "/semantic-core", icon: Brain, label: "Semantic Core" },
   { href: "/content", icon: FileText, label: "Content" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },

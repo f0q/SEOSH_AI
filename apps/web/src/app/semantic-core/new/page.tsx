@@ -6,7 +6,7 @@ export const metadata = { title: "Semantic Core" };
 export default function SemanticCorePage() {
   return (
     <DashboardLayout>
-      <SemanticCoreWizard />
+      <SemanticCoreWizard isNew={true} />
     </DashboardLayout>
   );
 }

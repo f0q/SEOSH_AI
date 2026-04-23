@@ -15,6 +15,7 @@ import {
   Pencil,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -26,6 +27,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
 };
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const { data: projects, isLoading, refetch } = trpc.projects.list.useQuery();
   const { activeProject, setActiveProjectId } = useProject();
   
@@ -90,7 +92,10 @@ export default function ProjectsPage() {
               return (
                 <div
                   key={project.id}
-                  onClick={() => setActiveProjectId(project.id)}
+                  onClick={() => {
+                    setActiveProjectId(project.id);
+                    router.push("/");
+                  }}
                   className={`glass-card glass-card-hover p-5 cursor-pointer transition-all duration-200 ${
                     isActive ? "border-brand-500/40 shadow-lg shadow-brand-500/10" : ""
                   }`}

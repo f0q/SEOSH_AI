@@ -6,9 +6,10 @@ import { trpc } from "@/trpc/client";
 
 interface Props {
   semanticCoreId: string | null;
+  onRequireSession: () => Promise<string>;
 }
 
-export function StepKeywords({ semanticCoreId }: Props) {
+export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
   const [text, setText] = useState("");
   const [status, setStatus] = useState<"idle" | "grouping" | "done">("idle");
   const [showInput, setShowInput] = useState(false);
@@ -26,12 +27,12 @@ export function StepKeywords({ semanticCoreId }: Props) {
   const hasGroups = (groupsData?.totalGroups ?? 0) > 0;
 
   const handleGroup = async () => {
-    if (!semanticCoreId) return;
     const queries = text.split("\n").filter((l) => l.trim().length > 0);
     if (queries.length === 0) return;
     setStatus("grouping");
     try {
-      await groupQueries.mutateAsync({ semanticCoreId, queries });
+      const coreId = await onRequireSession();
+      await groupQueries.mutateAsync({ semanticCoreId: coreId, queries });
       await refetchGroups();
       setStatus("done");
       setShowInput(false);
@@ -110,7 +111,7 @@ export function StepKeywords({ semanticCoreId }: Props) {
             </div>
             <button
               onClick={handleGroup}
-              disabled={!text.trim() || !semanticCoreId || status === "grouping"}
+              disabled={!text.trim() || status === "grouping"}
               className="btn-primary gap-2"
             >
               {status === "grouping" ? (
@@ -137,7 +138,7 @@ export function StepKeywords({ semanticCoreId }: Props) {
                 // Restore keywords from DB groups into textarea
                 const allQueries = (groupsData?.groups ?? []).flatMap((g: any) => g.queries);
                 if (allQueries.length > 0 && !text.trim()) {
-                  setText(allQueries.join("\n"));
+                  setText(allQueries.map((q: any) => typeof q === 'string' ? q : q.text).join("\n"));
                 }
                 setShowInput(true);
               }}
@@ -224,6 +225,15 @@ export function StepKeywords({ semanticCoreId }: Props) {
                       <span className="text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-2.5 py-0.5">
                         {g.count} req.
                       </span>
+                      {g.usedCount > 0 && (
+                        <span className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${
+                          g.usedCount === g.count
+                            ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                            : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                        }`}>
+                          {g.usedCount}/{g.count} used
+                        </span>
+                      )}
                       {isExpanded ? (
                         <ChevronDown className="w-4 h-4 text-surface-400" />
                       ) : (
@@ -234,12 +244,23 @@ export function StepKeywords({ semanticCoreId }: Props) {
 
                   {isExpanded && (
                     <div className="border-t border-surface-700/20 px-4 py-3 space-y-1.5">
-                      {g.queries.map((q: string, i: number) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
-                          <div className="w-1 h-1 rounded-full bg-surface-600 flex-shrink-0 ml-4" />
-                          <span className="text-surface-400">{q}</span>
-                        </div>
-                      ))}
+                      {g.queries.map((q: any, i: number) => {
+                        const qText = typeof q === 'string' ? q : q.text;
+                        const qUsage = typeof q === 'string' ? 0 : (q.usageCount || 0);
+                        return (
+                          <div key={i} className="flex items-center gap-2 text-sm">
+                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ml-4 ${
+                              qUsage === 0 ? 'bg-surface-600' : qUsage === 1 ? 'bg-emerald-500' : 'bg-amber-500'
+                            }`} />
+                            <span className={`${qUsage > 0 ? 'text-surface-500' : 'text-surface-300'}`}>{qText}</span>
+                            {qUsage > 0 && (
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                qUsage === 1 ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'
+                              }`}>×{qUsage}</span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -249,13 +270,6 @@ export function StepKeywords({ semanticCoreId }: Props) {
         </div>
       )}
 
-      {!hasGroups && !semanticCoreId && (
-        <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-          <p className="text-sm text-amber-300">
-            ⚠ Complete the Sitemap step first, or skip to paste keywords freely.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

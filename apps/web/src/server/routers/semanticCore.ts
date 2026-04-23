@@ -47,7 +47,7 @@ export const semanticCoreRouter = router({
 
   /** Initiate a Semantic Core session *after* sitemap is fetched */
   createSession: protectedProcedure
-    .input(z.object({ projectId: z.string().optional(), siteUrl: z.string() }))
+    .input(z.object({ projectId: z.string().optional(), siteUrl: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
       if (input.projectId) {
         // Basic ownership check
@@ -60,7 +60,7 @@ export const semanticCoreRouter = router({
       return await prisma.semanticCore.create({
         data: { 
           projectId: input.projectId || null, 
-          siteUrl: input.siteUrl,
+          siteUrl: input.siteUrl || "unknown",
           userId: ctx.user.id
         }
       });
@@ -111,6 +111,46 @@ export const semanticCoreRouter = router({
       };
     }),
 
+  /** Save the AI-generated site structure to the database */
+  updateSiteStructure: protectedProcedure
+    .input(z.object({
+      semanticCoreId: z.string(),
+      siteStructure: z.any(),
+      competitors: z.array(z.object({
+        url: z.string(),
+        label: z.string().optional(),
+      })).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Verify ownership
+      const core = await prisma.semanticCore.findFirst({
+        where: { id: input.semanticCoreId, userId: ctx.user.id },
+      });
+      if (!core) throw new TRPCError({ code: "NOT_FOUND", message: "Semantic core not found" });
+
+      await prisma.semanticCore.update({
+        where: { id: input.semanticCoreId },
+        data: { siteStructure: input.siteStructure },
+      });
+
+      if (input.competitors && core.projectId) {
+        // Upsert CompanyProfile with competitors
+        await prisma.companyProfile.upsert({
+          where: { projectId: core.projectId },
+          create: {
+            projectId: core.projectId,
+            companyName: "My Company", // Default name
+            competitors: input.competitors,
+          },
+          update: {
+            competitors: input.competitors,
+          },
+        });
+      }
+
+      return { success: true };
+    }),
+
   /** Get lexical groups for an existing semantic core (for Step 2 display) */
   getGroups: protectedProcedure
     .input(z.object({ semanticCoreId: z.string() }))
@@ -118,7 +158,7 @@ export const semanticCoreRouter = router({
       const groups = await prisma.lexicalGroup.findMany({
         where: { semanticCoreId: input.semanticCoreId },
         include: {
-          queries: { select: { id: true, text: true } },
+          queries: { select: { id: true, text: true, usageCount: true } },
         },
         orderBy: { queries: { _count: "desc" } },
       });
@@ -130,7 +170,8 @@ export const semanticCoreRouter = router({
           id: g.id,
           representative: g.representativeQuery,
           count: g.queries.length,
-          queries: g.queries.map((q: any) => q.text),
+          usedCount: g.queries.filter((q: any) => q.usageCount > 0).length,
+          queries: g.queries.map((q: any) => ({ text: q.text, usageCount: q.usageCount })),
         })),
         totalGroups: groups.length,
         totalQueries,
@@ -518,6 +559,7 @@ Rules:
         isRepresentative: q.group?.representativeQuery === q.text,
         page: q.pageUrl || "",
         pageManual: false,
+        usageCount: q.usageCount ?? 0,
       }));
 
       const summary = results.reduce((acc: any, q: any) => {
@@ -889,5 +931,140 @@ Respond ONLY with the JSON array, no markdown formatting, no backticks.`;
         totalMerged: uniqueQueries.length,
         fromCores: cores.length
       };
-    })
+    }),
+
+  /** Sync keyword usage: cross-reference semantic core keywords against content plan items */
+  syncKeywordUsage: protectedProcedure
+    .input(z.object({ semanticCoreId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const core = await prisma.semanticCore.findFirst({
+        where: { id: input.semanticCoreId, userId: ctx.user.id },
+        select: { id: true, projectId: true },
+      });
+      if (!core) throw new Error("Semantic core not found");
+      if (!core.projectId) throw new Error("Core must be linked to a project to sync usage");
+
+      // 1. Load all queries from this core
+      const queries = await prisma.query.findMany({
+        where: { semanticCoreId: core.id },
+        select: { id: true, text: true, normalizedText: true },
+      });
+      if (queries.length === 0) return { synced: 0, matched: 0 };
+
+      // 2. Load all content items from the project's content plan
+      const plan = await prisma.contentPlan.findFirst({
+        where: { projectId: core.projectId },
+      });
+      if (!plan) return { synced: queries.length, matched: 0 };
+
+      const contentItems = await prisma.contentItem.findMany({
+        where: { contentPlanId: plan.id },
+        select: { id: true, targetKeywords: true, title: true, h1: true },
+      });
+
+      // 3. Build a lookup: normalized keyword text → content item IDs
+      const keywordToItems = new Map<string, string[]>();
+      for (const item of contentItems) {
+        for (const kw of item.targetKeywords) {
+          const normalized = kw.toLowerCase().trim();
+          if (!keywordToItems.has(normalized)) keywordToItems.set(normalized, []);
+          keywordToItems.get(normalized)!.push(item.id);
+        }
+      }
+
+      // 4. For each query, check if it appears in any content item's targetKeywords
+      let matchedCount = 0;
+      for (const query of queries) {
+        const normalized = query.text.toLowerCase().trim();
+        const matchedItemIds = keywordToItems.get(normalized) || [];
+        const usageCount = matchedItemIds.length;
+
+        // Update the query's usageCount and hasContent
+        await prisma.query.update({
+          where: { id: query.id },
+          data: {
+            usageCount,
+            hasContent: usageCount > 0,
+          },
+        });
+
+        // Sync ContentItemQuery links
+        if (matchedItemIds.length > 0) {
+          matchedCount++;
+          // Remove existing links for this query and recreate
+          await prisma.contentItemQuery.deleteMany({
+            where: { queryId: query.id },
+          });
+          await prisma.contentItemQuery.createMany({
+            data: matchedItemIds.map((itemId) => ({
+              queryId: query.id,
+              contentItemId: itemId,
+            })),
+            skipDuplicates: true,
+          });
+        } else {
+          // Clean up any stale links
+          await prisma.contentItemQuery.deleteMany({
+            where: { queryId: query.id },
+          });
+        }
+      }
+
+      return { synced: queries.length, matched: matchedCount };
+    }),
+
+  /** Get detailed stats for a semantic core (keywords, categories, content coverage) */
+  getCoreStats: protectedProcedure
+    .input(z.object({ semanticCoreId: z.string() }))
+    .query(async ({ input }) => {
+      const totalKeywords = await prisma.query.count({
+        where: { semanticCoreId: input.semanticCoreId },
+      });
+      const totalCategories = await prisma.category.count({
+        where: { semanticCoreId: input.semanticCoreId },
+      });
+      const totalGroups = await prisma.lexicalGroup.count({
+        where: { semanticCoreId: input.semanticCoreId },
+      });
+      const usedKeywords = await prisma.query.count({
+        where: { semanticCoreId: input.semanticCoreId, usageCount: { gt: 0 } },
+      });
+      const overUsedKeywords = await prisma.query.count({
+        where: { semanticCoreId: input.semanticCoreId, usageCount: { gt: 1 } },
+      });
+
+      // Get content plan stats if core is linked to a project
+      const core = await prisma.semanticCore.findFirst({
+        where: { id: input.semanticCoreId },
+        select: { projectId: true },
+      });
+      let contentItemCount = 0;
+      let publishedCount = 0;
+      if (core?.projectId) {
+        const plan = await prisma.contentPlan.findFirst({
+          where: { projectId: core.projectId },
+        });
+        if (plan) {
+          contentItemCount = await prisma.contentItem.count({
+            where: { contentPlanId: plan.id },
+          });
+          publishedCount = await prisma.contentItem.count({
+            where: { contentPlanId: plan.id, status: "PUBLISHED" },
+          });
+        }
+      }
+
+      return {
+        totalKeywords,
+        totalCategories,
+        totalGroups,
+        usedKeywords,
+        unusedKeywords: totalKeywords - usedKeywords,
+        overUsedKeywords,
+        coveragePct: totalKeywords > 0 ? Math.round((usedKeywords / totalKeywords) * 100) : 0,
+        contentItemCount,
+        publishedCount,
+        hasProject: !!core?.projectId,
+      };
+    }),
 });

@@ -20,19 +20,22 @@ import StepProducts from "./StepProducts";
 import StepAudience from "./StepAudience";
 import StepDataSources from "./StepDataSources";
 import StepCompetitors from "./StepCompetitors";
+import StepSiteStructure from "./StepSiteStructure";
 import {
   Building2,
   Package,
   Users,
   Globe,
   Swords,
+  Layers,
   Check,
   ArrowRight,
   ArrowLeft,
   Sparkles,
 } from "lucide-react";
 import { trpc } from "@/trpc/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 export interface OnboardingData {
   companyName: string;
@@ -46,6 +49,7 @@ export interface OnboardingData {
   isCompetitorDomain: boolean;
   myProjectUrl?: string; // If competitor domain is parsed
   competitors: Array<{ url: string; name: string; notes: string }>;
+  siteStructure?: any[];
 }
 
 const INITIAL_DATA: OnboardingData = {
@@ -60,6 +64,7 @@ const INITIAL_DATA: OnboardingData = {
   isCompetitorDomain: false,
   myProjectUrl: "",
   competitors: [{ url: "", name: "", notes: "" }],
+  siteStructure: [],
 };
 
 const STEPS = [
@@ -68,19 +73,54 @@ const STEPS = [
   { id: 3, title: "Products", icon: Package, description: "Products & Services" },
   { id: 4, title: "Audience", icon: Users, description: "Target Audience" },
   { id: 5, title: "Competitors", icon: Swords, description: "Competitors" },
+  { id: 6, title: "Structure", icon: Layers, description: "Site Structure" },
 ];
 
 export default function OnboardingWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<OnboardingData>(INITIAL_DATA);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const searchParams = useSearchParams();
+  const editProjectId = searchParams.get("projectId");
+  const isEditing = !!editProjectId;
+
+  // Fetch existing project data if editing
+  const { data: existingProject, isLoading: isLoadingProject } = trpc.projects.get.useQuery(
+    { id: editProjectId || "" },
+    { enabled: !!editProjectId, refetchOnWindowFocus: false }
+  );
+
+  useEffect(() => {
+    if (existingProject) {
+      const cp = existingProject.companyProfile;
+      if (cp) {
+        setData({
+          companyName: cp.companyName || existingProject.name,
+          industry: cp.industry || "",
+          description: cp.description || "",
+          geography: cp.geography || "",
+          products: Array.isArray(cp.productsServices) && cp.productsServices.length > 0 
+            ? (cp.productsServices as any) 
+            : [{ name: "", description: "", priceRange: "" }],
+          audienceSegments: (cp.targetAudience as any)?.segments || [""],
+          painPoints: (cp.targetAudience as any)?.painPoints || [""],
+          websiteUrl: existingProject.url || "",
+          isCompetitorDomain: false,
+          competitors: Array.isArray(cp.competitors) && cp.competitors.length > 0
+            ? (cp.competitors as any)
+            : [{ url: "", name: "", notes: "" }],
+          siteStructure: Array.isArray(cp.siteStructure) ? cp.siteStructure : [],
+        });
+      }
+    }
+  }, [existingProject]);
 
   const updateData = useCallback((updates: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...updates }));
   }, []);
 
   const handleNext = () => {
-    if (currentStep < 5) setCurrentStep((s) => s + 1);
+    if (currentStep < 6) setCurrentStep((s) => s + 1);
   };
 
   const handleBack = () => {
@@ -88,14 +128,17 @@ export default function OnboardingWizard() {
   };
 
   const router = useRouter();
-  const createProject = trpc.projects.create.useMutation();
+  const upsertProject = trpc.projects.upsertOnboarding.useMutation();
 
   const utils = trpc.useUtils();
 
   const handleFinish = async () => {
     setIsSubmitting(true);
     try {
-      const result = await createProject.mutateAsync(data);
+      const result = await upsertProject.mutateAsync({
+        ...data,
+        projectId: editProjectId || undefined
+      });
       utils.dashboard.getOverview.invalidate(); // Clear cache for dashboard
       router.refresh(); // Tell Next.js Server Components to re-fetch
       
@@ -114,9 +157,17 @@ export default function OnboardingWizard() {
       case 3: return data.products.some((p) => p.name.trim().length > 0);
       case 4: return true; // Optional
       case 5: return true; // Optional
+      case 6: return data.siteStructure && data.siteStructure.length > 0; // Require structure
       default: return true;
     }
   };
+  if (isLoadingProject) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 border-4 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
@@ -207,6 +258,7 @@ export default function OnboardingWizard() {
         {currentStep === 3 && <StepProducts data={data} updateData={updateData} />}
         {currentStep === 4 && <StepAudience data={data} updateData={updateData} />}
         {currentStep === 5 && <StepCompetitors data={data} updateData={updateData} />}
+        {currentStep === 6 && <StepSiteStructure data={data} updateData={updateData} />}
       </div>
 
       {/* Navigation Buttons */}
@@ -220,7 +272,7 @@ export default function OnboardingWizard() {
           Back
         </button>
 
-        {currentStep < 5 ? (
+        {currentStep < 6 ? (
           <button
             onClick={handleNext}
             disabled={!isStepValid()}

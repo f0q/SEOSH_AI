@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Globe, Plus, Trash2, Loader2, Wand2, ExternalLink, AlertCircle, ChevronRight, ChevronDown, CheckCircle2, Pencil, X, Check, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
@@ -386,6 +386,21 @@ export function StepSitemap({ projectId, sitemapUrl, setSitemapUrl, competitors,
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   const createSession = trpc.semanticCore.createSession.useMutation();
+  const updateStructureMut = trpc.semanticCore.updateSiteStructure.useMutation();
+
+  // Auto-save structure when tree changes
+  useEffect(() => {
+    if (semanticCoreId && siteTree.length > 0) {
+      const timer = setTimeout(() => {
+        updateStructureMut.mutate({ 
+          semanticCoreId, 
+          siteStructure: siteTree,
+          competitors: competitors
+        });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [siteTree, semanticCoreId, competitors]);
 
   // ── Duplicate detection ────────────────────────────────────────────────────
   const checkDuplicate = (newUrl: string, excludeIdx?: number) => {
