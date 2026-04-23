@@ -80,7 +80,7 @@ export function IdeationModal({
 
   const handleProposeIdeas = () => {
     if (!topic.trim()) return;
-    proposeIdeasMut.mutate({ topic, modelId: selectedModelId || undefined });
+    proposeIdeasMut.mutate({ topic, projectId, modelId: selectedModelId || undefined });
   };
 
   const handleSaveToPlan = async () => {
@@ -264,34 +264,55 @@ export function IdeationModal({
                         );
                       })}
                     </div>
-                    <div className="flex items-center justify-between pt-4">
-                      <div className="flex items-center gap-2">
-                        <AIModelSelector
-                          onModelSelect={setFleshOutModelId}
-                          selectedModelId={fleshOutModelId}
-                          estimatedPromptTokens={500}
-                          expectedOutputTokens={800}
-                        />
-                        <button 
-                          onClick={() => {
-                            const ideasToFleshOut = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
-                            fleshOutMut.mutate({
-                              topic,
-                              ideas: ideasToFleshOut.map(id => ({ title: id.title, type: id.type, intent: id.intent })),
-                              modelId: fleshOutModelId || undefined
-                            });
-                          }}
-                          disabled={fleshOutMut.isPending || selectedIdeas.size === 0} 
-                          className="btn-secondary gap-2 text-brand-300"
-                        >
-                          {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
-                          Flesh out SEO details
+                    <div className="pt-6 space-y-4 border-t border-surface-800 mt-4">
+                      {/* AI Action Block */}
+                      <div className="p-4 bg-surface-800/30 rounded-xl border border-surface-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-medium text-surface-200 flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-brand-400" />
+                            Deep SEO Generation
+                          </h4>
+                          <p className="text-xs text-surface-500">
+                            Generate URLs, Meta Descriptions, H1s, H2s, and Tags for selected ideas.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <AIModelSelector
+                            onModelSelect={setFleshOutModelId}
+                            selectedModelId={fleshOutModelId}
+                            estimatedPromptTokens={500}
+                            expectedOutputTokens={800}
+                          />
+                          <button 
+                            onClick={() => {
+                              const ideasToFleshOut = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
+                              fleshOutMut.mutate({
+                                topic,
+                                projectId,
+                                ideas: ideasToFleshOut.map(id => ({ title: id.title, type: id.type, intent: id.intent })),
+                                modelId: fleshOutModelId || undefined
+                              });
+                            }}
+                            disabled={fleshOutMut.isPending || selectedIdeas.size === 0} 
+                            className="btn-secondary gap-2 text-brand-300"
+                          >
+                            {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
+                            Generate SEO
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Save Block */}
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-surface-500 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500/50"></span>
+                          Saving to plan does not consume AI tokens.
+                        </p>
+                        <button onClick={handleSaveToPlan} disabled={createItemMut.isPending || selectedIdeas.size === 0 || fleshOutMut.isPending} className="btn-primary gap-2">
+                          {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                          Add {selectedIdeas.size} items to Plan
                         </button>
                       </div>
-                      <button onClick={handleSaveToPlan} disabled={createItemMut.isPending || selectedIdeas.size === 0 || fleshOutMut.isPending} className="btn-primary gap-2">
-                        {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                        Add {selectedIdeas.size} items to Plan
-                      </button>
                     </div>
                   </div>
                 )}

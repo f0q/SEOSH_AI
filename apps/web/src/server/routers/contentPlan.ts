@@ -468,11 +468,33 @@ export const contentPlanRouter = router({
     }),
 
   proposeIdeas: protectedProcedure
-    .input(z.object({ topic: z.string(), modelId: z.string().optional() }))
+    .input(z.object({ topic: z.string(), projectId: z.string(), modelId: z.string().optional() }))
     .mutation(async ({ input }) => {
       const config = getAIConfig(input.modelId);
+      
+      // Fetch existing sections (categories) and tags to provide context
+      const plan = await prisma.contentPlan.findFirst({
+        where: { projectId: input.projectId },
+        include: { items: { select: { section: true, tags: true, pageType: true } } }
+      });
+      
+      const existingSections = new Set<string>();
+      const existingTags = new Set<string>();
+      
+      if (plan) {
+        plan.items.forEach(item => {
+          if (item.section) existingSections.add(item.section);
+          if (item.tags) item.tags.forEach(t => existingTags.add(t));
+        });
+      }
+
+      const sectionContext = existingSections.size > 0 
+        ? `\nHere are the existing website categories/sections you should try to align with if relevant:\n${Array.from(existingSections).join(", ")}` 
+        : "";
+
       const prompt = `You are an expert SEO content strategist.
-The user wants to build a topical silo/cluster around the topic: "${input.topic}".
+The user wants to build a topical silo/cluster around the topic: "${input.topic}".${sectionContext}
+
 Propose exactly 5 distinct, high-quality article ideas that comprehensively cover this topic.
 For each article, define:
 - "title": A catchy, SEO-optimized H1 title.
@@ -580,12 +602,31 @@ Do not output any markdown formatting, only the JSON object.`;
         intent: z.string()
       })),
       topic: z.string(),
+      projectId: z.string(),
       modelId: z.string().optional()
     }))
     .mutation(async ({ input }) => {
       const config = getAIConfig(input.modelId);
+
+      // Fetch existing tags to provide context
+      const plan = await prisma.contentPlan.findFirst({
+        where: { projectId: input.projectId },
+        include: { items: { select: { tags: true } } }
+      });
+      const existingTags = new Set<string>();
+      if (plan) {
+        plan.items.forEach(item => {
+          if (item.tags) item.tags.forEach(t => existingTags.add(t));
+        });
+      }
+
+      const tagsContext = existingTags.size > 0 
+        ? `\nHere is the existing tag cloud for the project. Please prioritize using these exact tags where appropriate, but you may invent new ones if needed:\n${Array.from(existingTags).join(", ")}` 
+        : "";
+
       const prompt = `You are an expert SEO specialist.
-I have a list of basic content ideas for the topic: "${input.topic}".
+I have a list of basic content ideas for the topic: "${input.topic}".${tagsContext}
+
 For each idea, I need you to flesh out the SEO details.
 
 Here are the ideas:

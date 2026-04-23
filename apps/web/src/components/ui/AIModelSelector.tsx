@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createPortal } from "react-dom";
 import { trpc } from "@/trpc/client";
 import { Sparkles, Coins, ChevronDown } from "lucide-react";
 
@@ -58,15 +57,10 @@ export function AIModelSelector({
       }
     };
 
-    // Close on scroll to avoid detached dropdowns
-    const handleScroll = () => setIsOpen(false);
-
     document.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("scroll", handleScroll, true); // true = capture phase to catch inner scroll containers
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [isOpen]);
 
@@ -92,14 +86,14 @@ export function AIModelSelector({
     const spaceBelow = window.innerHeight - rect.bottom;
     const isUpwards = spaceBelow < 300 && rect.top > 300;
 
-    const top = isUpwards ? undefined : rect.bottom + window.scrollY + 8;
-    const bottom = isUpwards ? window.innerHeight - rect.top - window.scrollY + 8 : undefined;
-    const left = rect.left + window.scrollX;
+    const top = isUpwards ? undefined : rect.bottom + 8;
+    const bottom = isUpwards ? window.innerHeight - rect.top + 8 : undefined;
+    const left = rect.left;
 
-    const dropdown = (
+    return (
       <div 
         ref={dropdownRef}
-        className="fixed w-[280px] z-[9999] bg-surface-800 shadow-2xl shadow-black/80 border border-surface-600 rounded-xl overflow-hidden animate-fade-in"
+        className="fixed w-[280px] z-[99999] bg-surface-800 shadow-2xl shadow-black/80 border border-surface-600 rounded-xl overflow-hidden animate-fade-in"
         style={{ top, bottom, left }}
       >
         <div className="px-3 py-2 bg-surface-900/50 border-b border-surface-700/50">
@@ -113,7 +107,11 @@ export function AIModelSelector({
             return (
               <button
                 key={model.id}
-                onClick={() => handleSelect(model)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelect(model);
+                }}
                 className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
                   isSelected ? "bg-brand-500/10 text-brand-300" : "hover:bg-surface-700 text-surface-300"
                 }`}
@@ -137,15 +135,18 @@ export function AIModelSelector({
         </div>
       </div>
     );
-
-    return typeof document !== "undefined" ? createPortal(dropdown, document.body) : null;
   };
 
   return (
     <div className="relative">
       <button
+        type="button"
         ref={buttonRef}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         className="flex items-center gap-3 px-3 py-2 bg-brand-500/10 hover:bg-brand-500/15 border border-brand-500/20 text-brand-300 rounded-xl transition-colors text-sm font-medium"
       >
         <Sparkles className="w-4 h-4 text-brand-400" />
