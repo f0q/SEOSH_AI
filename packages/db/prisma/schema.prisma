@@ -342,6 +342,7 @@ model ContentItem {
   targetWordCount Int?         // Column: Целевой объём (слов)
   h2Headings     String[]      // Column: H2-1..H2-4 (stored as array)
   targetKeywords String[]      // Column: Ключевые слова
+  tags           String[]      // Column: Теги (cloud tags)
   schemaType     String?       // Column: Schema (LocalBusiness, Article, etc.)
   internalLinks  String?       @db.Text // Column: Внутренние ссылки
   notes          String?       @db.Text // Column: Примечания

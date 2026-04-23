@@ -102,6 +102,7 @@ export function IdeationModal({
               h1: idea.h1 || idea.title,
               h2Headings: idea.h2Headings,
               targetKeywords: idea.targetKeywords,
+              tags: idea.tags,
             },
           })
         )
@@ -252,6 +253,9 @@ export function IdeationModal({
                                   <p><strong className="text-surface-100">Meta:</strong> {idea.metaDesc}</p>
                                   {idea.targetKeywords?.length > 0 && (
                                     <p><strong className="text-surface-100">Keywords:</strong> {idea.targetKeywords.join(', ')}</p>
+                                  )}
+                                  {idea.tags?.length > 0 && (
+                                    <p><strong className="text-surface-100">Tags:</strong> {idea.tags.join(', ')}</p>
                                   )}
                                 </div>
                               )}

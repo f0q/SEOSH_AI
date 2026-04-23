@@ -9,7 +9,7 @@ import { PAGE_TYPES, getDefaultSchema, getDefaultWordCount } from "@seosh/shared
 import {
   LayoutList, Plus, Trash2, ChevronLeft, Users, Mail,
   Sparkles, ShieldCheck, Lightbulb, X, Check, Loader2,
-  ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown, Wand2,
+  ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown, Wand2, AlertCircle
 } from "lucide-react";
 import { IdeationModal } from "@/components/content-planner/IdeationModal";
 
@@ -40,12 +40,16 @@ function EditableCell({
   placeholder = "—",
   className = "",
   multiline = false,
+  warning = false,
+  warningText = "",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   className?: string;
   multiline?: boolean;
+  warning?: boolean;
+  warningText?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -76,10 +80,17 @@ function EditableCell({
   return (
     <span
       onClick={() => { setDraft(value); setEditing(true); }}
-      className={`block cursor-text min-h-[20px] text-xs truncate hover:text-surface-100 transition-colors ${value ? "text-surface-200" : "text-surface-600 italic"} ${className}`}
+      className={`block cursor-text min-h-[20px] text-xs hover:text-surface-100 transition-colors ${value ? "text-surface-200" : "text-surface-600 italic"} ${className}`}
       title={value || placeholder}
     >
-      {value || placeholder}
+      <div className="flex items-center gap-1 overflow-hidden">
+        <span className="truncate">{value || placeholder}</span>
+        {warning && (
+          <span className="shrink-0 flex items-center gap-1 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" title={warningText}>
+            <AlertCircle className="w-3 h-3" />
+          </span>
+        )}
+      </div>
     </span>
   );
 }
@@ -270,6 +281,19 @@ export default function ContentPlannerPage() {
   });
 
   const items = data?.items ?? [];
+
+  // Compute duplicate titles for warnings
+  const duplicateTitles = new Set<string>();
+  const seenTitles = new Set<string>();
+  items.forEach(item => {
+    if (item.metaTitle) {
+      const lower = item.metaTitle.toLowerCase();
+      if (seenTitles.has(lower)) {
+        duplicateTitles.add(lower);
+      }
+      seenTitles.add(lower);
+    }
+  });
 
   const handleUpdate = useCallback(
     (id: string, field: string, value: unknown) => {
@@ -477,6 +501,7 @@ export default function ContentPlannerPage() {
                     { label: "Target Words", w: "w-24" },
                     { label: "H2 Headings (1–4)", w: "w-52" },
                     { label: "Keywords", w: "w-48" },
+                    { label: "Tags", w: "w-40" },
                     { label: "Schema", w: "w-32" },
                     { label: "Internal Links", w: "w-48" },
                     { label: "Notes", w: "w-40" },
@@ -585,6 +610,8 @@ export default function ContentPlannerPage() {
                         value={item.metaTitle ?? ""}
                         onChange={(v) => handleUpdate(item.id, "metaTitle", v)}
                         placeholder="Page title..."
+                        warning={item.metaTitle ? duplicateTitles.has(item.metaTitle.toLowerCase()) : false}
+                        warningText="A similar title already exists in your plan"
                       />
                     </td>
 
@@ -664,6 +691,20 @@ export default function ContentPlannerPage() {
                           )
                         }
                         placeholder="keyword 1, keyword 2"
+                        multiline
+                      />
+                    </td>
+
+                    {/* Tags */}
+                    <td className="px-3 py-2">
+                      <EditableCell
+                        value={(item.tags ?? []).join(", ")}
+                        onChange={(v) =>
+                          handleUpdate(item.id, "tags",
+                            v.split(",").map((s) => s.trim()).filter(Boolean)
+                          )
+                        }
+                        placeholder="tag 1, tag 2"
                         multiline
                       />
                     </td>

@@ -35,6 +35,7 @@ const contentItemInput = z.object({
   targetWordCount: z.number().optional(),
   h2Headings: z.array(z.string()).optional(),
   targetKeywords: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
   schemaType: z.string().optional(),
   internalLinks: z.string().optional(),
   notes: z.string().optional(),
@@ -118,6 +119,7 @@ export const contentPlanRouter = router({
           targetWordCount: input.data.targetWordCount,
           h2Headings: input.data.h2Headings ?? [],
           targetKeywords: input.data.targetKeywords ?? [],
+          tags: input.data.tags ?? [],
           schemaType: input.data.schemaType,
           internalLinks: input.data.internalLinks,
           notes: input.data.notes,
@@ -595,6 +597,7 @@ For each idea, generate:
 - "h1": An optimized, catchy H1 heading (can be the same as title or refined).
 - "h2Headings": An array of 3 to 6 logical H2 subheadings.
 - "targetKeywords": An array of 3 to 5 LSI/target keywords.
+- "tags": An array of 3 to 5 related website tags from a typical tag cloud (e.g. "marathon", "fitness", "footwear").
 
 Output strictly valid JSON matching this schema:
 {
@@ -604,7 +607,8 @@ Output strictly valid JSON matching this schema:
       "metaDesc": string,
       "h1": string,
       "h2Headings": [string],
-      "targetKeywords": [string]
+      "targetKeywords": [string],
+      "tags": [string]
     }
   ]
 }
