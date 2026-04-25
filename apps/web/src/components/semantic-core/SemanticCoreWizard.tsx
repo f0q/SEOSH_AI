@@ -17,6 +17,7 @@ import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
 import { StepKeywords } from "./StepKeywords";
 import { getCatColor } from "@/lib/categoryColors";
+import { useProject } from "@/lib/project-context";
 
 
 // ─── Step config ─────────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ import { getCatColor } from "@/lib/categoryColors";
 const STEPS = [
   { id: 1, title: "Keywords",   icon: Upload,    description: "Upload & cluster keywords" },
   { id: 2, title: "Categories", icon: Tags,      description: "AI generates, you approve" },
-  { id: 3, title: "Results",    icon: BarChart3, description: "Keyword → Category → Page" },
+  { id: 3, title: "Results",    icon: BarChart3, description: "Keyword → Category mapping" },
 ];
 
 // ─── Completion heuristics (for progress dots) ────────────────────────────────
@@ -36,25 +37,29 @@ function stepDone(step: number, semanticCoreId: string | null, groupsDone: boole
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
-export default function SemanticCoreWizard({ projectId: initialProjectId, isNew }: { projectId?: string, isNew?: boolean }) {
+export default function SemanticCoreWizard({ isNew, existingCoreId }: { projectId?: string, isNew?: boolean, existingCoreId?: string }) {
+  const { activeProject } = useProject();
+  const projectId = activeProject?.id;
+
   const [step, setStep] = useState(1);
-  const [semanticCoreId, setSemanticCoreId] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(initialProjectId);
+  const [semanticCoreId, setSemanticCoreId] = useState<string | null>(existingCoreId || null);
 
   // Step completion flags
   const [groupsDone, setGroupsDone] = useState(false);
   const [catsDone, setCatsDone] = useState(false);
 
-  const projectsQuery = trpc.projects.list.useQuery();
+  // Preserve text input across tab switching
+  const [pendingKeywords, setPendingKeywords] = useState("");
+
   const groupsQuery = trpc.semanticCore.getGroups.useQuery(
     { semanticCoreId: semanticCoreId || "" },
     { enabled: !!semanticCoreId }
   );
 
-  // Auto-restore semanticCoreId from DB when wizard mounts
+  // Auto-restore semanticCoreId from DB when wizard mounts (only if no existingCoreId and not creating new)
   const latestCore = trpc.semanticCore.getLatest.useQuery(
-    { projectId: selectedProjectId },
-    { enabled: !semanticCoreId && !isNew }  // only query if we don't already have one and we aren't explicitly creating a new one
+    { projectId: projectId },
+    { enabled: !semanticCoreId && !isNew && !!projectId }
   );
   if (latestCore.data && !semanticCoreId && !isNew) {
     setSemanticCoreId(latestCore.data.id);
@@ -68,12 +73,34 @@ export default function SemanticCoreWizard({ projectId: initialProjectId, isNew 
   // Auto-create session if needed when visiting StepKeywords
   const ensureSession = async () => {
     if (semanticCoreId) return semanticCoreId;
-    const res = await createSession.mutateAsync({ projectId: selectedProjectId });
+    const res = await createSession.mutateAsync({ projectId });
     setSemanticCoreId(res.id);
     return res.id;
   };
 
-  const projectId = selectedProjectId;
+  const utils = trpc.useUtils();
+  const groupQueriesMut = trpc.semanticCore.groupQueries.useMutation();
+  const [isAutoGrouping, setIsAutoGrouping] = useState(false);
+
+  const handleTabChange = async (targetStep: number) => {
+    if (step === targetStep) return;
+    if (step === 1 && pendingKeywords.trim().length > 0) {
+      setIsAutoGrouping(true);
+      try {
+        const coreId = await ensureSession();
+        await groupQueriesMut.mutateAsync({
+          semanticCoreId: coreId,
+          queries: pendingKeywords.split("\n").filter(l => l.trim().length > 0)
+        });
+        setPendingKeywords("");
+        await utils.semanticCore.getGroups.invalidate();
+      } catch (e) {
+        console.error("Auto-group failed", e);
+      }
+      setIsAutoGrouping(false);
+    }
+    setStep(targetStep);
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
@@ -89,21 +116,12 @@ export default function SemanticCoreWizard({ projectId: initialProjectId, isNew 
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-surface-400 font-medium">Link to Project:</label>
-          <select
-            value={selectedProjectId || ""}
-            onChange={(e) => setSelectedProjectId(e.target.value || undefined)}
-            className="input-field !py-1.5 !px-3 !text-sm !w-auto min-w-[180px]"
-          >
-            <option value="">No project (standalone)</option>
-            {projectsQuery.data?.map((p: any) => (
-              <option key={p.id} value={p.id}>
-                {p.companyProfile?.companyName || p.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {activeProject && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-800/30 border border-surface-700/30">
+            <Globe className="w-4 h-4 text-brand-400" />
+            <span className="text-sm text-surface-200 font-medium">{activeProject.name}</span>
+          </div>
+        )}
       </div>
 
       {/* Step indicators — all clickable */}
@@ -115,7 +133,8 @@ export default function SemanticCoreWizard({ projectId: initialProjectId, isNew 
           return (
             <div key={s.id} className="flex items-center flex-1 last:flex-none">
               <button
-                onClick={() => setStep(s.id)}
+                onClick={() => handleTabChange(s.id)}
+                disabled={isAutoGrouping}
                 className={`flex-1 flex items-center gap-2 px-4 py-3 rounded-xl border transition-all text-left ${
                   current
                     ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
@@ -157,6 +176,8 @@ export default function SemanticCoreWizard({ projectId: initialProjectId, isNew 
           <StepKeywords 
             semanticCoreId={semanticCoreId} 
             onRequireSession={ensureSession}
+            pendingKeywords={pendingKeywords}
+            setPendingKeywords={setPendingKeywords}
           />
         )}
         {step === 2 && (
@@ -325,7 +346,7 @@ function StepCategories({
 
       {/* Generate row */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex-1 max-w-[280px]">
+        <div className="flex-1 min-w-[200px]">
           <AIModelSelector
             onModelSelect={setSelectedModelId}
             selectedModelId={selectedModelId}
@@ -337,7 +358,7 @@ function StepCategories({
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
-          className="input-field !py-1.5 !px-3 !text-sm !w-auto"
+          className="input-field !py-1.5 !px-3 !text-sm !w-auto border-emerald-500/20 hover:border-emerald-500/40"
           title="Output language for category names"
         >
           <option value="ru">🇷🇺 Русский</option>
@@ -357,7 +378,7 @@ function StepCategories({
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !semanticCoreId}
-          className="btn-primary gap-2 w-full sm:w-auto justify-center"
+          className="gap-2 w-full sm:w-auto justify-center rounded-xl px-4 py-2 text-sm font-medium border border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/80 transition-colors flex items-center disabled:opacity-50"
         >
           {isGenerating ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
@@ -452,8 +473,8 @@ function StepCategories({
                   AI will merge similar or overlapping categories into one.
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="w-36">
+              <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
+                <div className="flex-1 sm:w-48">
                   <AIModelSelector
                     onModelSelect={setCompressModelId}
                     selectedModelId={compressModelId}
@@ -464,7 +485,7 @@ function StepCategories({
                 <button
                   onClick={handleCompress}
                   disabled={isCompressing || categories.length < 2}
-                  className="btn-secondary gap-2 text-sm flex-shrink-0"
+                  className="gap-2 text-sm flex-shrink-0 rounded-xl px-4 py-2 font-medium border border-emerald-500/50 text-emerald-400 bg-transparent hover:bg-emerald-500/10 transition-colors flex items-center disabled:opacity-50"
                 >
                   {isCompressing ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Merging...</>
@@ -487,7 +508,7 @@ function StepCategories({
           {/* Approve */}
           <div className="flex items-center justify-between pt-2 border-t border-surface-700/20">
             <p className="text-xs text-surface-500">
-              Approving locks the categories and enables categorization in Step 4.
+              Approving locks the categories and enables categorization in Step 3.
             </p>
             <button
               onClick={handleApprove}
@@ -545,10 +566,6 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
   );
 
   const batchMut = trpc.semanticCore.categorizeQueriesBatch.useMutation();
-  const matchPagesMut = trpc.semanticCore.matchPages.useMutation({
-    onSuccess: (res) => { refetch(); },
-    onError: (e) => setCatError(e.message),
-  });
 
   const updateCatMut = trpc.semanticCore.updateQueryCategory.useMutation({
     onSuccess: () => refetch(),
@@ -650,7 +667,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-surface-100 mb-1">Results</h2>
-          <p className="text-sm text-surface-400">Keyword → Category → Page mapping</p>
+          <p className="text-sm text-surface-400">Keyword → Category assignment</p>
         </div>
         <button
           className="btn-secondary text-sm"
@@ -678,104 +695,17 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
         </button>
       </div>
 
-      {/* Category distribution bar — editable */}
-      {catNames.length > 0 && (
-        <div className="rounded-xl border border-surface-700/25 bg-surface-800/15 p-4">
-          <p className="text-xs text-surface-500 uppercase tracking-wide mb-3">Categories</p>
-          <div className="flex flex-wrap gap-2">
-            {cats.map((cat) => {
-              const count = summary[cat.name] ?? 0;
-              const pct = totalResults > 0 ? Math.round((count / totalResults) * 100) : 0;
-              const clr = getCatColor(cat.name);
-              const isEditing = editingCat?.id === cat.id;
-
-              if (isEditing) {
-                return (
-                  <div key={cat.id} className="flex items-center gap-1 px-2 py-1 rounded-lg" style={clr.badge}>
-                    <input
-                      autoFocus
-                      value={editingCat.name}
-                      onChange={(e) => setEditingCat({ ...editingCat, name: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && editingCat.name.trim()) {
-                          renameCatMut.mutate({ categoryId: cat.id, newName: editingCat.name.trim() });
-                          setEditingCat(null);
-                        }
-                        if (e.key === "Escape") setEditingCat(null);
-                      }}
-                      className="bg-transparent border-none outline-none text-xs font-medium w-32"
-                      style={{ color: clr.badge.color }}
-                    />
-                    <button
-                      onClick={() => { if (editingCat.name.trim()) { renameCatMut.mutate({ categoryId: cat.id, newName: editingCat.name.trim() }); setEditingCat(null); } }}
-                      className="opacity-70 hover:opacity-100 transition-opacity"
-                    >
-                      <Check className="w-3 h-3" />
-                    </button>
-                    <button onClick={() => setEditingCat(null)} className="opacity-50 hover:opacity-100 transition-opacity">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={cat.id} className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={clr.badge}>
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: clr.dot }} />
-                  <span className="text-xs font-medium">{cat.name}</span>
-                  <span className="text-xs opacity-60">{count}</span>
-                  {pct > 0 && <span className="text-[10px] opacity-40">{pct}%</span>}
-                  <button
-                    onClick={() => setEditingCat({ id: cat.id, name: cat.name })}
-                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity ml-0.5"
-                    title="Rename"
-                  >
-                    <Pencil className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => { if (confirm(`Delete "${cat.name}"? ${count} keywords will become uncategorized.`)) deleteCatMut.mutate({ categoryId: cat.id }); }}
-                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-red-400"
-                    title="Delete category"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Ask AI to refine "${cat.name}"? This will move outliers to Uncategorized.`)) {
-                        refineCatMut.mutate({ semanticCoreId: semanticCoreId || "", categoryName: cat.name, modelId: catModelId || undefined, language: catLanguage });
-                      }
-                    }}
-                    disabled={refineCatMut.isPending}
-                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-indigo-400 disabled:opacity-30 disabled:animate-pulse ml-0.5"
-                    title="Refine with AI (removes outliers)"
-                  >
-                    <Wand2 className="w-3 h-3" />
-                  </button>
-                </div>
-              );
-            })}
-            {summary["Uncategorized"] > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-surface-700/30 bg-surface-800/30">
-                <span className="text-xs text-surface-500">Uncategorized</span>
-                <span className="text-xs text-surface-600">{summary["Uncategorized"]}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* AI categorize panel */}
+      {/* ── AI CATEGORIZATION & FILTERS ──────────────────────────────── */}
       {semanticCoreId && (
-        <div className="rounded-xl border border-surface-700/25 bg-surface-800/15 p-4 space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-surface-200">Assign Keywords to Categories with AI</p>
-              <p className="text-xs text-surface-500 mt-0.5">
-                Processes in batches of {BATCH_SIZE} groups. Progress tracked in real time. You can stop at any time.
-              </p>
+        <div className="rounded-xl border border-indigo-500/30 bg-surface-800/15 overflow-hidden flex flex-col mb-4">
+          {/* Top Bar: Model Selection */}
+          <div className="bg-indigo-500/10 px-4 py-3 border-b border-indigo-500/20 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Wand2 className="w-4 h-4 text-indigo-400" />
+              <span className="text-sm font-medium text-indigo-300">AI Category Assistant</span>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <select value={catLanguage} onChange={(e) => setCatLanguage(e.target.value)} className="input-field !py-1.5 !px-3 !text-sm !w-auto" disabled={catRunning}>
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+              <select value={catLanguage} onChange={(e) => setCatLanguage(e.target.value)} className="input-field !py-1.5 !px-3 !text-sm !w-auto border-emerald-500/20 hover:border-emerald-500/40" disabled={catRunning}>
                 <option value="ru">RU</option>
                 <option value="en">EN</option>
                 <option value="de">DE</option>
@@ -783,68 +713,149 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 <option value="fr">FR</option>
                 <option value="uk">UK</option>
               </select>
-              <div className="w-40">
-                <AIModelSelector onModelSelect={setCatModelId} selectedModelId={catModelId} estimatedPromptTokens={400} expectedOutputTokens={200} />
-              </div>
-              {catRunning ? (
-                <button onClick={handleCancel} className="btn-ghost gap-2 text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10">
-                  <X className="w-4 h-4" /> Stop
-                </button>
-              ) : (
-                <button onClick={handleCategorizeAll} disabled={!semanticCoreId} className="btn-primary gap-2 text-sm">
-                  <Brain className="w-4 h-4" /> Categorize All
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          {catProgress && (
-            <div className="space-y-1.5 animate-fade-in">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-surface-400">
-                  {catRunning ? "Processing..." : "Done"} — {catProgress.done} / {catProgress.total} groups
-                </span>
-                <span className="text-surface-500">{Math.round((catProgress.done / catProgress.total) * 100)}%</span>
-              </div>
-              <div className="w-full h-1.5 rounded-full bg-surface-800 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-brand-500 transition-all duration-500"
-                  style={{ width: `${(catProgress.done / catProgress.total) * 100}%` }}
+              <div className="flex-1 sm:w-56">
+                <AIModelSelector 
+                  onModelSelect={setCatModelId} 
+                  selectedModelId={catModelId} 
+                  estimatedPromptTokens={400} 
+                  expectedOutputTokens={200} 
                 />
               </div>
             </div>
-          )}
+          </div>
 
-          {catError && (
-            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{catError}</p>
-          )}
-
-          {/* Match pages button — appears after categorization */}
-          {catProgress && catProgress.done > 0 && !catRunning && (
-            <div className="flex items-center justify-between pt-2 border-t border-surface-700/20">
+          <div className="p-4 space-y-6">
+            {/* 1. Category distribution bar — editable */}
+            {catNames.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-surface-300">Match Sitemap Pages</p>
-                <p className="text-xs text-surface-500">
-                  Script matches each keyword group to the best-fitting page using URL/title overlap. No AI needed.
-                </p>
+                <p className="text-xs text-surface-500 uppercase tracking-wide mb-3">Filter & Refine Categories</p>
+                <div className="flex flex-wrap gap-2">
+                  {cats.map((cat) => {
+                    const count = summary[cat.name] ?? 0;
+                    const pct = totalResults > 0 ? Math.round((count / totalResults) * 100) : 0;
+                    const clr = getCatColor(cat.name);
+                    const isEditing = editingCat?.id === cat.id;
+
+                    if (isEditing) {
+                      return (
+                        <div key={cat.id} className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg" style={clr.badge}>
+                          <input
+                            autoFocus
+                            value={editingCat.name}
+                            onChange={(e) => setEditingCat({ ...editingCat, name: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && editingCat.name.trim()) {
+                                renameCatMut.mutate({ categoryId: cat.id, newName: editingCat.name.trim() });
+                                setEditingCat(null);
+                              }
+                              if (e.key === "Escape") setEditingCat(null);
+                            }}
+                            className="bg-transparent border-none outline-none text-xs font-medium w-32"
+                            style={{ color: clr.badge.color }}
+                          />
+                          <button
+                            onClick={() => { if (editingCat.name.trim()) { renameCatMut.mutate({ categoryId: cat.id, newName: editingCat.name.trim() }); setEditingCat(null); } }}
+                            className="opacity-70 hover:opacity-100 transition-opacity"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button onClick={() => setEditingCat(null)} className="opacity-50 hover:opacity-100 transition-opacity">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={cat.id} className="group flex items-center gap-1.5 px-3 py-1 rounded-lg" style={clr.badge}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: clr.dot }} />
+                        <span className="text-xs font-medium">{cat.name}</span>
+                        <span className="text-xs opacity-60">{count}</span>
+                        {pct > 0 && <span className="text-[10px] opacity-40">{pct}%</span>}
+                        <button
+                          onClick={() => setEditingCat({ id: cat.id, name: cat.name })}
+                          className="opacity-40 hover:opacity-100 transition-colors ml-1 p-1 -my-0.5 rounded hover:bg-surface-700/50"
+                          title="Rename"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => { if (confirm(`Delete "${cat.name}"? ${count} keywords will become uncategorized.`)) deleteCatMut.mutate({ categoryId: cat.id }); }}
+                          className="opacity-40 hover:opacity-100 transition-colors text-red-400 p-1 -my-0.5 rounded hover:bg-red-500/20"
+                          title="Delete category"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Ask AI to refine "${cat.name}"? This will move outliers to Uncategorized.`)) {
+                              refineCatMut.mutate({ semanticCoreId: semanticCoreId || "", categoryName: cat.name, modelId: catModelId || undefined, language: catLanguage });
+                            }
+                          }}
+                          disabled={refineCatMut.isPending}
+                          className="opacity-60 hover:opacity-100 transition-colors text-emerald-500 hover:bg-emerald-500/20 p-1 -my-0.5 rounded-md disabled:opacity-30 disabled:animate-pulse"
+                          title="Refine with AI (removes outliers)"
+                        >
+                          <Wand2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {summary["Uncategorized"] > 0 && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-surface-700/30 bg-surface-800/30">
+                      <span className="text-xs text-surface-500">Uncategorized</span>
+                      <span className="text-xs text-surface-600">{summary["Uncategorized"]}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <button
-                onClick={() => matchPagesMut.mutate({ semanticCoreId: semanticCoreId! })}
-                disabled={matchPagesMut.isPending}
-                className="btn-secondary gap-2 text-sm flex-shrink-0"
-              >
-                {matchPagesMut.isPending
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Matching...</>
-                  : <><Globe className="w-4 h-4" /> Match Pages</>}
-              </button>
+            )}
+
+            {/* 2. AI categorize panel */}
+            <div className={`space-y-3 ${catNames.length > 0 ? "pt-4 border-t border-surface-700/30" : ""}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-surface-200">Assign Uncategorized Keywords</p>
+                  <p className="text-xs text-surface-500 mt-0.5">
+                    Processes in batches of {BATCH_SIZE} groups using the selected model. You can stop at any time.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {catRunning ? (
+                    <button onClick={handleCancel} className="btn-ghost gap-2 text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10">
+                      <X className="w-4 h-4" /> Stop
+                    </button>
+                  ) : (
+                    <button onClick={handleCategorizeAll} disabled={!semanticCoreId} className="gap-2 text-sm rounded-xl px-4 py-2 font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors flex items-center disabled:opacity-50">
+                      <Brain className="w-4 h-4" /> Categorize All
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              {catProgress && (
+                <div className="space-y-1.5 animate-fade-in">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-surface-400">
+                      {catRunning ? "Processing..." : "Done"} — {catProgress.done} / {catProgress.total} groups
+                    </span>
+                    <span className="text-surface-500">{Math.round((catProgress.done / catProgress.total) * 100)}%</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-surface-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-brand-500 transition-all duration-500"
+                      style={{ width: `${(catProgress.done / catProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {catError && (
+                <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{catError}</p>
+              )}
             </div>
-          )}
-          {matchPagesMut.data && (
-            <p className="text-xs text-emerald-400 animate-fade-in">
-              ✓ {matchPagesMut.data.matched} of {matchPagesMut.data.total} groups matched to sitemap pages
-            </p>
-          )}
+          </div>
         </div>
       )}
 
@@ -888,7 +899,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
 
       {!projectId && totalResults > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <p className="text-sm text-amber-300">⚠ Link this core to a project to enable page matching and content plan generation.</p>
+          <p className="text-sm text-amber-300">⚠ Select a project from the sidebar to enable content plan generation.</p>
         </div>
       )}
 
@@ -901,12 +912,11 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
               <th className="text-left px-4 py-3 text-surface-400 font-medium">Keyword</th>
               <th className="text-left px-4 py-3 text-surface-400 font-medium w-44">Category</th>
               <th className="text-left px-4 py-3 text-surface-400 font-medium w-40">Group</th>
-              <th className="text-left px-4 py-3 text-surface-400 font-medium">Page</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-surface-500">Loading...</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-surface-500">Loading...</td></tr>
             ) : data?.results && data.results.length > 0 ? (
               data.results.map((r: any, i: number) => (
                 <ResultRow
@@ -920,7 +930,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 />
               ))
             ) : (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-surface-500">No results yet — complete Steps 1 & 2 first.</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-surface-500">No results yet — complete Steps 1 & 2 first.</td></tr>
             )}
           </tbody>
         </table>
@@ -1018,13 +1028,6 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
         )}
       </td>
       <td className="px-4 py-2.5 text-surface-500 text-xs truncate max-w-[160px]">{row.group || "—"}</td>
-      <td className="px-4 py-2.5 text-brand-400 font-mono text-xs truncate max-w-[180px]">
-        {row.page ? (
-          <a href={row.page} target="_blank" rel="noreferrer" className="hover:text-brand-300 transition-colors">{row.page}</a>
-        ) : (
-          <span className="text-surface-600">No page matched</span>
-        )}
-      </td>
     </tr>
   );
 }

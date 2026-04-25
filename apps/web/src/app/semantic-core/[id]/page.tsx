@@ -102,9 +102,9 @@ export default function SemanticCoreDetail({ params }: PageProps) {
               ))}
             </div>
             {/* Coverage progress bar */}
-            <div className="px-5 py-3 border-t border-surface-700/30 bg-surface-800/10 flex items-center gap-4">
+            <div className="px-5 py-3 border-t border-surface-700/30 bg-surface-800/10 flex items-center justify-start gap-4">
               <span className="text-xs text-surface-500 flex-shrink-0">Content Plan Coverage</span>
-              <div className="flex-1 h-2.5 rounded-full bg-surface-800/50 overflow-hidden">
+              <div className="w-64 h-2.5 rounded-full bg-surface-800/50 overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
                     stats.coveragePct >= 80 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :

@@ -1,21 +1,23 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Star, ChevronDown, ChevronRight, Loader2, Pencil, Check, X, Upload } from "lucide-react";
+import { Star, ChevronDown, ChevronRight, Loader2, Pencil, Check, X, Upload, Plus } from "lucide-react";
 import { trpc } from "@/trpc/client";
 
 interface Props {
   semanticCoreId: string | null;
   onRequireSession: () => Promise<string>;
+  pendingKeywords: string;
+  setPendingKeywords: (val: string) => void;
 }
 
-export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
-  const [text, setText] = useState("");
+export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords, setPendingKeywords }: Props) {
   const [status, setStatus] = useState<"idle" | "grouping" | "done">("idle");
   const [showInput, setShowInput] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [editingGroup, setEditingGroup] = useState<{ id: string; value: string } | null>(null);
   const [starredGroups, setStarredGroups] = useState<Set<string>>(new Set());
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const groupQueries = trpc.semanticCore.groupQueries.useMutation();
@@ -27,15 +29,20 @@ export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
   const hasGroups = (groupsData?.totalGroups ?? 0) > 0;
 
   const handleGroup = async () => {
-    const queries = text.split("\n").filter((l) => l.trim().length > 0);
+    const queries = pendingKeywords.split("\n").filter((l) => l.trim().length > 0);
     if (queries.length === 0) return;
     setStatus("grouping");
     try {
       const coreId = await onRequireSession();
-      await groupQueries.mutateAsync({ semanticCoreId: coreId, queries });
+      const res = await groupQueries.mutateAsync({ semanticCoreId: coreId, queries });
       await refetchGroups();
       setStatus("done");
       setShowInput(false);
+      setPendingKeywords(""); // Clear text for next append
+      if (res.addedQueries !== undefined) {
+        setSuccessMessage(`Successfully added ${res.addedQueries} new keywords (${queries.length - res.addedQueries} duplicates skipped).`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
     } catch (e) {
       console.error(e);
       setStatus("idle");
@@ -46,7 +53,7 @@ export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => setText(ev.target?.result as string);
+    reader.onload = (ev) => setPendingKeywords(ev.target?.result as string);
     reader.readAsText(file, "utf-8");
   };
 
@@ -67,7 +74,15 @@ export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
   };
 
   const groups = groupsData?.groups ?? [];
-  const kwCount = text.split("\n").filter((l) => l.trim()).length;
+  const kwCount = pendingKeywords.split("\n").filter((l) => l.trim()).length;
+
+  const updateQueryMut = trpc.semanticCore.updateQuery.useMutation({
+    onSuccess: () => refetchGroups(),
+  });
+  const deleteQueryMut = trpc.semanticCore.deleteQuery.useMutation({
+    onSuccess: () => refetchGroups(),
+  });
+  const [editingQuery, setEditingQuery] = useState<{ id: string; text: string } | null>(null);
 
   return (
     <div className="space-y-5">
@@ -86,14 +101,29 @@ export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
         </div>
       </div>
 
+      {/* Success Banner Overlay */}
+      <div className="relative">
+        {successMessage && (
+          <div className="absolute -top-14 left-0 right-0 z-50 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm px-4 py-3 rounded-xl animate-fade-in flex items-center justify-between shadow-lg backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4" />
+              {successMessage}
+            </div>
+            <button onClick={() => setSuccessMessage(null)} className="text-emerald-400/70 hover:text-emerald-400">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Input area — show if no groups yet, or user clicked Re-upload */}
       {(!hasGroups || showInput) && (
         <div className="space-y-3">
           <div className="relative">
             <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={"buy sneakers\nbuy nike sneakers\nrunning shoes\nbest running shoes 2024\n..."}
+              value={pendingKeywords}
+              onChange={(e) => setPendingKeywords(e.target.value)}
+              placeholder={hasGroups ? "Paste new keywords here to append to your existing semantic core..." : "buy sneakers\nbuy nike sneakers\nrunning shoes\nbest running shoes 2024\n..."}
               className="input-field min-h-[220px] font-mono text-sm resize-y"
               rows={10}
             />
@@ -111,12 +141,12 @@ export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
             </div>
             <button
               onClick={handleGroup}
-              disabled={!text.trim() || status === "grouping"}
-              className="btn-primary gap-2"
+              disabled={!pendingKeywords.trim() || status === "grouping"}
+              className="btn-primary gap-2 bg-amber-500 hover:bg-amber-400 text-amber-950 border-none disabled:opacity-50"
             >
               {status === "grouping" ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Grouping...</>
-              ) : "Group Keywords"}
+              ) : hasGroups ? "Append Keywords" : "Group Keywords"}
             </button>
           </div>
         </div>
@@ -134,17 +164,11 @@ export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
               </p>
             </div>
             <button
-              onClick={() => {
-                // Restore keywords from DB groups into textarea
-                const allQueries = (groupsData?.groups ?? []).flatMap((g: any) => g.queries);
-                if (allQueries.length > 0 && !text.trim()) {
-                  setText(allQueries.map((q: any) => typeof q === 'string' ? q : q.text).join("\n"));
-                }
-                setShowInput(true);
-              }}
+              onClick={() => setShowInput(!showInput)}
               className="btn-secondary text-xs gap-1.5"
             >
-              <Pencil className="w-3 h-3" /> Re-upload
+              {showInput ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+              {showInput ? "Cancel" : "Append Keywords"}
             </button>
           </div>
 
@@ -246,17 +270,84 @@ export function StepKeywords({ semanticCoreId, onRequireSession }: Props) {
                     <div className="border-t border-surface-700/20 px-4 py-3 space-y-1.5">
                       {g.queries.map((q: any, i: number) => {
                         const qText = typeof q === 'string' ? q : q.text;
+                        const qId = typeof q === 'string' ? null : q.id;
                         const qUsage = typeof q === 'string' ? 0 : (q.usageCount || 0);
+                        const isQueryEditing = editingQuery?.id === qId;
+
                         return (
-                          <div key={i} className="flex items-center gap-2 text-sm">
+                          <div key={i} className="flex items-center gap-2 text-sm group/query">
                             <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ml-4 ${
                               qUsage === 0 ? 'bg-surface-600' : qUsage === 1 ? 'bg-emerald-500' : 'bg-amber-500'
                             }`} />
-                            <span className={`${qUsage > 0 ? 'text-surface-500' : 'text-surface-300'}`}>{qText}</span>
-                            {qUsage > 0 && (
-                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                qUsage === 1 ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'
-                              }`}>×{qUsage}</span>
+                            
+                            {isQueryEditing ? (
+                              <div className="flex-1 flex items-center gap-2">
+                                <input
+                                  autoFocus
+                                  value={editingQuery!.text}
+                                  onChange={(e) => setEditingQuery({ id: qId, text: e.target.value })}
+                                  className="input-field !py-0.5 !text-sm flex-1"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && editingQuery!.text.trim()) {
+                                      updateQueryMut.mutate({ queryId: qId, text: editingQuery!.text.trim() });
+                                      setEditingQuery(null);
+                                    }
+                                    if (e.key === "Escape") setEditingQuery(null);
+                                  }}
+                                />
+                                <button 
+                                  onClick={() => {
+                                    if (editingQuery!.text.trim()) {
+                                      updateQueryMut.mutate({ queryId: qId, text: editingQuery!.text.trim() });
+                                      setEditingQuery(null);
+                                    }
+                                  }} 
+                                  className="text-emerald-400 hover:text-emerald-300"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => setEditingQuery(null)} className="text-surface-500 hover:text-surface-300">
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <span 
+                                  className={`flex-1 ${qUsage > 0 ? 'text-surface-500' : 'text-surface-300'}`}
+                                  onDoubleClick={() => qId && setEditingQuery({ id: qId, text: qText })}
+                                >
+                                  {qText}
+                                </span>
+                                
+                                {qUsage > 0 && (
+                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                    qUsage === 1 ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'
+                                  }`}>×{qUsage}</span>
+                                )}
+
+                                {qId && (
+                                  <div className="flex items-center gap-1 opacity-0 group-hover/query:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => setEditingQuery({ id: qId, text: qText })}
+                                      className="p-1 rounded text-surface-600 hover:text-surface-300 hover:bg-surface-800"
+                                      title="Edit keyword"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Delete "${qText}"?`)) {
+                                          deleteQueryMut.mutate({ queryId: qId });
+                                        }
+                                      }}
+                                      className="p-1 rounded text-surface-600 hover:text-red-400 hover:bg-red-500/10"
+                                      title="Delete keyword"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         );

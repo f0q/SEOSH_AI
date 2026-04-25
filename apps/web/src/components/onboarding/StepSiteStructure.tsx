@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { OnboardingData } from "./OnboardingWizard";
 import { AIModelSelector } from "../ui/AIModelSelector";
-import { Layers, Wand2, Plus, Pencil, Trash2, X, Check, ExternalLink } from "lucide-react";
+import { Layers, Wand2, Plus, Pencil, Trash2, X, Check, ExternalLink, AlertCircle } from "lucide-react";
 import { PAGE_TYPES } from "@seosh/shared/seo";
+import { trpc } from "@/trpc/client";
 
 interface TreeNode {
   label: string;
@@ -30,71 +31,30 @@ function safePathLabel(url: string, fullUrl: string): string {
   }
 }
 
-function buildTree(pages: string[], baseUrl: string): TreeNode[] {
-  const groups: Record<string, string[]> = {};
-  pages.forEach((p) => {
-    try {
-      const parsed = new URL(p);
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      const seg = parts[0] || "home";
-      if (!groups[seg]) groups[seg] = [];
-      groups[seg].push(p);
-    } catch {
-      if (!groups["other"]) groups["other"] = [];
-      groups["other"].push(p);
-    }
-  });
-
-  const pageTypeMap: Record<string, string> = {
-    blog: "blog_listing", news: "blog_listing",
-    services: "service_listing", service: "service_detail",
-    product: "product_detail", products: "product_listing",
-    catalog: "product_listing", shop: "product_listing",
-    about: "info_page", contact: "info_page", contacts: "info_page",
-    faq: "info_page", delivery: "info_page",
-    promo: "promo_listing", promotions: "promo_listing", akcii: "promo_listing",
-    home: "homepage", other: "info_page",
-  };
-
-  return Object.entries(groups).map(([seg, urls]) => ({
-    label: seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " "),
-    pageType: pageTypeMap[seg.toLowerCase()] || "info_page",
-    children: urls.map((u) => ({ label: safePathLabel(u, u), url: u })),
-  }));
-}
-
-function generateMockPages(baseUrl: string): string[] {
-  const paths = [
-    "/", "/about", "/contact", "/blog", "/blog/post-1", "/blog/post-2",
-    "/services", "/services/seo", "/services/content", "/services/audit",
-    "/catalog", "/catalog/product-1", "/catalog/product-2",
-    "/faq", "/delivery",
-  ];
-  try {
-    const origin = new URL(baseUrl).origin;
-    return paths.map((p) => origin + p);
-  } catch {
-    return paths.map((p) => baseUrl.replace(/\/$/, "") + p);
-  }
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function StepSiteStructure({ data, updateData }: StepSiteStructureProps) {
   const [modelId, setModelId] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const generateStructureMut = trpc.semanticCore.generateSiteStructure.useMutation();
 
   const handleGenerate = async () => {
-    setIsGenerating(true);
-    // Simulate AI parsing delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    const baseUrl = data.websiteUrl || (data.competitors[0]?.url) || "https://example.com";
-    const pages = generateMockPages(baseUrl);
-    const newTree = buildTree(pages, baseUrl);
-    
-    updateData({ siteStructure: newTree });
-    setIsGenerating(false);
+    setErrorMsg("");
+    const baseUrl = data.websiteUrl || (data.competitors && data.competitors[0]?.url);
+    if (!baseUrl) {
+      setErrorMsg("Please provide a website URL in Step 1.");
+      return;
+    }
+
+    try {
+      const res = await generateStructureMut.mutateAsync({ websiteUrl: baseUrl, modelId });
+      if (res.structure) {
+        updateData({ siteStructure: res.structure });
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to generate structure.");
+    }
   };
 
   // Basic flat tree rendering for review
@@ -128,13 +88,13 @@ export default function StepSiteStructure({ data, updateData }: StepSiteStructur
             </div>
             <button
               onClick={handleGenerate}
-              disabled={isGenerating || !modelId}
+              disabled={generateStructureMut.isPending || !modelId}
               className="btn-primary"
             >
-              {isGenerating ? (
+              {generateStructureMut.isPending ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Analyzing Sites...
+                  Analyzing Sitemap...
                 </>
               ) : (
                 <>
@@ -144,6 +104,13 @@ export default function StepSiteStructure({ data, updateData }: StepSiteStructur
               )}
             </button>
           </div>
+          
+          {errorMsg && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2 mt-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {errorMsg}
+            </div>
+          )}
         </div>
 
         {/* Tree Display */}

@@ -5,25 +5,20 @@ import { trpc } from "@/trpc/client";
 import { Brain, Plus, Globe, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useProject } from "@/lib/project-context";
 
 export default function SemanticCoreDashboard() {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const { data: cores, isLoading } = trpc.semanticCore.getMany.useQuery();
-  const { data: projects } = trpc.projects.list.useQuery();
-  const linkMutation = trpc.semanticCore.linkToProject.useMutation();
+  const { activeProject } = useProject();
   
-  const assignedProjectIds = new Set(cores?.map((c: any) => c.projectId).filter(Boolean));
+  const { data: cores, isLoading } = trpc.semanticCore.getMany.useQuery(
+    { projectId: activeProject?.id },
+    { enabled: !!activeProject }
+  );
   const deleteMutation = trpc.semanticCore.delete.useMutation();
 
-  const handleLinkProject = async (coreId: string, projectId: string | null) => {
-    try {
-      await linkMutation.mutateAsync({ semanticCoreId: coreId, projectId });
-      utils.semanticCore.getMany.invalidate();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+
 
   const handleDelete = async (coreId: string) => {
     if (!confirm("Delete this semantic core and all its keywords? This cannot be undone.")) return;
@@ -43,16 +38,23 @@ export default function SemanticCoreDashboard() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-surface-50">
-              Semantic <span className="gradient-text-brand">Cores</span>
+              Semantic <span className="gradient-text-brand">Core</span>
             </h1>
             <p className="text-surface-400 mt-1.5 text-base">
               Manage your keyword clusters, build site structures, and link to projects.
             </p>
           </div>
-          <Link href="/semantic-core/new" className="btn-primary">
-            <Plus className="w-4 h-4 fill-white" />
-            New Semantic Core
-          </Link>
+          {cores && cores.length > 0 ? (
+            <Link href={`/semantic-core/${cores[0].id}`} className="btn-primary">
+              <Brain className="w-4 h-4 fill-white" />
+              Edit Core
+            </Link>
+          ) : activeProject ? (
+            <Link href="/semantic-core/new" className="btn-primary">
+              <Plus className="w-4 h-4 fill-white" />
+              New Semantic Core
+            </Link>
+          ) : null}
         </div>
 
         {/* Dashboard Content */}
@@ -71,12 +73,16 @@ export default function SemanticCoreDashboard() {
               </div>
               <h3 className="text-lg font-medium text-surface-100 mb-2">No Semantic Cores Yet</h3>
               <p className="text-surface-400 max-w-sm mb-6">
-                Start by creating your first semantic core.
+                {!activeProject 
+                  ? "Select a project from the sidebar to view or create its semantic core."
+                  : "Start by creating your first semantic core for this project."}
               </p>
-              <Link href="/semantic-core/new" className="btn-primary">
-                <Plus className="w-4 h-4 fill-white" />
-                Create First Core
-              </Link>
+              {activeProject && (
+                <Link href="/semantic-core/new" className="btn-primary">
+                  <Plus className="w-4 h-4 fill-white" />
+                  Create First Core
+                </Link>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -86,9 +92,7 @@ export default function SemanticCoreDashboard() {
                     <th className="p-4 pl-6 text-xs font-semibold text-surface-400 uppercase tracking-wider">
                       Core Target
                     </th>
-                    <th className="p-4 text-xs font-semibold text-surface-400 uppercase tracking-wider">
-                      Project
-                    </th>
+
                     <th className="p-4 text-xs font-semibold text-surface-400 uppercase tracking-wider text-right">
                       Keywords
                     </th>
@@ -113,27 +117,14 @@ export default function SemanticCoreDashboard() {
                         <Link href={`/semantic-core/${core.id}`} className="block">
                           <div className="font-medium text-surface-200 group-hover:text-brand-400 transition-colors flex items-center gap-2">
                             <Globe className="w-4 h-4 text-surface-500 flex-shrink-0" />
-                            {core.siteUrl === "merged-cores" ? "Master Core (Merged)" : core.siteUrl}
+                            {activeProject?.name || "Unknown Project"}
                           </div>
                           <div className="text-xs text-surface-500 mt-1">
                             ID: {core.id.split('-')[0]}...
                           </div>
                         </Link>
                       </td>
-                      <td className="p-4">
-                        <select
-                          value={core.projectId || ""}
-                          onChange={(e) => handleLinkProject(core.id, e.target.value || null)}
-                          className="input-field !py-1 !px-2 !text-xs !w-auto min-w-[140px]"
-                        >
-                          <option value="">Unassigned</option>
-                          {projects?.filter((p: any) => !assignedProjectIds.has(p.id) || p.id === core.projectId).map((p: any) => (
-                            <option key={p.id} value={p.id}>
-                              {p.companyProfile?.companyName || p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
+
                       <td className="p-4 text-right">
                         <div className="text-surface-300 font-medium">{core._count.queries}</div>
                       </td>
@@ -148,7 +139,8 @@ export default function SemanticCoreDashboard() {
                       <td className="p-4 pr-6 text-right">
                         <button
                           onClick={() => handleDelete(core.id)}
-                          className="p-1.5 rounded-lg text-surface-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                          disabled={deleteMutation.isPending}
+                          className="p-1.5 rounded-lg text-surface-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
                           title="Delete core"
                         >
                           <Trash2 className="w-4 h-4" />

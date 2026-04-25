@@ -46,7 +46,7 @@ const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/project-settings", icon: Settings2, label: "Project Settings" },
   { href: "/semantic-core", icon: Brain, label: "Semantic Core" },
-  { href: "/content", icon: FileText, label: "Content" },
+  { href: "/autopilot/content-planner", icon: FileText, label: "Content Planner" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 

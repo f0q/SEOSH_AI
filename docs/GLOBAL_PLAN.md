@@ -1,70 +1,20 @@
 # SEOSH.AI — Global Plan & Session History
 
 > **Living document** — Single source of truth for project status, roadmap, and session history.  
-> Created: 2026-04-23 · Compiled from all recovered session files + conversation artifacts.
+> Created: 2026-04-23 · Last Updated: 2026-04-24
 
 ---
 
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
-2. [What Has Been Built (Complete History)](#what-has-been-built)
-3. [Current Module Status](#current-module-status)
-4. [Open Issues & Bugs](#open-issues--bugs)
-5. [Tech Debt](#tech-debt)
-6. [Roadmap — What To Build Next](#roadmap)
-7. [Semantic Core → Content Planner Integration Spec](#semantic-core--content-planner-integration-spec)
-8. [Session History (Phases 1–7)](#session-history)
-9. [Key File Reference](#key-file-reference)
-
----
-
-## 🔬 Verified Application State (2026-04-23)
-
-> Browser-tested every page. This is the **ground truth** — use this to identify discrepancies with the plan.
-
-### Sidebar Navigation (Expanded)
-- ✅ **SEOSH.AI** logo
-- ✅ **Active Project** switcher — shows "Test SEO Company" + domain, dropdown works
-- ✅ **Dashboard** — link works
-- ✅ **Projects** — link works
-- ✅ **Autopilot** — link works
-- ✅ **Autopilot Readiness** — 33% bar (red), says "Add a semantic core"
-- ✅ **Tokens** — shows "200" with "Free" badge
-- ✅ **Settings** — link works
-- ✅ **Billing** — link works
-- ✅ **Semantic Core, Content, Analytics** — present in nav (lines 47-49 of Sidebar.tsx). They scroll below the fold on short viewports due to large bottom section (Autopilot + Readiness + Tokens + Settings + Billing). Not a bug, but UX can be improved.
-
-### Header
-- ✅ Search bar — present
-- ✅ Language switcher (EN/RU) — dropdown works
-- ✅ Notification bell — dropdown works
-- ✅ User avatar/menu — dropdown works (sign out, etc.)
-
-### Page-by-Page Test Results
-
-| Page | URL | Status | What Shows |
-|---|---|---|---|
-| **Dashboard** | `/` | ✅ Working | Welcome message, stats cards (Projects: 1, Keywords: 0, Cores: 0, Content: 0), "Smart Start" button |
-| **Projects** | `/projects` | ✅ Working | Project card grid with "Test SEO Company" (status: Onboarding), "New Project" button |
-| **Onboarding Wizard** | `/projects` (new) | ✅ Working | 5-step wizard: Data Sources → Company → (3 more). "My Own Domain" vs competitor toggle. "Analyze Site" button works |
-| **Semantic Core List** | `/semantic-core` | ✅ Working | Empty state: "No Semantic Cores Yet", "Create First Core" button |
-| **Semantic Core Wizard** | `/semantic-core/new` | ✅ Working | Multi-step wizard. Step 1: "Sitemap Analysis" with Your Website (optional) + Competitor Websites (required) + project dropdown |
-| **Content Manager** | `/content` | ✅ Working | Content Planner card link + empty state "No content yet" + "Create First Article" button |
-| **Autopilot Config** | `/autopilot` | ✅ Working | Status: "Paused". Publishing Schedule (Daily/Weekly), Auto-Approve toggle, WordPress integration section |
-| **Content Planner** | `/autopilot/content-planner` | ✅ Working | Shows "0 pages planned", "Create with AI" (Coming soon), "Spam Check" (Coming soon), **"Start Planning Content"** button works |
-| **Ideation Modal** | (inside Content Planner) | ✅ Working | "Content Ideation & Planning" modal opens. Has tabs: Topic Analysis, Competitor RSS, Neural Network. Model selector (Gemini 2.0 Flash), topic input, "Random from Core" button, "Propose Ideas" button |
-| **Billing** | `/billing` | 🟡 Shell | "Billing & Tokens" header, Balance: 200 tokens, Free Plan, Token Usage Guide — all **hardcoded/static** |
-| **Settings** | `/settings` | 🟡 Shell | Sections: AI Models, Language, Notifications, Security — **no functional settings**, just cards |
-| **Analytics** | `/analytics` | 🟡 Shell | "Analytics coming soon" placeholder |
-
-### Key Discrepancies Found vs GLOBAL_PLAN
-
-1. **Sidebar nav items scroll below fold** — Semantic Core, Content, Analytics ARE present as text links but get pushed below visible area on short viewports by the large bottom section. UX improvement needed.
-2. **"Create with AI" and "Spam Check"** — Both show "Coming soon" labels (confirming they're not built yet, matching the plan)
-3. **Ideation Modal is fully functional** — Confirms Phase 4-7 work is live. Has tabs (Topic Analysis, Competitor RSS, Neural Network), model selector, propose ideas, etc.
-4. **Autopilot config UI exists** — WordPress settings section visible, schedule selectors present, auto-approve toggle works. Queue data appears to be mock.
-5. **No Telegram bot section visible** in Autopilot page (plan says config form should exist)
+2. [Current Module Status](#current-module-status)
+3. [Open Issues & Bugs](#open-issues--bugs)
+4. [Tech Debt](#tech-debt)
+5. [Roadmap — What To Build Next](#roadmap)
+6. [Semantic Core → Content Planner Integration Spec](#semantic-core--content-planner-integration-spec)
+7. [Session History (Phases 1–8)](#session-history)
+8. [Key File Reference](#key-file-reference)
 
 ---
 
@@ -73,79 +23,9 @@
 SEOSH.AI is a monorepo SaaS platform that automates the full SEO workflow:  
 **Keywords → Semantic Core → Content Plan → AI Generate → SEO Check → Publish → Analytics**
 
-**Tech Stack:** Next.js 15, React 19, TypeScript, tRPC v11, PostgreSQL (Prisma), Redis, MinIO, better-auth, OpenRouter (multi-model AI), Turborepo monorepo.
+**Tech Stack:** Next.js 16, React 19, TypeScript, tRPC v11, PostgreSQL (Prisma), Redis, MinIO, better-auth, OpenRouter (multi-model AI), Turborepo monorepo.
 
 **Full architecture details:** See `docs/architecture.md`
-
----
-
-## What Has Been Built
-
-### Phase 1 — Foundation (Session `ef7c1540`)
-Everything marked ✅ was completed:
-
-- [x] **Auth system** — Sign-in/up, sessions, email verify (better-auth)
-- [x] **Projects CRUD** — Create, list, delete with CompanyProfile onboarding
-- [x] **Domain-first onboarding wizard** — "My Domain" vs "Competitor" toggle, AI fill button
-- [x] **Semantic Core Dashboard** — List view at `/semantic-core` with project links, keyword counts
-- [x] **Semantic Core Detail View** — `/semantic-core/[id]` with categories + keyword grid
-- [x] **N-gram NLP Logic** — `lexicalGrouper.ts` for keyword clustering
-- [x] **Semantic Core Merging** — Backend done, UI had bugs (deferred)
-- [x] **Dashboard Cache Invalidation** — tRPC + router.refresh
-
-### Phase 2 — Visual Polish & Content Plan Integration (Session `f22ead45`, revision 1–3)
-- [x] **Category Color Consistency** — `getCatColor` shared utility for Steps 3+4
-- [x] **Content Plan bridge** — `generateFromSemanticCore` mutation + UI in Step 4
-- [x] **Content Planner table** — CRUD, team sharing, keyword panel, auto-fill from taxonomy
-
-### Phase 3 — Bug Fixes & UI Enhancements (Session `f22ead45`, revision 4–5)
-- [x] **Project Editing** — `projects.update` mutation + edit modal
-- [x] **Semantic Core Project Assignment** — Filter out already-assigned projects
-- [x] **Keyword Filtering by Category** — Click sidebar category → filters table
-- [x] **Category naming** — Renamed "AI Categories" → "Categories"
-- [x] **Multicolored categories** — `getCatColor` applied to detail view
-- [x] **Content Planner button** — Duplicated to `/content` page
-
-### Phase 4 — Interactive Content Ideation (Session `f22ead45`, revision 6–7)
-- [x] **Ideation Dashboard modal** — "Start Planning Content" opens a large modal
-- [x] **Manual Topic Entry** — Input field + "Propose Ideas" with AI
-- [x] **Random Topic from Semantic Core** — Pulls unassigned keyword cluster
-- [x] **Competitor RSS Analysis** — Stub UI + AI analysis of pasted feed URLs
-- [x] **Neural Network Chat** — Q&A brainstorm interface within the modal
-- [x] **Centralized AI service** — `apps/web/src/server/services/ai.ts`
-- [x] **Real AI wiring** — `proposeIdeas`, `chat`, `analyzeRss` endpoints connected to OpenRouter
-
-### Phase 5 — Deep SEO Ideation & Polish (Session `f22ead45`, revision 8)
-- [x] **UI layout tweaks** — "Random from Core" moved under topic input, "Proposed Structure" renamed to "Content Strategy Ideas"
-- [x] **AI Model selectors** — `AIModelSelector` on Propose Ideas, Flesh out SEO, Neural Network, RSS tabs
-- [x] **Checkboxes on ideas** — Select which ideas to flesh out or save
-- [x] **Duplicate warnings** — Cross-reference against existing Content Plan titles, show `! Duplicate` badge
-- [x] **"Flesh out SEO details"** — New `fleshOutIdeas` endpoint: generates url, pageType, metaDesc, h1, h2Headings, targetKeywords
-- [x] **Smart saving** — Only ticked items saved, enriched fields piped to DB
-
-### Phase 6 — Tags, Duplicate Warnings, Schema Enhancements (Session `f22ead45`, revision 9)
-- [x] **Tags feature** — `tags String[]` added to `ContentItem` schema + migration
-- [x] **Manual row duplicate warning** — Typing duplicate title in Content Planner table shows `! Duplicate` in-cell
-- [x] **AI Model Selector clipping fix** — Portal-based dropdown, CSS overflow fixes
-- [x] **Tags in fleshOutIdeas** — AI generates 3-5 tags per idea, saved to plan
-- [x] **Site Architecture tree** — Proposed design (not yet built)
-
-### Phase 7 — AI Context & Final Fixes (Session `f22ead45`, final)
-- [x] **AI Generation context** — Both `proposeIdeas` and `fleshOutIdeas` now fetch project's existing categories, tags, page types from DB and inject into AI prompt
-- [x] **Model Selector bug** — Ripped out Portal/scroll logic, replaced with CSS `fixed` positioning
-- [x] **TypeScript verified** — `npx tsc --noEmit` passing
-- [x] **Pushed to GitHub**
-
-### Onboarding Session Fixes (Session export `_session_export/`)
-- [x] **Header dropdowns** — Language, Notifications, User menu all working with click-outside-close
-- [x] **Account panel opacity** — `.dropdown-panel` CSS class with opaque background
-- [x] **URL validation** — `https://` prefix, Zod schema relaxed
-- [x] **"Back to Dashboard" label** — Changed to "Back to Semantic Cores"
-- [x] **Autopilot Readiness Bar** — In sidebar, 0-100% with color shifts
-- [x] **ProjectContext** — Global active project state in `localStorage`
-- [x] **Project Switcher** — In sidebar below logo, shows name + domain
-- [x] **Projects page** — Now fetches real data, card grid with active project highlight
-- [x] **"View all" notifications** — Navigates to dashboard
 
 ---
 
@@ -154,19 +34,22 @@ Everything marked ✅ was completed:
 | Module | DB | API (tRPC) | UI | Status |
 |---|---|---|---|---|
 | Auth | ✅ | ✅ | ✅ | **Done** |
-| Projects + Onboarding | ✅ | ✅ | ✅ | **Done** — wizard, edit, project context |
+| Projects + Onboarding | ✅ | ✅ | ✅ | **Done** — wizard, edit, project context, site structure step |
+| Project Settings | ✅ | ✅ | ✅ | **Done** — read-only settings, competitors, RSS feeds, semantic core link, site structure tree, danger zone |
 | Semantic Core — Wizard Steps 1-2 | ✅ | ✅ | ✅ | **Done** — upload, N-gram grouping |
-| Semantic Core — Step 3 AI Classify | ✅ | ✅ | ✅ | **Done** — generateCategories + categorizeQueriesBatch fully wired to OpenRouter |
+| Semantic Core — Step 3 AI Classify | ✅ | ✅ | ✅ | **Done** — generateCategories + categorizeQueriesBatch via OpenRouter |
 | Semantic Core — Step 4 Results | ✅ | ✅ | ✅ | **Done** — shows results, has "Generate Plan" |
 | Semantic Core → Content Plan Bridge | ✅ | ✅ | ✅ | **Done** — `generateFromSemanticCore` |
-| Semantic Core — Dashboard & Detail View | ✅ | ✅ | ✅ | **Done** — list, detail, category colors |
+| Semantic Core — Dashboard & Detail View | ✅ | ✅ | ✅ | **Done** — list, detail, category colors, filtering |
 | Semantic Core — Merging | ✅ | 🟡 | 🔴 | **Backend done, UI buggy** |
-| Content Planner — Table CRUD | ✅ | ✅ | ✅ | **Done** — full table, sharing, keyword panel |
+| Content Planner — Table CRUD | ✅ | ✅ | ✅ | **Done** — full table, sharing, keyword panel, tags column, duplicate warnings |
 | Content Planner — Ideation Modal | ✅ | ✅ | ✅ | **Done** — topic, RSS, neural network, propose, flesh out, duplicate check, tags |
-| Content Planner — AI Context | ✅ | ✅ | ✅ | **Done** — project categories/tags injected into prompts |
+| Content Planner — AI Context | ✅ | ✅ | 🟡 | **Partial** — project categories/tags injected into AI prompts; needs page types, schema types, domain-based URLs |
 | Content Planner — CSV Import | ✅ | ✅ | ✅ | **Done** — drag-drop modal, EN+RU headers, preview |
-| Content Planner — AI Content Generation | ✅ | ❌ | 🔴 | **Not built** — button stub only |
-| Content Planner — SEO Check | ✅ | ❌ | ❌ | **Not built** — text.ru/Pixeltools not wired |
+| Content Manager — List View | ✅ | ✅ | ✅ | **Done** — `/content` with status filters, search, card grid |
+| Content Editor — `/content/[id]` | ✅ | ✅ | ✅ | **Done** — markdown editor, preview/edit tabs, Generate/Analyze/Optimize/Save buttons, SEO analysis sidebar |
+| Content Generation (AI) | ✅ | ✅ | ✅ | **Done** — `generateContent`, `regenerateContent` mutations + UI |
+| Content SEO Analysis | ✅ | ✅ | ✅ | **Done** — `analyzeContent` mutation + SEO sidebar (uniqueness, naturalness, E-E-A-T, readability, spam, water scores + recommendations) |
 | Autopilot Config | ✅ | ✅ | 🟡 | **Partial** — config saves, queue is mock |
 | Autopilot Queue | ✅ | 🟡 | 🔴 | **Mock** — `getQueue` exists, UI uses MOCK_QUEUE |
 | WordPress Publishing | ✅ | ❌ | ❌ | **Not built** — model only |
@@ -176,6 +59,8 @@ Everything marked ✅ was completed:
 | Settings | — | ❌ | 🔴 | **Shell** — page exists, no functionality |
 | Email (invites) | ✅ | 🟡 | ✅ | **Stub** — logs to console |
 | Dashboard | ✅ | ✅ | 🟡 | **Partial** — real counts, no charts |
+| Site Structure (Onboarding) | ✅ | ✅ | ✅ | **Done** — AI structure generation step in onboarding wizard, tree view in project settings |
+| SEO Analysis Service | ✅ | ✅ | ✅ | **Done** — `seoAnalysis.ts` service with uniqueness, naturalness, E-E-A-T, readability, spam, water scores |
 
 ---
 
@@ -185,33 +70,35 @@ Everything marked ✅ was completed:
 
 | # | Issue | Status | Notes |
 |---|---|---|---|
-| ~~1~~ | ~~Semantic Core Step 3 AI is a mock~~ | ✅ Fixed | **RESOLVED** — `generateCategories` + `categorizeQueriesBatch` fully wired to OpenRouter. Only `approveCategories.jobId` is a stub (non-blocking). |
-| 2 | AI "Suggest with AI" button on **target audience** doesn't work | ❌ Open | Needs AI endpoint |
-| 3 | Semantic Core steps **UX needs redesign** | ❌ Open | User is "not satisfied" — awaiting spec |
-| 4 | Content editor needs **project connection** — select project, suggest content from semantic core keywords | ❌ Open | Architecture needed |
+| 1 | Content Ideation — AI invents page types/schemas instead of selecting from project data | ❌ Open | `proposeIdeas` prompt was updated to include `pageType` and `schemaType` but the UI (IdeationModal) doesn't display or pass these fields properly |
+| 2 | Content Ideation — "Flesh out" button still named "Generate SEO" | ❌ Open | User wants "Flesh out" or similar. Button was renamed but user wasn't satisfied |
+| 3 | Content Ideation — AI-generated URLs should use target domain/category/slug, not /autopilot/ | ❌ Open | Backend was updated to pass `domain` but UI doesn't use it |
+| 4 | Content Ideation — Deep SEO Generation block should appear ABOVE the ideas list | ❌ Open | Currently appears below the list |
+| 5 | AI Model Selector — clicking still doesn't open dropdown reliably | 🟡 Partial | Portal was replaced with fixed positioning; scroll listener removed. May need further testing |
 
 ### Important (UX/Polish)
 
 | # | Issue | Status | Notes |
 |---|---|---|---|
-| 5 | AI Model selector needed on **every AI button** — each position should remember selected model | ❌ Open | Partially done (Ideation has it), onboarding doesn't |
-| 6 | Semantic Core merging — **1 main core chosen by user** | ❌ Open | Backend exists, UI buggy |
-| 7 | Fields design after **"choosing project"** needs fixing | ❌ Open | CSS/layout issue |
-| 8 | Site Architecture tree view | ❌ Open | Proposed in Phase 6, not built |
+| 6 | AI "Suggest with AI" button on **target audience** doesn't work | ❌ Open | Needs AI endpoint |
+| 7 | Semantic Core merging — **1 main core chosen by user** | ❌ Open | Backend exists, UI buggy |
+| 8 | Site Architecture tree view (editable) | 🟡 Partial | Read-only view exists in project settings; onboarding step generates mock structure |
+| 9 | Sidebar nav items scroll below fold on short viewports | ❌ Open | UX improvement needed |
 
-### Fixed (This history)
+### Fixed (History)
 
 | # | Issue | Fixed In |
 |---|---|---|
-| ✅ | Header dropdowns (account, notifications, language) not opening | Onboarding session |
+| ✅ | Semantic Core Step 3 AI was a mock | Phase 2 |
+| ✅ | Header dropdowns not opening | Onboarding session |
 | ✅ | Account panel too transparent | Onboarding session |
-| ✅ | URL validation `Invalid URL` error | Onboarding session |
-| ✅ | "Back to Dashboard" label wrong | Onboarding session |
-| ✅ | Projects page was static (no DB fetch) | Onboarding session |
+| ✅ | URL validation errors | Onboarding session |
+| ✅ | Projects page was static | Onboarding session |
 | ✅ | No active project concept | Onboarding session |
-| ✅ | AI Model Selector dropdown getting clipped | Phase 6, Phase 7 |
+| ✅ | AI Model Selector dropdown clipped | Phase 6-7 |
 | ✅ | AI ideation was "flying blind" (no project context) | Phase 7 |
 | ✅ | Category colors inconsistent | Phase 2 |
+| ✅ | Manual duplicate title warnings missing | Phase 6 |
 
 ---
 
@@ -225,9 +112,9 @@ Everything marked ✅ was completed:
 | All `ai.ts` router procedures are TODO stubs | AI features broken | Implement with actual DB reads |
 | Autopilot queue uses mock array, not real DB | Misleading UI | Wire to `getQueue` query |
 | Section model doesn't exist | Free-text → inconsistencies | Consider project-level `Section` lookup table |
-| Page Type taxonomy not in DB | Hardcoded only | Either `PageTypeTemplate` model or keep in `shared/` |
-| Schema ↔ Page Type default mapping | Missing auto-fill | Simple lookup on pageType change |
-| Title/MetaDesc length validation | No color-coded warnings | Already fields in DB, UI needs badges |
+| `StepSiteStructure` uses mock data | Generates fake pages | Wire to real sitemap parser or AI-generated structure |
+| Content editor markdown rendering is regex-based | Fragile HTML output | Consider using `react-markdown` or `marked` |
+| `seoAnalysis.ts` uses heuristic scoring (not real plagiarism check) | Misleading uniqueness scores | Integrate text.ru or Copyscape API for real checks |
 
 ---
 
@@ -236,24 +123,13 @@ Everything marked ✅ was completed:
 ### 🔴 TIER 1 — Core User Flow (Must work for first real use)
 
 #### ~~1.1 · Semantic Core — Make Step 3 AI Actually Work~~ ✅ DONE
-**Verified 2026-04-23:** `generateCategories`, `categorizeQueries`, `categorizeQueriesBatch`, `compressCategories`, `refineCategory` — all fully wired to OpenRouter. Export CSV works. Only `approveCategories.jobId` is a stub (cosmetic).
-
+Fully wired to OpenRouter. Export CSV works.
 
 #### ~~1.2 · Content Planner — CSV Import~~ ✅ DONE
-**Completed 2026-04-23:** Full CSV import with drag-and-drop modal, file preview, flexible header mapping (EN+RU), semicolon/comma delimiter support. Added `importCsv` tRPC mutation + `CsvImportModal` component with success feedback.
+Full CSV import with drag-and-drop, preview, flexible header mapping.
 
-
-#### 1.3 · Content Generation ("Create with AI")
-**Current:** Button disabled.
-
-**Build:**
-- Select rows → "Create with AI" → build prompt from row fields
-- Stream Markdown into `markdownBody`
-- Status: `IN_PROGRESS` → `GENERATING` → `GENERATED`
-- Deduct tokens from `TokenBalance`
-
-**Files:** `contentPlan.ts`, `content-planner/page.tsx`, AI service  
-**Effort:** ~4h
+#### ~~1.3 · Content Generation ("Create with AI")~~ ✅ DONE
+`generateContent`, `analyzeContent`, `regenerateContent` mutations implemented. Content editor at `/content/[id]` with Generate/Analyze/Optimize/Save buttons and SEO analysis sidebar.
 
 #### 1.4 · Team Invite — Real Email
 **Current:** Logs to console.
@@ -264,6 +140,20 @@ Everything marked ✅ was completed:
 
 **Files:** `contentPlan.ts`, new `lib/email.ts`  
 **Effort:** ~1h
+
+#### 1.5 · Content Ideation — Fix AI Context (IN PROGRESS)
+**Current:** AI invents page types and schemas. URLs don't use project domain. Deep SEO block is misplaced.
+
+**Build:**
+- Fix `proposeIdeas` to return `section`, `pageType`, `schemaType`, `url` from project data
+- Fix `fleshOutIdeas` to generate only missing fields (metaDesc, h1, h2s, keywords, tags)
+- Update IdeationModal UI to display richer idea cards
+- Move Deep SEO Generation block above the ideas list
+- Rename button to "Flesh out SEO" or similar
+- Fix AI Model Selector click reliability
+
+**Files:** `contentPlan.ts`, `IdeationModal.tsx`, `AIModelSelector.tsx`  
+**Effort:** ~3h
 
 ---
 
@@ -296,17 +186,23 @@ Everything marked ✅ was completed:
 - "Auto-assign" button by keyword overlap
 - **Effort:** ~1h
 
+#### 2.6 · Site Structure — Real Sitemap Parsing
+- Wire `StepSiteStructure` to real sitemap parser instead of mock pages
+- AI analysis of competitor structures
+- Editable tree with drag-and-drop reordering
+- **Effort:** ~4h
+
 ---
 
 ### 🟢 TIER 3 — Polish & Growth
 
 - **3.1** Dashboard — Real activity feed & 30-day charts
-- **3.2** Spam Score / SEO Analysis — text.ru, readability, inline in table
+- **3.2** Spam Score / SEO Analysis — text.ru, Copyscape for real uniqueness checks
 - **3.3** Blog Topics Suggestion — AI suggests from semantic core keywords
 - **3.4** Analytics Page — Google Search Console integration
 - **3.5** Settings Page — Profile, AI prefs, notifications, danger zone
 - **3.6** Content Plan Shared Access — Password-check gate
-- **3.7** Site Architecture Tree View — Visual tree from sections/URLs
+- **3.7** Site Architecture Tree View — Full editable tree with drag-and-drop
 
 ---
 
@@ -314,12 +210,11 @@ Everything marked ✅ was completed:
 
 ```
 Phase A (immediate):
-  1.1  → Semantic Core real AI Classify   (~3h)   ← blocks everything
+  1.5  → Fix Content Ideation AI Context   (~3h)   ← in progress, resume here
   1.4  → Real Email Invites               (~1h)
-  1.3  → Content Generation AI            (~4h)
-  1.2  → CSV Import                       (~2h)
 
 Phase B (next):
+  2.6  → Site Structure Real Parsing       (~4h)
   2.4  → Real Billing Balance             (~2h)
   2.1  → Autopilot Real Queue             (~3h)
   2.2  → WordPress Connector              (~4h)
@@ -370,26 +265,6 @@ Defined in `packages/shared/seo/pageTypes.ts`:
 | Spam/keyword density | ≤8% | ≤5 | 5-8 | >8 |
 | Naturalness | ≥80% human | ≥85 | 65-84 | <65 |
 
-### Bridge Mutation Design
-
-```
-semanticCore.generateContentPlan({ semanticCoreId, projectId })
-
-Steps:
-1. Read all categorized queries from semantic core
-2. Group queries by assigned page (or by category)
-3. For each group:
-   a. section from category → section mapping
-   b. pageType from category → type mapping
-   c. schemaType from pageType → schema lookup
-   d. targetWordCount from pageType defaults
-   e. priority from page type (services=1, listings=2, info=3, blog=4, promo=5)
-   f. targetKeywords = all queries in group
-   g. metaTitle, h1 = representative query basis
-4. Batch insert ContentItem rows
-5. Return: { created, sections, pageTypes }
-```
-
 ---
 
 ## Session History
@@ -403,6 +278,7 @@ Steps:
 | 5 | `f22ead45` rev 8 | Deep SEO Ideation | Model selectors, checkboxes, duplicate warnings, "Flesh out SEO" endpoint, smart saving |
 | 6 | `f22ead45` rev 9 | Tags & Schema | Tags field + migration, manual duplicate warning, model selector portal fix, site architecture proposal |
 | 7 | `f22ead45` final | AI Context Fix | Project context injection into AI prompts, model selector CSS fix, TypeScript verified, pushed to GitHub |
+| 8 | Other agent session | Site Structure + Content Editor | `StepSiteStructure` onboarding step, project settings page, content manager list, content editor with generate/analyze/optimize, SEO analysis service, RSS feed management, cleaned up SEO_classify directory, `docs/GLOBAL_PLAN.md` created |
 | — | Onboarding export | UI Fixes | Header dropdowns, project context, project switcher, autopilot readiness bar, URL validation, projects page real data |
 
 ---
@@ -414,6 +290,7 @@ Steps:
 - `docs/marketing.md` — Marketing copy & features
 - `docs/GLOBAL_PLAN.md` — **This file**
 - `.agents/rules/architecture-md.md` — Rule: update architecture.md on global changes
+- `.agents/rules/global-plan.md` — Rule: always check GLOBAL_PLAN.md
 
 ### Reference Data
 - `_temp/index.html` — Client SEO plan for fackturaf.com
@@ -421,15 +298,18 @@ Steps:
 - `_temp/nav_guide.html` — Navigation guide reference
 - `_temp/templates_viewer.html` — Templates reference
 
-### Session Files
-- `_session_export/Finalizing SEOSH AI Onboarding.md` — Full chat export
-- `_lost session files/` — Recovered session artifacts (task/plan/walkthrough revisions, screenshots)
-
 ### Key Source Files
-- `apps/web/src/server/routers/semanticCore.ts` — Semantic Core router
-- `apps/web/src/server/routers/contentPlan.ts` — Content Planner router (incl. ideation)
+- `apps/web/src/server/routers/semanticCore.ts` — Semantic Core router (40KB)
+- `apps/web/src/server/routers/contentPlan.ts` — Content Planner router (52KB, incl. ideation, generation, analysis)
+- `apps/web/src/server/routers/projects.ts` — Projects router (8.7KB, incl. RSS feeds, project upsert)
 - `apps/web/src/server/services/ai.ts` — Centralized AI service
+- `apps/web/src/server/services/seoAnalysis.ts` — SEO analysis service (heuristic scoring)
 - `apps/web/src/components/semantic-core/SemanticCoreWizard.tsx` — 4-step wizard
+- `apps/web/src/components/content-planner/IdeationModal.tsx` — Content ideation (27KB)
+- `apps/web/src/components/onboarding/StepSiteStructure.tsx` — Site structure onboarding step
+- `apps/web/src/components/ui/AIModelSelector.tsx` — Reusable AI model picker
+- `apps/web/src/app/content/[id]/page.tsx` — Content editor page
+- `apps/web/src/app/project-settings/page.tsx` — Project settings page
 - `apps/web/src/lib/project-context.tsx` — Active project global state
 - `packages/shared/seo/pageTypes.ts` — Page type taxonomy
 - `packages/db/prisma/schema.prisma` — Database schema

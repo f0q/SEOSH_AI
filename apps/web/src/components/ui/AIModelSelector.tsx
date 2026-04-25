@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { trpc } from "@/trpc/client";
 import { Sparkles, Coins, ChevronDown } from "lucide-react";
 
@@ -15,7 +16,9 @@ interface AIModelSelectorProps {
   onModelSelect: (modelId: string) => void;
   selectedModelId?: string;
   estimatedPromptTokens?: number; // Pre-calculated input length (rough estimate)
-  expectedOutputTokens?: number;  // Default e.g. 500
+  icon?: React.ElementType;
+  iconColor?: string;
+  buttonClassName?: string;
 }
 
 export function AIModelSelector({
@@ -23,6 +26,9 @@ export function AIModelSelector({
   selectedModelId,
   estimatedPromptTokens = 0,
   expectedOutputTokens = 500,
+  icon: Icon = Sparkles,
+  iconColor = "text-emerald-400",
+  buttonClassName,
 }: AIModelSelectorProps) {
   const { data: models, isLoading } = trpc.ai.listModels.useQuery();
   const [isOpen, setIsOpen] = useState(false);
@@ -90,7 +96,7 @@ export function AIModelSelector({
     const bottom = isUpwards ? window.innerHeight - rect.top + 8 : undefined;
     const left = rect.left;
 
-    return (
+    const dropdown = (
       <div 
         ref={dropdownRef}
         className="fixed w-[280px] z-[99999] bg-surface-800 shadow-2xl shadow-black/80 border border-surface-600 rounded-xl overflow-hidden animate-fade-in"
@@ -135,6 +141,8 @@ export function AIModelSelector({
         </div>
       </div>
     );
+
+    return createPortal(dropdown, document.body);
   };
 
   return (
@@ -147,15 +155,19 @@ export function AIModelSelector({
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className="flex items-center gap-3 px-3 py-2 bg-brand-500/10 hover:bg-brand-500/15 border border-brand-500/20 text-brand-300 rounded-xl transition-colors text-sm font-medium"
+        className={buttonClassName || "flex w-full items-center justify-between gap-2 px-3 py-2 bg-brand-500/10 hover:bg-brand-500/15 border border-brand-500/20 text-brand-300 rounded-xl transition-colors text-sm font-medium"}
       >
-        <Sparkles className="w-4 h-4 text-brand-400" />
-        <span className="truncate max-w-[120px]">{selected.name}</span>
-        <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-900/50 border border-surface-700/50 text-xs">
-          <Coins className="w-3 h-3 text-emerald-400" />
-          <span className="text-surface-300">~{calculateEstimate(selected.costPer1k)}</span>
+        <div className="flex items-center gap-2 overflow-hidden">
+          <Icon className={`w-4 h-4 flex-shrink-0 ${iconColor}`} />
+          <span className="truncate">{selected.name}</span>
         </div>
-        <ChevronDown className="w-3 h-3 opacity-50 ml-1" />
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-900/50 border border-surface-700/50 text-xs">
+            <Coins className="w-3 h-3 text-emerald-400" />
+            <span className="text-surface-300">~{calculateEstimate(selected.costPer1k)}</span>
+          </div>
+          <ChevronDown className="w-3 h-3 opacity-50" />
+        </div>
       </button>
 
       {renderDropdown()}

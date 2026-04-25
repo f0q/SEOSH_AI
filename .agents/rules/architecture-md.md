@@ -27,5 +27,3 @@ When modifying either `semanticCore.ts` or `contentPlan.ts`, keep in mind the br
 - Page Type taxonomy: `homepage`, `service_listing`, `service_detail`, `product_listing`, `product_detail`, `landing_page`, `blog_listing`, `blog_post`, `promo_listing`, `promo_detail`, `info_page`
 - Each page type has a default Schema.org type and target word count
 - The planned "Generate Content Plan from Semantic Core" mutation bridges the two modules
-
-Reference: `_temp/index.html` (client SEO plan example for fackturaf.com)

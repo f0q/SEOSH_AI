@@ -26,6 +26,7 @@ import {
 const contentItemInput = z.object({
   url: z.string().optional(),
   section: z.string().optional(),
+  blogCategory: z.string().optional(),
   pageType: z.string().optional(),
   priority: z.number().min(1).max(5).optional(),
   // Use z.string() — Prisma accepts enum values as plain strings at runtime
@@ -139,6 +140,7 @@ export const contentPlanRouter = router({
           title: input.data.title ?? input.data.url ?? "Untitled",
           url: input.data.url,
           section: input.data.section,
+          blogCategory: input.data.blogCategory,
           pageType: input.data.pageType,
           priority: input.data.priority ?? 1,
           status: (input.data.status ?? "DRAFT") as import("@prisma/client").ContentStatus,
@@ -523,24 +525,51 @@ export const contentPlanRouter = router({
   // ─── Ideation & Planning ────────────────────────────────────────────────────
 
   getRandomTopic: protectedProcedure
-    .input(z.object({ projectId: z.string() }))
+    .input(z.object({ 
+      projectId: z.string(),
+      categories: z.array(z.string()).optional()
+    }))
     .query(async ({ input, ctx }) => {
-      // Find semantic cores belonging to this project (or all for user if no direct relation)
-      const cores = await prisma.semanticCore.findMany({
-        where: { userId: ctx.user.id },
+      // Find semantic core belonging to this project
+      const core = await prisma.semanticCore.findFirst({
+        where: { projectId: input.projectId },
         select: { id: true }
       });
-      if (!cores.length) return { topic: "No semantic cores found." };
+      if (!core) return { topic: "No semantic cores found for this project." };
       
-      const queries = await prisma.query.findMany({
-        where: { semanticCoreId: { in: cores.map(c => c.id) } },
-        take: 100,
+      const categoryFilter = input.categories?.length 
+        ? { category: { name: { in: input.categories } } } 
+        : {};
+
+      // 1. Find the lowest usage count among matching queries
+      const lowestUsageRecord = await prisma.query.findFirst({
+        where: { semanticCoreId: core.id, ...categoryFilter },
+        orderBy: { usageCount: 'asc' },
+        select: { usageCount: true }
       });
 
-      if (!queries.length) return { topic: "No keywords found in your cores." };
+      if (!lowestUsageRecord) return { topic: "No keywords found in your selected categories." };
+      const lowestUsage = lowestUsageRecord.usageCount;
+
+      // 2. Count how many queries share this lowest usage count
+      const count = await prisma.query.count({
+        where: { semanticCoreId: core.id, ...categoryFilter, usageCount: lowestUsage }
+      });
+
+      // 3. Pick a random offset to ensure uniform randomness across all unused keywords
+      const skip = Math.floor(Math.random() * count);
+
+      const randomQuery = await prisma.query.findFirst({
+        where: { semanticCoreId: core.id, ...categoryFilter, usageCount: lowestUsage },
+        skip: skip,
+      });
+
+      if (!randomQuery) return { topic: "No keywords found.", usageCount: 0 };
       
-      const randomQuery = queries[Math.floor(Math.random() * queries.length)];
-      return { topic: randomQuery.text };
+      return { 
+        topic: randomQuery.text,
+        usageCount: randomQuery.usageCount
+      };
     }),
 
   getProjectTitles: protectedProcedure
@@ -564,20 +593,31 @@ export const contentPlanRouter = router({
     .mutation(async ({ input }) => {
       const config = getAIConfig(input.modelId);
       
-      // Fetch project domain
+      // Fetch project domain and site structure
       const project = await prisma.project.findUnique({
         where: { id: input.projectId },
-        select: { url: true }
+        select: { url: true, companyProfile: { select: { siteStructure: true } } }
       });
       const domain = project?.url?.replace(/\/+$/, "") || "https://example.com";
 
-      // Fetch existing sections (categories), tags, and page types from plan
+      // Extract existing sections from the approved site structure
+      const existingSections = new Set<string>();
+      if (project?.companyProfile?.siteStructure && Array.isArray(project.companyProfile.siteStructure)) {
+        const extractLabels = (nodes: any[]) => {
+          for (const node of nodes) {
+            if (node.label && typeof node.label === 'string') existingSections.add(node.label);
+            if (node.children && Array.isArray(node.children)) extractLabels(node.children);
+          }
+        };
+        extractLabels(project.companyProfile.siteStructure);
+      }
+
+      // Fetch existing tags and page types from plan
       const plan = await prisma.contentPlan.findFirst({
         where: { projectId: input.projectId },
         include: { items: { select: { section: true, tags: true, pageType: true, schemaType: true } } }
       });
       
-      const existingSections = new Set<string>();
       const existingTags = new Set<string>();
       const existingPageTypes = new Set<string>();
       const existingSchemas = new Set<string>();
@@ -618,7 +658,7 @@ export const contentPlanRouter = router({
       const allSchemaTypes = ["LocalBusiness", "Service", "ItemList", "Product", "Offer", "OfferCatalog", "Blog", "Article", "WebPage"];
 
       const sectionContext = existingSections.size > 0 
-        ? `\nExisting website categories/sections in this project:\n${Array.from(existingSections).join(", ")}\nYou MUST pick from these categories when relevant. Only invent a new section if none of the existing ones fit.` 
+        ? `\nAVAILABLE WEBSITE SECTIONS (You MUST pick 'section' exactly from this list): ${JSON.stringify(Array.from(existingSections))}`
         : "";
 
       const tagsContext = existingTags.size > 0 
@@ -636,11 +676,11 @@ The target domain is: ${domain}${sectionContext}${tagsContext}${categoriesContex
 Propose exactly 5 distinct, high-quality article ideas that comprehensively cover this topic.
 For each article, you MUST define ALL of the following fields:
 - "title": A catchy, SEO-optimized page title.
-- "section": The website category this page belongs to.${existingSections.size > 0 ? " MUST be one of the existing sections listed above, unless none fit." : ""}
+- "section": The website category this page belongs to.${existingSections.size > 0 ? " Pick exactly one from the AVAILABLE WEBSITE SECTIONS list." : ""}
 - "pageType": MUST be one of: ${JSON.stringify(allPageTypeSlugs)}.
 - "schemaType": MUST be one of: ${JSON.stringify(allSchemaTypes)}.
 - "intent": The search intent. MUST be one of: "Informational", "Commercial", "Navigational", "Transactional".
-- "url": A full URL path starting from the domain root using the pattern: /{section-slug}/{seo-friendly-slug}. Do NOT include the domain itself. Example: /blog/best-running-shoes
+- "url": A short, SEO-friendly slug for this page. Do NOT include slashes or the section path. Example: "best-running-shoes"
 
 Output strictly valid JSON matching this schema:
 {
@@ -663,6 +703,40 @@ Do not output any markdown formatting, only the JSON object.`;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: `Failed to generate ideas: ${(err as Error).message}`,
+        });
+      }
+    }),
+
+  generateIdeasFromKeywords: protectedProcedure
+    .input(z.object({
+      keywords: z.array(z.string()),
+      modelId: z.string().optional()
+    }))
+    .mutation(async ({ input }) => {
+      const config = getAIConfig(input.modelId);
+      const prompt = `You are an expert SEO content strategist.
+For each of the following keywords, propose exactly one highly optimized, engaging article title.
+Keywords:
+${input.keywords.join("\n")}
+
+Output strictly valid JSON matching this schema:
+{
+  "ideas": [
+    { "title": "The generated title", "type": "blog_post", "intent": "Informational" }
+  ]
+}
+The array MUST contain exactly ${input.keywords.length} items, one for each keyword in the same order. Do not output markdown formatting.`;
+
+      try {
+        const aiResponse = await callOpenRouter(config, prompt, true);
+        const cleaned = aiResponse.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+        const parsed = JSON.parse(cleaned);
+        return { ideas: parsed.ideas || [] };
+      } catch (err) {
+        console.error("AI Title Gen Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to generate titles from keywords.",
         });
       }
     }),
@@ -751,6 +825,7 @@ Do not output any markdown formatting, only the JSON object.`;
       })),
       topic: z.string(),
       projectId: z.string(),
+      categories: z.array(z.string()).optional(),
       modelId: z.string().optional()
     }))
     .mutation(async ({ input }) => {
@@ -764,13 +839,23 @@ Do not output any markdown formatting, only the JSON object.`;
       const domain = project?.url?.replace(/\/+$/, "") || "https://example.com";
       const siteStructure = (project?.companyProfile as any)?.siteStructure || [];
 
+      const existingSections = new Set<string>();
+      if (Array.isArray(siteStructure)) {
+        const extractLabels = (nodes: any[]) => {
+          for (const node of nodes) {
+            if (node.label && typeof node.label === 'string') existingSections.add(node.label);
+            if (node.children && Array.isArray(node.children)) extractLabels(node.children);
+          }
+        };
+        extractLabels(siteStructure);
+      }
+
       // Fetch existing content plan data for context
       const plan = await prisma.contentPlan.findFirst({
         where: { projectId: input.projectId },
         include: { items: { select: { tags: true, url: true, section: true, title: true } } }
       });
       const existingTags = new Set<string>();
-      const existingSections = new Set<string>();
       const existingUrls: string[] = [];
       if (plan) {
         plan.items.forEach(item => {
@@ -785,13 +870,25 @@ Do not output any markdown formatting, only the JSON object.`;
         : "";
 
       const sectionContext = existingSections.size > 0
-        ? `\nExisting website sections/categories:\n${Array.from(existingSections).join(", ")}\nPick from these when relevant.`
+        ? `\nAVAILABLE WEBSITE SECTIONS (You MUST pick 'section' exactly from this list): ${JSON.stringify(Array.from(existingSections))}`
+        : "";
+
+      const categoriesContext = input.categories?.length
+        ? `\nThe user is focusing on these blog/semantic categories: ${input.categories.join(", ")}. Ensure the content (metas, headings, keywords) aligns with this focus.`
         : "";
 
       // Build internal linking context from site structure
       const structurePages = siteStructure.flatMap((s: any) => 
         (s.children || []).map((c: any) => c.url || c.label).concat([s.url || `/${s.label?.toLowerCase()}`])
-      ).filter(Boolean);
+      ).filter(Boolean).map((urlStr: string) => {
+        try {
+          const u = new URL(urlStr);
+          return u.pathname + u.search;
+        } catch {
+          return urlStr.startsWith("http") ? new URL(`https://${urlStr.replace(/^https?:\/\//, '')}`).pathname : (urlStr.startsWith("/") ? urlStr : `/${urlStr}`);
+        }
+      });
+      
       const internalLinkContext = structurePages.length > 0
         ? `\nAvailable pages for internal linking (suggest 2-3 per article):\n${structurePages.slice(0, 20).join(", ")}`
         : existingUrls.length > 0
@@ -803,7 +900,7 @@ Do not output any markdown formatting, only the JSON object.`;
 
       const prompt = `You are an expert SEO specialist filling out a comprehensive content plan.
 The target domain is: ${domain}
-Topic cluster: "${input.topic}"${sectionContext}${tagsContext}${internalLinkContext}
+Topic cluster: "${input.topic}"${sectionContext}${categoriesContext}${tagsContext}${internalLinkContext}
 
 Available page types: ${JSON.stringify(allPageTypeSlugs)}
 Available schema types: ${JSON.stringify(allSchemaTypes)}
@@ -814,14 +911,14 @@ ${JSON.stringify(input.ideas, null, 2)}
 For EACH idea, generate ALL of these fields (even if some were already provided — override with better values):
 - "pageType": Pick from available page types. Most content will be "blog_post".
 - "schemaType": Pick matching schema. "blog_post" -> "Article", "service_detail" -> "Service", etc.
-- "section": The website section/category this belongs to.${existingSections.size > 0 ? " Pick from existing sections above." : ""}
-- "url": Full URL path as /{section-slug}/{seo-friendly-slug}. No domain. Example: /blog/best-running-shoes
+- "section": The website section/category this belongs to.${existingSections.size > 0 ? " Pick exactly one from the AVAILABLE WEBSITE SECTIONS list." : ""}
+- "url": A short, SEO-friendly slug for this page. Do NOT include slashes or the section path. Example: "best-running-shoes"
 - "metaDesc": Compelling meta description (max 155 chars).
 - "h1": Optimized, catchy H1 heading.
 - "h2Headings": Array of 3 to 6 logical H2 subheadings.
 - "targetKeywords": Array of 3 to 5 LSI/target keywords.
 - "tags": Array of 3 to 5 related tags.${existingTags.size > 0 ? " Prioritize existing tags." : ""}
-- "internalLinks": Array of 2-3 suggested internal page paths to link within this article (e.g. "/services", "/about", "/blog/related-post").
+- "internalLinks": Array of 2-3 suggested internal relative paths to link within this article. Do NOT include the domain name. Example: "/services/seo" or "/blog/related-post".
 - "recommendedImages": Array of 2-3 objects: { "description": "what the image should show", "alt": "SEO alt text", "placement": "hero" | "inline" | "infographic" }.
 
 Output strictly valid JSON:
@@ -870,6 +967,180 @@ The output array must be in the exact same order as input. Do not output any mar
       }
     }),
 
+  /** Generate SEO data (metas, headings, keywords) for existing content items in bulk */
+  generateSeoDataBulk: protectedProcedure
+    .input(z.object({
+      contentItemIds: z.array(z.string()),
+      modelId: z.string().optional()
+    }))
+    .mutation(async ({ input }) => {
+      if (!input.contentItemIds.length) return { success: true, count: 0 };
+      const config = getAIConfig(input.modelId);
+
+      // Fetch items and project context
+      const items = await prisma.contentItem.findMany({
+        where: { id: { in: input.contentItemIds } },
+        include: { contentPlan: { include: { project: { include: { companyProfile: true } } } } },
+        orderBy: { sortOrder: "asc" }
+      });
+      if (!items.length) return { success: true, count: 0 };
+
+      const project = items[0].contentPlan.project;
+      const domain = project?.url?.replace(/\/+$/, "") || "https://example.com";
+      const siteStructure = (project?.companyProfile as any)?.siteStructure || [];
+
+      // Extract existing categories and tags for context
+      const existingSections = new Set<string>();
+      const existingTags = new Set<string>();
+      
+      const allPlanItems = await prisma.contentItem.findMany({
+        where: { contentPlanId: items[0].contentPlanId },
+        select: { tags: true, section: true }
+      });
+      allPlanItems.forEach(i => {
+        if (i.tags) i.tags.forEach(t => existingTags.add(t));
+        if (i.section) existingSections.add(i.section);
+      });
+
+      const tagsContext = existingTags.size > 0 
+        ? `\nExisting tag cloud for this project:\n${Array.from(existingTags).join(", ")}` 
+        : "";
+      const siteSections = Array.isArray(siteStructure) ? siteStructure.map((s: any) => s.label).filter(Boolean) : [];
+      const sectionContext = siteSections.length > 0
+        ? `\nAVAILABLE WEBSITE SECTIONS (You MUST pick 'section' exactly from this list): ${JSON.stringify(siteSections)}`
+        : (existingSections.size > 0 ? `\nExisting website categories:\n${Array.from(existingSections).join(", ")}` : "");
+
+      const existingUrls: string[] = [];
+      allPlanItems.forEach(i => {
+        if (i.url) existingUrls.push(i.url);
+      });
+
+      const structurePages = siteStructure.flatMap((s: any) => 
+        (s.children || []).map((c: any) => c.url || c.label).concat([s.url || `/${s.label?.toLowerCase()}`])
+      ).filter(Boolean).map((urlStr: string) => {
+        try {
+          const u = new URL(urlStr);
+          return u.pathname + u.search;
+        } catch {
+          return urlStr.startsWith("http") ? new URL(`https://${urlStr.replace(/^https?:\/\//, '')}`).pathname : (urlStr.startsWith("/") ? urlStr : `/${urlStr}`);
+        }
+      });
+      
+      const internalLinkContext = structurePages.length > 0
+        ? `\nAvailable pages for internal linking (suggest 2-3 per article):\n${structurePages.slice(0, 20).join(", ")}`
+        : existingUrls.length > 0
+        ? `\nExisting content URLs for internal linking (suggest 2-3 per article):\n${existingUrls.slice(0, 15).join(", ")}`
+        : "";
+
+      // Format items as 'ideas' for the AI
+      const ideasInput = items.map(item => ({
+        id: item.id,
+        title: item.title,
+        section: item.section || undefined,
+        pageType: item.pageType || undefined,
+        intent: item.intent || undefined
+      }));
+
+      const allPageTypeSlugs = ["homepage", "service_listing", "service_detail", "product_listing", "product_detail", "landing_page", "blog_listing", "blog_post", "promo_listing", "promo_detail", "info_page"];
+      const allSchemaTypes = ["LocalBusiness", "Service", "ItemList", "Product", "Offer", "OfferCatalog", "Blog", "Article", "WebPage"];
+
+      const prompt = `You are an expert SEO specialist filling out missing SEO data for a content plan.
+The target domain is: ${domain}${sectionContext}${tagsContext}${internalLinkContext}
+
+Available page types: ${JSON.stringify(allPageTypeSlugs)}
+Available schema types: ${JSON.stringify(allSchemaTypes)}
+
+Here are the content items to enrich:
+${JSON.stringify(ideasInput, null, 2)}
+
+For EACH item, generate ALL of these fields (override with better values if needed):
+- "pageType": Pick from available page types.
+- "schemaType": Pick matching schema.
+- "section": The website section. Pick exactly one from the AVAILABLE WEBSITE SECTIONS list if provided.
+- "blogCategory": The blog category or semantic core category.
+- "url": A short, SEO-friendly slug. Do NOT include slashes. Example: "best-running-shoes"
+- "metaDesc": Compelling meta description (max 155 chars).
+- "h1": Optimized, catchy H1 heading.
+- "h2Headings": Array of 3 to 6 logical H2 subheadings.
+- "targetKeywords": Array of 3 to 5 LSI/target keywords.
+- "tags": Array of 3 to 5 related tags.
+- "internalLinks": Array of 2-3 suggested internal relative paths to link within this article. Do NOT include the domain name. Example: "/services/seo" or "/blog/related-post".
+- "recommendedImages": Array of 2-3 objects: { "description": "what the image should show", "alt": "SEO alt text", "placement": "hero" | "inline" | "infographic" }.
+
+Output strictly valid JSON:
+{
+  "enrichedIdeas": [
+    {
+      "pageType": string,
+      "schemaType": string,
+      "section": string,
+      "blogCategory": string,
+      "url": string,
+      "metaDesc": string,
+      "h1": string,
+      "h2Headings": [string],
+      "targetKeywords": [string],
+      "tags": [string],
+      "internalLinks": [string],
+      "recommendedImages": [{ "description": string, "alt": string, "placement": string }]
+    }
+  ]
+}
+The output array must be in the exact same order as input. Do not output any markdown, only JSON.`;
+
+      try {
+        const aiResponse = await callOpenRouter(config, prompt, true);
+        
+        let cleaned = aiResponse.trim();
+        if (cleaned.startsWith("```")) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+        }
+        
+        const parsed = JSON.parse(cleaned);
+        const enriched = parsed.enrichedIdeas || [];
+
+        if (enriched.length !== items.length) {
+          console.warn(`Length mismatch: asked for ${items.length}, got ${enriched.length}`);
+        }
+
+        // Update database
+        let updateCount = 0;
+        for (let i = 0; i < Math.min(items.length, enriched.length); i++) {
+          const item = items[i];
+          const data = enriched[i];
+          if (!data) continue;
+
+          await prisma.contentItem.update({
+            where: { id: item.id },
+            data: {
+              pageType: data.pageType,
+              schemaType: data.schemaType,
+              section: data.section,
+              blogCategory: data.blogCategory,
+              slug: data.url,
+              url: data.url,
+              metaDesc: data.metaDesc,
+              h1: data.h1,
+              h2Headings: data.h2Headings,
+              targetKeywords: data.targetKeywords,
+              tags: data.tags,
+              internalLinks: data.internalLinks ? data.internalLinks.join(", ") : undefined,
+              recommendedImages: data.recommendedImages || undefined,
+            }
+          });
+          updateCount++;
+        }
+
+        return { success: true, count: updateCount };
+      } catch (err) {
+        console.error("AI Generate SEO Bulk Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to generate SEO data: ${(err as Error).message}`,
+        });
+      }
+    }),
+
   // ─── Content Generation Pipeline ────────────────────────────────────────
 
   /** Generate full markdown content for a content item */
@@ -887,7 +1158,7 @@ The output array must be in the exact same order as input. Do not output any mar
       // Build comprehensive prompt from all row fields
       const images = (item.recommendedImages as any[]) || [];
       const imageInstructions = images.length > 0
-        ? `\n\nInclude these images in the content at appropriate positions:\n${images.map((img, i) => `Image ${i + 1}: ![${img.alt}](PROMPT: ${img.description}) — placement: ${img.placement}`).join("\n")}`
+        ? `\n\nCRITICAL INSTRUCTION FOR IMAGES:\nYou MUST include these exact image placeholders in the content at appropriate positions. Do NOT alter the alt text or the prompt:\n${images.map((img, i) => `![${img.alt}](PROMPT: ${img.description})`).join("\n")}`
         : "\n\nInclude 2-3 image placeholders in the format: ![alt text](PROMPT: description of image to generate)";
 
       const prompt = `You are an expert SEO content writer. Write a complete, high-quality article in Markdown format.
@@ -910,7 +1181,7 @@ Requirements:
 3. Naturally weave in the target keywords (don't stuff).
 4. Include the specified internal links naturally in context.
 5. Write in a professional but engaging tone.
-6. Include image placeholders at appropriate positions.
+6. Include the EXACT image placeholders provided above at appropriate positions.
 7. End with a compelling conclusion/CTA.
 8. Target the specified word count.
 9. Make content E-E-A-T compliant (show expertise, cite experience).
@@ -1146,6 +1417,7 @@ Output ONLY the improved markdown content, no wrapping code fences.`;
     .query(async ({ input }) => {
       return prisma.contentItem.findUnique({
         where: { id: input.id },
+        include: { contentPlan: { select: { projectId: true } } }
       });
     }),
 

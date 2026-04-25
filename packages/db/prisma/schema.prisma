@@ -333,7 +333,8 @@ model ContentItem {
 
   // ── Excel columns ────────────────────────────────────────────────────────
   url            String?       // Column: URL
-  section        String?       // Column: Раздел
+  section        String?       // Column: Раздел (Website Category)
+  blogCategory   String?       // Column: Категория блога (Semantic Core Category)
   pageType       String?       // Column: Тип страницы
   priority       Int           @default(1)   // Column: Приоритет (1-5)
   status         ContentStatus @default(DRAFT) // Column: Статус

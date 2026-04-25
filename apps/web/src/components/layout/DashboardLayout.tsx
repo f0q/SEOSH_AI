@@ -17,9 +17,9 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <div className="flex-1 ml-[260px] transition-all duration-300">
+      <div className="flex-1 ml-[260px] min-w-0 flex flex-col transition-all duration-300">
         <Header />
-        <main className="p-6">{children}</main>
+        <main className="p-6 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

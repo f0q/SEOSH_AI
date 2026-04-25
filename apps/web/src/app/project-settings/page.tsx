@@ -250,7 +250,7 @@ export default function ProjectSettingsPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-surface-200 truncate">
-                              {latestCore.siteUrl === "merged-cores" ? "Master Core (Merged)" : (latestCore.siteUrl || `Core ${latestCore.id.split('-')[0]}`)}
+                              {latestCore.siteUrl === "merged-cores" ? "Master Core (Merged)" : (latestCore.siteUrl === "unknown" ? (activeProject?.url || activeProject?.name || `Core ${latestCore.id.split('-')[0]}`) : (latestCore.siteUrl || `Core ${latestCore.id.split('-')[0]}`))}
                             </p>
                             <p className="text-[10px] text-surface-500 uppercase tracking-wider">Connected</p>
                           </div>

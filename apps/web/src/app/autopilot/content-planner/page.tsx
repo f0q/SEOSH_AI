@@ -8,11 +8,14 @@ import { useProject } from "@/lib/project-context";
 import { PAGE_TYPES, getDefaultSchema, getDefaultWordCount } from "@seosh/shared/seo";
 import {
   LayoutList, Plus, Trash2, ChevronLeft, Users, Mail,
-  Sparkles, ShieldCheck, Lightbulb, X, Check, Loader2,
-  ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown, Wand2, AlertCircle,
+  Sparkles, ShieldCheck, Lightbulb, X, Check, Loader2, Bot,
+  ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown, Wand2, AlertCircle, BrainCircuit,
   Upload, FileSpreadsheet, FileText as FileTextIcon, Image, BarChart3, RefreshCw, Save,
+  Fingerprint, Leaf, BookOpen, Droplet, AlertTriangle, HelpCircle
 } from "lucide-react";
 import { IdeationModal } from "@/components/content-planner/IdeationModal";
+import { ContentEditorModal } from "@/components/content-planner/ContentEditorModal";
+import { AIModelSelector } from "@/components/ui/AIModelSelector";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -63,28 +66,33 @@ function EditableCell({
   };
 
   if (editing) {
-    const sharedProps = {
-      value: draft,
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        setDraft(e.target.value),
-      onBlur: commit,
-      onKeyDown: (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !multiline) commit();
-        if (e.key === "Escape") { setDraft(value); setEditing(false); }
-      },
-      autoFocus: true,
-      className: `w-full bg-surface-800 border border-brand-500/50 rounded px-2 py-1 text-xs text-surface-100 outline-none focus:border-brand-400 ${className}`,
-    };
-    return multiline
-      ? <textarea {...sharedProps} rows={3} />
-      : <input {...sharedProps} list={list} />;
+    return (
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !multiline) {
+            e.preventDefault();
+            commit();
+          }
+          if (e.key === "Escape") {
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        autoFocus
+        rows={multiline ? 4 : 2}
+        className={`w-full min-w-full bg-surface-800 border border-brand-500/50 rounded-lg p-2 text-xs text-surface-100 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 resize-y shadow-lg ${className}`}
+      />
+    );
   }
 
   return (
     <span
       onClick={() => { setDraft(value); setEditing(true); }}
       className={`block cursor-text min-h-[20px] text-xs hover:text-surface-100 transition-colors ${value ? "text-surface-200" : "text-surface-600 italic"} ${className}`}
-      title={value || placeholder}
+      title=""
     >
       <div className="flex items-center gap-1 overflow-hidden">
         <span className="truncate">{value || placeholder}</span>
@@ -451,11 +459,18 @@ function KeywordStatsBar({ projectId }: { projectId: string }) {
   const coveragePct = Math.round((stats.used / stats.total) * 100);
 
   return (
-    <div className="glass-card px-5 py-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="glass-card px-4 py-3 border-brand-500/20 bg-brand-500/5 w-fit">
+      <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <Tag className="w-4 h-4 text-brand-400 flex-shrink-0" />
-          <span className="text-sm font-medium text-surface-200">Keyword Coverage</span>
+          <span className="text-sm font-medium text-brand-300">Keyword Coverage</span>
+          <div className="group relative flex items-center">
+            <HelpCircle className="w-3.5 h-3.5 text-surface-500 hover:text-surface-300 cursor-help transition-colors" />
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 bg-surface-900 border border-surface-700 rounded-lg shadow-xl text-xs text-surface-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+              <p className="font-semibold text-surface-100 mb-1">How is this calculated?</p>
+              <p>Coverage is determined by partial phrase matching. A semantic core key phrase is counted as "covered" if it appears anywhere within the combined text of your Content Plan's Target Keywords, Titles, or H1s.</p>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-surface-400">
@@ -474,8 +489,8 @@ function KeywordStatsBar({ projectId }: { projectId: string }) {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex-1 min-w-[120px] max-w-[180px]">
-            <div className="h-2 rounded-full bg-surface-800/50 overflow-hidden">
+          <div className="w-32">
+            <div className="h-1.5 rounded-full bg-surface-800/50 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   coveragePct >= 80 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
@@ -485,13 +500,13 @@ function KeywordStatsBar({ projectId }: { projectId: string }) {
                 style={{ width: `${coveragePct}%` }}
               />
             </div>
-            <p className="text-[10px] text-surface-500 mt-1 text-right">{coveragePct}%</p>
           </div>
+          <span className="text-[10px] text-surface-500">{coveragePct}%</span>
           {latestCore && (
             <button
               onClick={() => syncMut.mutate({ semanticCoreId: latestCore.id })}
               disabled={syncMut.isPending}
-              className="btn-ghost gap-1.5 text-xs px-2.5 py-1.5 flex-shrink-0"
+              className="btn-ghost gap-1.5 text-xs px-2.5 py-1 flex-shrink-0 ml-2 border border-surface-700/50 hover:border-brand-500/50"
               title="Scan content plan and update keyword usage counts"
             >
               {syncMut.isPending ? (
@@ -505,7 +520,7 @@ function KeywordStatsBar({ projectId }: { projectId: string }) {
         </div>
       </div>
       {syncMut.isSuccess && (
-        <p className="text-xs text-emerald-400 mt-2">
+        <p className="text-xs text-emerald-400 mt-2 border-t border-brand-500/20 pt-2">
           ✓ Scanned {syncMut.data.synced} keywords — {syncMut.data.matched} matched to content items
         </p>
       )}
@@ -519,12 +534,19 @@ export default function ContentPlannerPage() {
   const router = useRouter();
   const { activeProject } = useProject();
   const [showInvite, setShowInvite] = useState(false);
-  const [showIdeation, setShowIdeation] = useState(false);
+  const [showIdeation, setShowIdeation] = useState<"manual" | "batch" | null>(null);
+  const [addingRow, setAddingRow] = useState(false);
+  const [draftRow, setDraftRow] = useState<Partial<import("@prisma/client").ContentItem>>({ pageType: "blog_post" });
+  const [viewingContentId, setViewingContentId] = useState<string | null>(null);
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [rowError, setRowError] = useState<string | null>(null);
-  const [kwSearch, setKwSearch] = useState("");
-  const [kwOpen, setKwOpen] = useState(true);
+  const [selectedModelId, setSelectedModelId] = useState<string>("gemini-2.5-flash");
+  const [filterCategory, setFilterCategory] = useState<string>("");
+  const [filterBlogCategory, setFilterBlogCategory] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [sortField, setSortField] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const utils = trpc.useUtils();
 
   const projectId = activeProject?.id ?? "";
@@ -586,25 +608,45 @@ export default function ContentPlannerPage() {
     onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
   });
 
+  const generateSeoDataBulkMut = trpc.contentPlan.generateSeoDataBulk.useMutation({
+    onSuccess: () => {
+      utils.contentPlan.getByProject.invalidate({ projectId });
+    },
+  });
+
   const { data: shares = [] } = trpc.contentPlan.listShares.useQuery(
     { projectId },
     { enabled: !!projectId }
   );
 
-  const { data: kwData } = trpc.contentPlan.getKeywordsByProject.useQuery(
-    { projectId },
-    { enabled: !!projectId }
-  );
-  const allKeywords = kwData?.keywords ?? [];
-  const filteredKeywords = kwSearch
-    ? allKeywords.filter((k) => k.toLowerCase().includes(kwSearch.toLowerCase()))
-    : allKeywords;
 
   const revokeShare = trpc.contentPlan.revokeShare.useMutation({
     onSuccess: () => utils.contentPlan.listShares.invalidate({ projectId }),
   });
 
-  const items = data?.items ?? [];
+  const rawItems = data?.items ?? [];
+  let items = [...rawItems];
+
+  const blogCategoryOptions = Array.from(new Set(rawItems.map((i: any) => i.blogCategory).filter(Boolean)));
+
+  if (filterCategory) items = items.filter((i) => i.section === filterCategory);
+  if (filterBlogCategory) items = items.filter((i: any) => i.blogCategory === filterBlogCategory);
+  if (filterStatus) items = items.filter((i) => i.status === filterStatus);
+
+  if (sortField === "priority") {
+    items.sort((a, b) => sortDirection === "asc" ? a.priority - b.priority : b.priority - a.priority);
+  } else if (sortField === "seoScore") {
+    items.sort((a, b) => sortDirection === "asc" ? (a.seoScore ?? 0) - (b.seoScore ?? 0) : (b.seoScore ?? 0) - (a.seoScore ?? 0));
+  }
+
+  const allSelected = items.length > 0 && items.every((i) => selectedRows.has(i.id));
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(items.map((i) => i.id)));
+    }
+  };
 
   // Compute duplicate titles for warnings
   const duplicateTitles = new Set<string>();
@@ -654,6 +696,49 @@ export default function ContentPlannerPage() {
     });
   };
 
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+
+  const handleBulkGenerate = async () => {
+    if (!selectedModelId || selectedRows.size === 0) return;
+    setBulkGenerating(true);
+    try {
+      for (const id of Array.from(selectedRows)) {
+        await generateContentMut.mutateAsync({ contentItemId: id, modelId: selectedModelId });
+      }
+    } catch (e) {
+      console.error("Bulk generate error", e);
+    } finally {
+      setBulkGenerating(false);
+    }
+  };
+
+  const handleBulkAnalyze = async () => {
+    if (!selectedModelId || selectedRows.size === 0) return;
+    setBulkAnalyzing(true);
+    try {
+      for (const id of Array.from(selectedRows)) {
+        await analyzeContentMut.mutateAsync({ contentItemId: id, modelId: selectedModelId });
+      }
+    } catch (e) {
+      console.error("Bulk analyze error", e);
+    } finally {
+      setBulkAnalyzing(false);
+    }
+  };
+
+  const handleBulkGenerateSeoData = async () => {
+    if (!selectedModelId || selectedRows.size === 0) return;
+    try {
+      await generateSeoDataBulkMut.mutateAsync({ 
+        contentItemIds: Array.from(selectedRows), 
+        modelId: selectedModelId 
+      });
+    } catch (e) {
+      console.error("Bulk generate SEO error", e);
+    }
+  };
+
   const activeShares = shares.filter((s) => s.status !== "REVOKED");
 
   if (!activeProject) {
@@ -674,12 +759,12 @@ export default function ContentPlannerPage() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push("/autopilot")}
+              onClick={() => router.push("/")}
               className="btn-ghost p-2 rounded-lg"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <div className="w-10 h-10 rounded-xl bg-[#0fb881] flex items-center justify-center shadow-lg shadow-[#0fb881]/20">
               <LayoutList className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -700,8 +785,9 @@ export default function ContentPlannerPage() {
 
             <div className="w-px h-6 bg-surface-700/50 mx-2" />
 
+
             <button
-              onClick={() => setShowIdeation(true)}
+              onClick={() => setShowIdeation("manual")}
               className="btn-primary gap-2 text-sm"
             >
               <Wand2 className="w-4 h-4" />
@@ -733,12 +819,69 @@ export default function ContentPlannerPage() {
           </div>
         )}
 
-        {/* ── Keyword Coverage Stats ─────────────────────────────────────── */}
-        <KeywordStatsBar projectId={projectId} />
+        <div className="flex flex-wrap items-start gap-4 mb-4">
+          {/* ── Keyword Coverage Stats ─────────────────────────────────────── */}
+          <KeywordStatsBar projectId={projectId} />
+
+          {/* ── Model Selection Bar ───────────────────────────────────────── */}
+          <div className="glass-card px-4 py-3 flex items-center gap-4 animate-fade-in border-emerald-500/20 bg-emerald-500/5 w-fit h-fit">
+            <div className="flex items-center gap-2">
+              <Wand2 className="w-4 h-4 text-emerald-400" />
+              <span className="text-sm font-medium text-emerald-300">Generation Model</span>
+            </div>
+            <div className="w-64">
+              <AIModelSelector
+                selectedModelId={selectedModelId}
+                onModelSelect={setSelectedModelId}
+                estimatedPromptTokens={800}
+                expectedOutputTokens={1500}
+                icon={Wand2}
+                iconColor="text-emerald-400"
+              />
+            </div>
+          </div>
+
+          {/* ── Bulk Actions Bar ───────────────────────────────────────────── */}
+          {selectedRows.size > 0 && (
+            <div className="glass-card px-4 py-3 flex items-center gap-3 animate-fade-in border-indigo-500/20 bg-indigo-500/5 w-fit h-fit">
+              <span className="text-sm font-medium text-indigo-300">
+                {selectedRows.size} selected
+              </span>
+              <div className="w-px h-4 bg-indigo-500/30 mx-1" />
+              <button
+                onClick={handleBulkGenerateSeoData}
+                disabled={generateSeoDataBulkMut.isPending || !selectedModelId}
+                className="gap-2 text-xs py-1.5 px-3 min-h-0 h-8 rounded-lg font-medium text-blue-400/80 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/50 hover:border-blue-400 transition-colors flex items-center disabled:opacity-50"
+                title="Generate SEO Data for selected rows"
+              >
+                {generateSeoDataBulkMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                SEO Data
+              </button>
+              <button
+                onClick={handleBulkGenerate}
+                disabled={bulkGenerating || !selectedModelId}
+                className="gap-2 text-xs py-1.5 px-3 min-h-0 h-8 rounded-lg font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors flex items-center disabled:opacity-50"
+                title="Generate content for selected rows"
+              >
+                {bulkGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                Generate Content
+              </button>
+              <button
+                onClick={handleBulkAnalyze}
+                disabled={bulkAnalyzing || !selectedModelId}
+                className="gap-2 text-xs py-1.5 px-3 min-h-0 h-8 rounded-lg font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors flex items-center disabled:opacity-50"
+                title="Analyze content for selected rows"
+              >
+                {bulkAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
+                Analyze
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* ── Team shares strip ──────────────────────────────────────────── */}
         {activeShares.length > 0 && (
-          <div className="glass-card px-4 py-3 flex items-center gap-3 flex-wrap">
+          <div className="glass-card px-4 py-3 flex items-center gap-3 flex-wrap mb-4">
             <span className="text-xs text-surface-500 flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5" />
               Shared with:
@@ -763,6 +906,59 @@ export default function ContentPlannerPage() {
           </div>
         )}
 
+        {/* ── Table Toolbar ───────────────────────────────────────────── */}
+        <div className="flex items-center gap-4 mb-3 flex-wrap bg-surface-900/30 px-3 py-1.5 rounded-lg border border-surface-800/50 w-fit">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-surface-500 uppercase tracking-widest font-semibold mr-1">Filter</span>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="bg-surface-800/50 border border-surface-700/50 rounded px-2 py-1 text-xs text-surface-200 outline-none hover:bg-surface-800 transition-colors focus:border-brand-500/50"
+            >
+              <option value="">All Website Categories</option>
+              {sectionOptions.map((s: any) => (
+                <option key={s.label} value={s.label}>{s.label}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-surface-800/50 border border-surface-700/50 rounded px-2 py-1 text-xs text-surface-200 outline-none hover:bg-surface-800 transition-colors focus:border-brand-500/50"
+            >
+              <option value="">All Statuses</option>
+              {STATUS_OPTIONS.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="w-px h-4 bg-surface-700/50 hidden sm:block"></div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-surface-500 uppercase tracking-widest font-semibold mr-1">Sort</span>
+            <select
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value)}
+              className="bg-surface-800/50 border border-surface-700/50 rounded px-2 py-1 text-xs text-surface-200 outline-none hover:bg-surface-800 transition-colors focus:border-brand-500/50"
+            >
+              <option value="">Default Order</option>
+              <option value="priority">Priority</option>
+              <option value="seoScore">SEO Score</option>
+            </select>
+            {sortField && (
+              <button
+                onClick={() => setSortDirection(d => d === "asc" ? "desc" : "asc")}
+                className="bg-surface-800/50 border border-surface-700/50 rounded px-2 py-1 text-xs text-surface-200 outline-none hover:bg-surface-700 transition-colors"
+                title="Toggle sort direction"
+              >
+                {sortDirection === "asc" ? "↑ Asc" : "↓ Desc"}
+              </button>
+            )}
+          </div>
+        </div>
+
+
         {/* ── Table ─────────────────────────────────────────────────────── */}
         <div className="glass-card overflow-x-auto">
           {isLoading ? (
@@ -780,15 +976,26 @@ export default function ContentPlannerPage() {
               <thead>
                 <tr className="border-b border-surface-700/30">
                   {[
-                    { label: "", w: "w-8" },
+                    { label: (
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        className="rounded border-surface-600 bg-surface-800 accent-indigo-500"
+                        title="Select all filtered rows"
+                      />
+                    ), w: "w-8" },
                     { label: "#", w: "w-8" },
+                    { label: "Actions", w: "w-36" },
+                    { label: "Metrics", w: "w-48" },
+                    { label: "Title", w: "w-56" },
+                    { label: "Len", w: "w-12" },
                     { label: "URL", w: "w-52" },
-                    { label: "Section", w: "w-28" },
+                    { label: "Website Category", w: "w-32" },
+                    { label: "Blog Category", w: "w-32" },
                     { label: "Page Type", w: "w-36" },
                     { label: "Pri", w: "w-12" },
                     { label: "Status", w: "w-32" },
-                    { label: "Title", w: "w-56" },
-                    { label: "Len", w: "w-12" },
                     { label: "Meta Desc", w: "w-56" },
                     { label: "Len", w: "w-12" },
                     { label: "H1", w: "w-48" },
@@ -800,7 +1007,7 @@ export default function ContentPlannerPage() {
                     { label: "Internal Links", w: "w-48" },
                     { label: "Images", w: "w-40" },
                     { label: "Notes", w: "w-40" },
-                    { label: "Actions", w: "w-36" },
+                    { label: "View", w: "w-24" },
                     { label: "", w: "w-8" },
                   ].map((col, i) => (
                     <th
@@ -833,8 +1040,139 @@ export default function ContentPlannerPage() {
                     {/* Row number */}
                     <td className="px-3 py-2 text-xs text-surface-600">{rowIdx + 1}</td>
 
+                    {/* Actions */}
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1">
+                        {/* Generate Content */}
+                        <button
+                          onClick={() => generateContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId })}
+                          disabled={generateContentMut.isPending}
+                          className="flex items-center gap-1 px-1.5 py-1 rounded-lg text-emerald-400/70 hover:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/50 hover:border-emerald-400 transition-colors"
+                          title="Generate content"
+                        >
+                          {generateContentMut.isPending && generateContentMut.variables?.contentItemId === item.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Wand2 className="w-3.5 h-3.5" />
+                          }
+                          <span className="text-[10px] font-medium tracking-wider uppercase">Gen</span>
+                        </button>
+                        {/* Analyze Content */}
+                        <button
+                          onClick={() => analyzeContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId })}
+                          disabled={analyzeContentMut.isPending || !item.markdownBody}
+                          className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition-colors border ${
+                            item.markdownBody
+                              ? "text-blue-400/70 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/50 hover:border-blue-400"
+                              : "text-surface-600 cursor-not-allowed border-surface-700 bg-surface-800/50"
+                          }`}
+                          title={item.markdownBody ? "Analyze content" : "Generate content first"}
+                        >
+                          {analyzeContentMut.isPending && analyzeContentMut.variables?.contentItemId === item.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <BarChart3 className="w-3.5 h-3.5" />
+                          }
+                          <span className="text-[10px] font-medium tracking-wider uppercase">AI</span>
+                        </button>
+                        {/* Regenerate */}
+                        {item.seoAnalysis && (
+                          <button
+                            onClick={() => regenerateContentMut.mutate({ contentItemId: item.id })}
+                            disabled={regenerateContentMut.isPending}
+                            className="flex items-center gap-1 p-1 rounded-lg border border-amber-500/50 hover:border-amber-400 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
+                            title="Regenerate based on analysis"
+                          >
+                            {regenerateContentMut.isPending && regenerateContentMut.variables?.contentItemId === item.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400 mx-auto" />
+                              : (
+                                <>
+                                  <Wand2 className="w-3.5 h-3.5 text-emerald-400" />
+                                  <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                                </>
+                              )
+                            }
+                          </button>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Metrics */}
+                    <td className="px-3 py-2">
+                      {item.seoAnalysis ? (() => {
+                        const analysis = item.seoAnalysis as any;
+                        return (
+                          <div className="flex items-center gap-2">
+                            {/* Uniqueness */}
+                            <div className="flex flex-col items-center gap-0.5 group relative" title="Uniqueness: How original the content is">
+                              <Fingerprint className="w-3 h-3 text-emerald-400 opacity-70 group-hover:opacity-100" />
+                              <span className="text-[9px] font-medium text-emerald-400/80">{Math.round(analysis.uniqueness)}%</span>
+                            </div>
+                            
+                            {/* Naturalness */}
+                            <div className="flex flex-col items-center gap-0.5 group relative" title="Naturalness: How human-like the writing sounds">
+                              <Leaf className="w-3 h-3 text-teal-400 opacity-70 group-hover:opacity-100" />
+                              <span className="text-[9px] font-medium text-teal-400/80">{Math.round(analysis.naturalness)}%</span>
+                            </div>
+
+                            {/* E-E-A-T */}
+                            <div className="flex flex-col items-center gap-0.5 group relative" title="E-E-A-T: Expertise, Experience, Authority, Trust">
+                              <ShieldCheck className="w-3 h-3 text-indigo-400 opacity-70 group-hover:opacity-100" />
+                              <span className="text-[9px] font-medium text-indigo-400/80">{Math.round(analysis.eeat)}%</span>
+                            </div>
+
+                            {/* Readability */}
+                            <div className="flex flex-col items-center gap-0.5 group relative" title="Readability: How easy the text is to read">
+                              <BookOpen className="w-3 h-3 text-cyan-400 opacity-70 group-hover:opacity-100" />
+                              <span className="text-[9px] font-medium text-cyan-400/80">{Math.round(analysis.readability)}%</span>
+                            </div>
+
+                            {/* Spam / Water */}
+                            <div className="flex flex-col items-center gap-0.5 group relative" title={`Spam Score: ${Math.round(analysis.spamScore)}% | Water/Filler: ${Math.round(analysis.waterScore)}%`}>
+                              <AlertTriangle className={`w-3 h-3 opacity-70 group-hover:opacity-100 ${analysis.spamScore > 30 ? 'text-red-400' : 'text-amber-400'}`} />
+                              <span className={`text-[9px] font-medium ${analysis.spamScore > 30 ? 'text-red-400/80' : 'text-amber-400/80'}`}>{Math.round(analysis.spamScore)}%</span>
+                            </div>
+
+                            {/* Overall SEO Score */}
+                            {item.seoScore != null && (
+                              <div className="ml-2" title="Overall SEO Score">
+                                <span className={`text-sm font-black px-2 py-1 rounded ${
+                                  item.seoScore >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
+                                  item.seoScore >= 50 ? 'text-amber-400 bg-amber-500/10' :
+                                  'text-red-400 bg-red-500/10'
+                                }`}>{item.seoScore}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })() : (
+                        <span className="text-[10px] text-surface-600">—</span>
+                      )}
+                    </td>
+
+                    {/* Title */}
+                    <td className="px-3 py-2">
+                      <EditableCell
+                        value={item.metaTitle ?? ""}
+                        onChange={(v) => handleUpdate(item.id, "metaTitle", v)}
+                        placeholder="Page title..."
+                        warning={item.metaTitle ? duplicateTitles.has(item.metaTitle.toLowerCase()) : false}
+                        warningText="A similar title already exists in your plan"
+                      />
+                    </td>
+
+                    {/* Title length */}
+                    <td className="px-3 py-2 text-center">
+                      <span className={`text-xs font-mono ${
+                        !item.metaTitle ? "text-surface-600"
+                          : item.metaTitle.length > 70 ? "text-red-400"
+                          : item.metaTitle.length >= 50 ? "text-emerald-400"
+                          : "text-amber-400"
+                      }`}>
+                        {item.metaTitle?.length ?? "—"}
+                      </span>
+                    </td>
+
                     {/* URL */}
-                    <td className="px-3 py-2 min-w-[200px]">
+                    <td className="px-3 py-2">
                       <div className="flex items-center">
                         {getSectionUrlPrefix(item.section) && (
                           <span className="text-surface-500 text-[10px] whitespace-nowrap bg-surface-800/40 px-1.5 py-1 rounded-l border border-r-0 border-surface-700/50 flex items-center">
@@ -856,21 +1194,29 @@ export default function ContentPlannerPage() {
                       </div>
                     </td>
 
-                    {/* Section */}
+                    {/* Website Category */}
                     <td className="px-3 py-2">
-                      <div className="relative">
-                        <EditableCell
-                          value={item.section ?? ""}
-                          onChange={(v) => handleUpdate(item.id, "section", v)}
-                          placeholder="Section"
-                          list={`sections-list-${item.id}`}
-                        />
-                        <datalist id={`sections-list-${item.id}`}>
-                          {sectionOptions.map((s: any) => (
-                            <option key={s.label} value={s.label} />
-                          ))}
-                        </datalist>
-                      </div>
+                      <select
+                        value={item.section ?? ""}
+                        onChange={(e) => handleUpdate(item.id, "section", e.target.value)}
+                        className="bg-transparent text-xs text-surface-300 border-0 outline-none cursor-pointer hover:text-surface-100 w-full"
+                      >
+                        <option value="">— Uncategorized —</option>
+                        {sectionOptions.map((so: any) => (
+                          <option key={so.label} value={so.label} className="bg-surface-800">
+                            {so.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* Blog Category */}
+                    <td className="px-3 py-2">
+                      <EditableCell
+                        value={(item as any).blogCategory ?? ""}
+                        onChange={(v) => handleUpdate(item.id, "blogCategory", v)}
+                        placeholder="blog-category"
+                      />
                     </td>
 
                     {/* Page Type */}
@@ -911,29 +1257,6 @@ export default function ContentPlannerPage() {
                         value={item.status ?? "DRAFT"}
                         onChange={(v) => handleUpdate(item.id, "status", v)}
                       />
-                    </td>
-
-                    {/* Title */}
-                    <td className="px-3 py-2">
-                      <EditableCell
-                        value={item.metaTitle ?? ""}
-                        onChange={(v) => handleUpdate(item.id, "metaTitle", v)}
-                        placeholder="Page title..."
-                        warning={item.metaTitle ? duplicateTitles.has(item.metaTitle.toLowerCase()) : false}
-                        warningText="A similar title already exists in your plan"
-                      />
-                    </td>
-
-                    {/* Title length */}
-                    <td className="px-3 py-2 text-center">
-                      <span className={`text-xs font-mono ${
-                        !item.metaTitle ? "text-surface-600"
-                          : item.metaTitle.length > 70 ? "text-red-400"
-                          : item.metaTitle.length >= 50 ? "text-emerald-400"
-                          : "text-amber-400"
-                      }`}>
-                        {item.metaTitle?.length ?? "—"}
-                      </span>
                     </td>
 
                     {/* Meta Desc */}
@@ -1042,6 +1365,25 @@ export default function ContentPlannerPage() {
                       />
                     </td>
 
+                    {/* Images */}
+                    <td className="px-3 py-2">
+                      {item.recommendedImages && Array.isArray(item.recommendedImages) && (item.recommendedImages as any[]).length > 0 ? (
+                        <div className="space-y-1">
+                          {(item.recommendedImages as any[]).map((img: any, i: number) => (
+                            <div key={i} className="text-[10px] text-surface-400 flex items-start gap-1">
+                              <Image className="w-3 h-3 text-purple-400 flex-shrink-0 mt-0.5" />
+                              <div className="overflow-hidden">
+                                <p className="text-surface-300 truncate w-full" title={img.description}>{img.description}</p>
+                                <p className="text-surface-500 italic truncate w-full" title={img.alt}>alt: {img.alt}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-surface-600">—</span>
+                      )}
+                    </td>
+
                     {/* Notes */}
                     <td className="px-3 py-2">
                       <EditableCell
@@ -1052,79 +1394,18 @@ export default function ContentPlannerPage() {
                       />
                     </td>
 
-                    {/* Images */}
-                    <td className="px-3 py-2">
-                      {item.recommendedImages && Array.isArray(item.recommendedImages) && (item.recommendedImages as any[]).length > 0 ? (
-                        <div className="space-y-1">
-                          {(item.recommendedImages as any[]).map((img: any, i: number) => (
-                            <div key={i} className="text-[10px] text-surface-400 flex items-start gap-1">
-                              <Image className="w-3 h-3 text-purple-400 flex-shrink-0 mt-0.5" />
-                              <div>
-                                <p className="text-surface-300 truncate max-w-[150px]" title={img.description}>{img.description}</p>
-                                <p className="text-surface-500 italic">alt: {img.alt}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-surface-600">—</span>
-                      )}
-                    </td>
 
-                    {/* Actions */}
+
+                    {/* View */}
                     <td className="px-3 py-2">
-                      <div className="flex items-center gap-1">
-                        {/* Generate Content */}
-                        <button
-                          onClick={() => generateContentMut.mutate({ contentItemId: item.id })}
-                          disabled={generateContentMut.isPending}
-                          className="p-1.5 rounded-lg text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-                          title="Generate content"
-                        >
-                          {generateContentMut.isPending && generateContentMut.variables?.contentItemId === item.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <Wand2 className="w-3.5 h-3.5" />
-                          }
-                        </button>
-                        {/* Analyze Content */}
-                        <button
-                          onClick={() => analyzeContentMut.mutate({ contentItemId: item.id })}
-                          disabled={analyzeContentMut.isPending || !item.markdownBody}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            item.markdownBody
-                              ? "text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10"
-                              : "text-surface-600 cursor-not-allowed"
-                          }`}
-                          title={item.markdownBody ? "Analyze content" : "Generate content first"}
-                        >
-                          {analyzeContentMut.isPending && analyzeContentMut.variables?.contentItemId === item.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <BarChart3 className="w-3.5 h-3.5" />
-                          }
-                        </button>
-                        {/* Regenerate */}
-                        {item.seoAnalysis && (
-                          <button
-                            onClick={() => regenerateContentMut.mutate({ contentItemId: item.id })}
-                            disabled={regenerateContentMut.isPending}
-                            className="p-1.5 rounded-lg text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
-                            title="Regenerate based on analysis"
-                          >
-                            {regenerateContentMut.isPending && regenerateContentMut.variables?.contentItemId === item.id
-                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              : <RefreshCw className="w-3.5 h-3.5" />
-                            }
-                          </button>
-                        )}
-                        {/* SEO Score badge */}
-                        {item.seoScore != null && (
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            item.seoScore >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
-                            item.seoScore >= 50 ? 'text-amber-400 bg-amber-500/10' :
-                            'text-red-400 bg-red-500/10'
-                          }`}>{item.seoScore}</span>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => setViewingContentId(item.id)}
+                        className="btn-ghost gap-1.5 text-xs px-2 py-1 border border-surface-700 hover:border-indigo-500 hover:text-indigo-400 transition-colors whitespace-nowrap"
+                        title="View and edit content"
+                      >
+                        <FileTextIcon className="w-3.5 h-3.5" />
+                        View
+                      </button>
                     </td>
 
                     {/* Delete */}
@@ -1139,9 +1420,103 @@ export default function ContentPlannerPage() {
                     </td>
                   </tr>
                 ))}
+                {addingRow && (
+                  <tr className="bg-indigo-500/10 border-t border-indigo-500/30 shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]">
+                    <td className="px-3 py-2"></td>
+                    <td className="px-3 py-2 text-xs text-surface-500">New</td>
+                    <td className="px-3 py-2"></td>
+                    <td className="px-3 py-2"></td>
+                    {/* TITLE */}
+                    <td className="px-3 py-2">
+                      <EditableCell
+                        value={draftRow.title || ""}
+                        onChange={(v) => setDraftRow({ ...draftRow, title: v })}
+                        placeholder="Title (Required)"
+                        className="font-medium text-surface-200 min-w-[200px]"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-xs text-surface-500">{draftRow.title?.length || 0}</td>
+                    {/* URL */}
+                    <td className="px-3 py-2">
+                      <EditableCell
+                        value={draftRow.url || ""}
+                        onChange={(v) => setDraftRow({ ...draftRow, url: v })}
+                        placeholder="URL (Required)"
+                        className="text-surface-300 min-w-[150px]"
+                      />
+                    </td>
+                    {/* SECTION */}
+                    <td className="px-3 py-2">
+                      <EditableCell
+                        value={draftRow.section || ""}
+                        onChange={(v) => setDraftRow({ ...draftRow, section: v })}
+                        placeholder="Section"
+                        className="text-surface-400 min-w-[100px]"
+                      />
+                    </td>
+                    {/* BLOG CATEGORY */}
+                    <td className="px-3 py-2">
+                      <EditableCell
+                        value={draftRow.blogCategory || ""}
+                        onChange={(v) => setDraftRow({ ...draftRow, blogCategory: v })}
+                        placeholder="Blog Cat"
+                        className="text-surface-400 min-w-[100px]"
+                      />
+                    </td>
+                    {/* PAGE TYPE */}
+                    <td className="px-3 py-2">
+                      <EditableCell
+                        value={draftRow.pageType || ""}
+                        onChange={(v) => setDraftRow({ ...draftRow, pageType: v })}
+                        placeholder="Page Type (Req)"
+                        className="text-surface-400 uppercase tracking-wider text-[10px] min-w-[100px]"
+                      />
+                    </td>
+                    {/* 13 columns left */}
+                    <td colSpan={13} className="px-3 py-2 text-xs text-indigo-300/70 text-right pr-6 italic">
+                      Fill mandatory fields to save row
+                    </td>
+                    <td colSpan={2} className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            createItem.mutate({ projectId, data: draftRow as any }, {
+                              onSuccess: () => {
+                                setAddingRow(false);
+                                setDraftRow({ pageType: "blog_post" });
+                                utils.contentPlan.getByProject.invalidate({ projectId });
+                              }
+                            });
+                          }}
+                          disabled={createItem.isPending || !draftRow.title || !draftRow.url || !draftRow.pageType}
+                          className="btn-primary py-1 px-2 text-xs bg-emerald-600 hover:bg-emerald-500 border-none disabled:opacity-50 min-w-[50px] flex justify-center"
+                        >
+                          {createItem.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+                        </button>
+                        <button onClick={() => setAddingRow(false)} className="text-red-400 hover:text-red-300 text-xs font-medium px-2">Cancel</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
+        </div>
+
+        {/* ── Add Row Button ─────────────────────────────────────────────── */}
+        <div className="flex justify-center mt-2 mb-6">
+          <button
+            onClick={() => {
+              setAddingRow(true);
+              // Small timeout to allow render, then scroll to bottom
+              setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50);
+            }}
+            disabled={addingRow}
+            className="btn-ghost gap-2 text-xs py-1.5 px-4 border border-surface-700/50 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-surface-400 hover:text-indigo-300 transition-colors rounded-lg flex items-center"
+          >
+            <Plus className="w-4 h-4" />
+            Add empty row
+          </button>
         </div>
 
         {/* ── Footer info ────────────────────────────────────────────────── */}
@@ -1155,73 +1530,7 @@ export default function ContentPlannerPage() {
           </span>
         </div>
 
-        {/* ── Keywords panel (from Semantic Core) ───────────────────────── */}
-        <div className="glass-card overflow-hidden">
-          <button
-            onClick={() => setKwOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-surface-800/20 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm font-semibold text-surface-200">Semantic Core Keywords</span>
-              {allKeywords.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-400">
-                  {allKeywords.length}
-                </span>
-              )}
-            </div>
-            <ChevronDown className={`w-4 h-4 text-surface-500 transition-transform ${kwOpen ? "rotate-180" : ""}`} />
-          </button>
 
-          {kwOpen && (
-            <div className="border-t border-surface-700/30 p-4 space-y-3">
-              {allKeywords.length === 0 ? (
-                <p className="text-sm text-surface-500 text-center py-4">
-                  No keywords found. Run the{" "}
-                  <button
-                    onClick={() => router.push("/semantic-core")}
-                    className="text-cyan-400 hover:underline"
-                  >
-                    Semantic Core
-                  </button>{" "}
-                  wizard and link it to this project first.
-                </p>
-              ) : (
-                <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-surface-500" />
-                    <input
-                      value={kwSearch}
-                      onChange={(e) => setKwSearch(e.target.value)}
-                      placeholder={`Search ${allKeywords.length} keywords...`}
-                      className="input-field !py-2 !pl-9 !text-xs w-full max-w-xs"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                    {filteredKeywords.slice(0, 200).map((kw, idx) => (
-                      <span
-                        key={`${kw}-${idx}`}
-                        title={kw}
-                        className="px-2 py-1 rounded-lg bg-surface-800/60 border border-surface-700/30 text-xs text-surface-300 hover:border-cyan-500/40 hover:text-cyan-300 cursor-default transition-colors truncate max-w-[180px]"
-                      >
-                        {kw}
-                      </span>
-                    ))}
-                    {filteredKeywords.length > 200 && (
-                      <span className="text-xs text-surface-500 self-center">
-                        +{filteredKeywords.length - 200} more
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-surface-600">
-                    Keywords from your project&apos;s semantic core — use as reference when filling the{" "}
-                    <strong className="text-surface-400">Keywords</strong> column above.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Modals */}
@@ -1235,7 +1544,8 @@ export default function ContentPlannerPage() {
       {showIdeation && (
         <IdeationModal
           projectId={projectId}
-          onClose={() => setShowIdeation(false)}
+          initialMode={showIdeation}
+          onClose={() => setShowIdeation(null)}
           onAddItems={() => utils.contentPlan.getByProject.invalidate({ projectId })}
         />
       )}
@@ -1246,6 +1556,14 @@ export default function ContentPlannerPage() {
           projectId={projectId}
           onClose={() => setShowCsvImport(false)}
           onSuccess={() => utils.contentPlan.getByProject.invalidate({ projectId })}
+        />
+      )}
+
+      {/* Content Editor Modal */}
+      {viewingContentId && (
+        <ContentEditorModal
+          itemId={viewingContentId}
+          onClose={() => setViewingContentId(null)}
         />
       )}
 

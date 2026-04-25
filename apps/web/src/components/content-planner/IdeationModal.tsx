@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Sparkles, Rss, BrainCircuit, Search, Loader2, AlertCircle, Plus, Trash2, Tag } from "lucide-react";
+import { X, Sparkles, Rss, BrainCircuit, Search, Loader2, AlertCircle, Plus, Trash2, Tag, Shuffle, Info, FileText } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
 
@@ -7,14 +7,18 @@ export function IdeationModal({
   projectId,
   onClose,
   onAddItems,
+  initialMode,
 }: {
   projectId: string;
   onClose: () => void;
   onAddItems: () => void; // Called when new items are added to plan
+  initialMode?: "manual" | "rss" | "chat" | "batch";
 }) {
   const [topic, setTopic] = useState("");
-  const [mode, setMode] = useState<"manual" | "rss" | "chat">("manual");
+  const [topicUsage, setTopicUsage] = useState<number | null>(null);
+  const [mode, setMode] = useState<"manual" | "rss" | "chat" | "batch">(initialMode || "manual");
   const [rssUrl, setRssUrl] = useState("");
+  const [batchKeywords, setBatchKeywords] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [chatLog, setChatLog] = useState<{ role: "user" | "ai"; content: string }[]>([]);
   const [selectedModelId, setSelectedModelId] = useState("");
@@ -39,7 +43,7 @@ export function IdeationModal({
   const existingTitles = new Set(titlesQuery.data || []);
 
   const randomTopicQuery = trpc.contentPlan.getRandomTopic.useQuery(
-    { projectId },
+    { projectId, categories: selectedCategories.length > 0 ? selectedCategories : undefined },
     { enabled: false }
   );
 
@@ -97,16 +101,33 @@ export function IdeationModal({
     onError: (err) => alert(err.message),
   });
 
+  const batchMut = trpc.contentPlan.generateIdeasFromKeywords.useMutation({
+    onSuccess: (data) => {
+      setIdeaError(null);
+      setProposedIdeas(data.ideas);
+      setSelectedIdeas(new Set(data.ideas.map((_: any, i: number) => i)));
+    },
+    onError: (err) => setIdeaError(err.message),
+  });
+
+  const handleBatchPropose = () => {
+    const kws = batchKeywords.split("\n").map(k => k.trim()).filter(Boolean);
+    if (!kws.length) { setIdeaError("Please paste at least one keyword."); return; }
+    setIdeaError(null);
+    batchMut.mutate({ keywords: kws, modelId: selectedModelId || undefined });
+  };
+
   const createItemMut = trpc.contentPlan.createItem.useMutation();
 
   const [proposedIdeas, setProposedIdeas] = useState<any[]>([]);
+  const [highlightGenerate, setHighlightGenerate] = useState(false);
 
   const handleProposeIdeas = () => {
     if (!topic.trim()) { setIdeaError("Please enter a topic first."); return; }
     setIdeaError(null);
-    proposeIdeasMut.mutate({ 
-      topic, 
-      projectId, 
+    proposeIdeasMut.mutate({
+      topic,
+      projectId,
       modelId: selectedModelId || undefined,
       categories: selectedCategories.length > 0 ? selectedCategories : undefined,
     });
@@ -116,14 +137,24 @@ export function IdeationModal({
     const ideasToSave = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
     if (ideasToSave.length === 0) return;
 
+    const missingSeo = ideasToSave.some(idea => !idea.metaDesc || !idea.h1);
+    if (missingSeo) {
+      if (!window.confirm("Some selected ideas are missing deep SEO data (like Meta Descriptions or H1s).\n\nIf you add them now, you'll need to manually fill them in later.\n\nDo you want to continue without generating SEO data?")) {
+        setHighlightGenerate(true);
+        setTimeout(() => setHighlightGenerate(false), 2000);
+        return;
+      }
+    }
+
     try {
       await Promise.all(
         ideasToSave.map((idea) =>
           createItemMut.mutateAsync({
             projectId,
             data: {
-              url: idea.url || "",
-              section: idea.section || topic,
+              url: idea.url ? idea.url.split("/").filter(Boolean).pop() || "" : "",
+              section: idea.section || "",
+              blogCategory: selectedCategories.length > 0 ? selectedCategories[0] : "",
               pageType: idea.pageType || idea.type || "blog_post",
               schemaType: idea.schemaType,
               priority: 1,
@@ -171,27 +202,31 @@ export function IdeationModal({
           <div className="w-64 border-r border-surface-800 p-4 space-y-2 overflow-y-auto bg-surface-900/50">
             <button
               onClick={() => setMode("manual")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                mode === "manual" ? "bg-brand-500/15 text-brand-400 border border-brand-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
-              }`}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${mode === "manual" ? "bg-brand-500/15 text-brand-400 border border-brand-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
+                }`}
             >
               <Search className="w-4 h-4" /> Topic Analysis
             </button>
             <button
               onClick={() => setMode("rss")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                mode === "rss" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
-              }`}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${mode === "rss" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
+                }`}
             >
               <Rss className="w-4 h-4" /> Competitor RSS
             </button>
             <button
               onClick={() => setMode("chat")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                mode === "chat" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
-              }`}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${mode === "chat" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
+                }`}
             >
               <BrainCircuit className="w-4 h-4" /> Neural Network
+            </button>
+            <button
+              onClick={() => setMode("batch")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${mode === "batch" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
+                }`}
+            >
+              <FileText className="w-4 h-4" /> Batch Keywords
             </button>
           </div>
 
@@ -199,55 +234,12 @@ export function IdeationModal({
           <div className="flex-1 p-6 overflow-y-auto bg-surface-950">
             {mode === "manual" && (
               <div className="space-y-6 animate-fade-in">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-surface-300">Target Topic</label>
-                    <button
-                      onClick={async () => {
-                        const res = await randomTopicQuery.refetch();
-                        if (res.data?.topic) setTopic(res.data.topic);
-                      }}
-                      disabled={randomTopicQuery.isFetching}
-                      className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors"
-                    >
-                      {randomTopicQuery.isFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} 
-                      Random from Core
-                    </button>
-                  </div>
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      value={topic}
-                      onChange={(e) => setTopic(e.target.value)}
-                      placeholder="e.g., Running shoes for flat feet"
-                      className="input-field flex-1"
-                      onKeyDown={(e) => e.key === "Enter" && handleProposeIdeas()}
-                    />
-                    <div className="flex items-center gap-2">
-                      <AIModelSelector
-                        onModelSelect={setSelectedModelId}
-                        selectedModelId={selectedModelId}
-                        estimatedPromptTokens={200}
-                        expectedOutputTokens={300}
-                      />
-                      <button
-                        onClick={handleProposeIdeas}
-                        disabled={!topic || proposeIdeasMut.isPending}
-                        className="btn-primary gap-2"
-                      >
-                        {proposeIdeasMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        Propose Ideas
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Category Filter Chips */}
                 {coreCategories.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Tag className="w-3.5 h-3.5 text-surface-500" />
-                      <span className="text-xs font-medium text-surface-400 uppercase tracking-wider">Filter by Core Category</span>
+                      <span className="text-xs font-medium text-surface-400 uppercase tracking-wider">Pick categories</span>
                       {selectedCategories.length > 0 && (
                         <button onClick={() => setSelectedCategories([])} className="text-[10px] text-brand-400 hover:text-brand-300 ml-auto">
                           Clear all
@@ -265,11 +257,10 @@ export function IdeationModal({
                                 isActive ? prev.filter(c => c !== cat) : [...prev, cat]
                               );
                             }}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border ${
-                              isActive
-                                ? "bg-brand-500/15 border-brand-500/30 text-brand-400"
-                                : "bg-surface-800/40 border-surface-700/40 text-surface-400 hover:bg-surface-800/60 hover:text-surface-300"
-                            }`}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border ${isActive
+                              ? "bg-brand-500/15 border-brand-500/30 text-brand-400"
+                              : "bg-surface-800/40 border-surface-700/40 text-surface-400 hover:bg-surface-800/60 hover:text-surface-300"
+                              }`}
                           >
                             {cat}
                           </button>
@@ -278,6 +269,69 @@ export function IdeationModal({
                     </div>
                   </div>
                 )}
+
+                {/* Target Topic and Actions */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-surface-300">Target Topic</label>
+                    <button
+                      onClick={async () => {
+                        const res = await randomTopicQuery.refetch();
+                        if (res.data?.topic) {
+                          setTopic(res.data.topic);
+                          setTopicUsage(res.data.usageCount ?? null);
+                        }
+                      }}
+                      disabled={randomTopicQuery.isFetching}
+                      className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1.5 transition-colors font-medium"
+                      title="This action does not consume AI tokens"
+                    >
+                      {randomTopicQuery.isFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5" />}
+                      Pick Random from Core (uses filter above)
+                    </button>
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={topic}
+                      onChange={(e) => {
+                        setTopic(e.target.value);
+                        setTopicUsage(null);
+                      }}
+                      placeholder="e.g., Running shoes for flat feet"
+                      className="input-field w-full"
+                      onKeyDown={(e) => e.key === "Enter" && handleProposeIdeas()}
+                    />
+                    {topicUsage !== null && (
+                      <p className="text-[10px] text-brand-300 mt-1.5 flex items-center gap-1 bg-brand-500/10 w-fit px-2 py-0.5 rounded border border-brand-500/20">
+                        <Info className="w-3 h-3" />
+                        Usage count in plan: {topicUsage} {topicUsage === 0 ? "(Unused!)" : ""}
+                        <span className="text-surface-500 ml-1 italic">(Popularity data coming soon)</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                      <AIModelSelector
+                        onModelSelect={setSelectedModelId}
+                        selectedModelId={selectedModelId}
+                        estimatedPromptTokens={200}
+                        expectedOutputTokens={300}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleProposeIdeas}
+                        disabled={!topic || proposeIdeasMut.isPending}
+                        className="btn-primary h-[42px] px-5 gap-2 text-sm"
+                      >
+                        {proposeIdeasMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        Propose Ideas
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Error banner */}
                 {ideaError && (
@@ -312,18 +366,23 @@ export function IdeationModal({
                           estimatedPromptTokens={500}
                           expectedOutputTokens={800}
                         />
-                        <button 
+                        <button
                           onClick={() => {
                             const ideasToFleshOut = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
                             fleshOutMut.mutate({
                               topic,
                               projectId,
+                              categories: selectedCategories.length > 0 ? selectedCategories : undefined,
                               ideas: ideasToFleshOut.map(id => ({ title: id.title, type: id.type, intent: id.intent })),
                               modelId: fleshOutModelId || undefined
                             });
                           }}
-                          disabled={fleshOutMut.isPending || selectedIdeas.size === 0} 
-                          className="btn-secondary gap-2 text-brand-300"
+                          disabled={fleshOutMut.isPending || selectedIdeas.size === 0}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                            highlightGenerate
+                              ? "bg-emerald-500 text-white shadow-[0_0_25px_rgba(16,185,129,0.8)] scale-105 ring-2 ring-emerald-400 ring-offset-2 ring-offset-surface-900"
+                              : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/50 hover:border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                          }`}
                         >
                           {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
                           Generate SEO Data
@@ -331,19 +390,32 @@ export function IdeationModal({
                       </div>
                     </div>
 
-                    <h3 className="font-semibold text-surface-100 border-b border-surface-800 pb-2">Content Strategy Ideas</h3>
+                    <div className="flex items-center justify-between border-b border-surface-800 pb-2">
+                      <h3 className="font-semibold text-surface-100">Content Strategy Ideas</h3>
+                      <button 
+                        onClick={() => {
+                          if (selectedIdeas.size === proposedIdeas.length) {
+                            setSelectedIdeas(new Set());
+                          } else {
+                            setSelectedIdeas(new Set(proposedIdeas.map((_, i) => i)));
+                          }
+                        }}
+                        className="text-xs text-brand-400 hover:text-brand-300 transition-colors font-medium"
+                      >
+                        {selectedIdeas.size === proposedIdeas.length ? "Deselect All" : "Select All"}
+                      </button>
+                    </div>
                     <div className="grid gap-3">
                       {proposedIdeas.map((idea, idx) => {
                         const isSelected = selectedIdeas.has(idx);
                         const isDuplicate = existingTitles.has(idea.title.toLowerCase());
-                        
+
                         return (
-                          <div key={idx} className={`p-4 rounded-xl border flex items-start gap-4 transition-colors ${
-                            isSelected ? "border-brand-500/50 bg-brand-500/5" : "border-surface-700/50 bg-surface-800/30"
-                          }`}>
-                            <input 
-                              type="checkbox" 
-                              className="mt-1"
+                          <div key={idx} className={`p-2.5 rounded-lg border flex items-start gap-3 transition-colors ${isSelected ? "border-brand-500/50 bg-brand-500/5" : "border-surface-700/50 bg-surface-800/30"
+                            }`}>
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 w-3.5 h-3.5 cursor-pointer accent-brand-500 rounded border-surface-600 bg-surface-800"
                               checked={isSelected}
                               onChange={(e) => {
                                 const newSet = new Set(selectedIdeas);
@@ -354,19 +426,23 @@ export function IdeationModal({
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <p className="font-medium text-surface-200 truncate">{idea.title}</p>
+                                <p className="text-sm font-medium text-surface-200 truncate cursor-pointer hover:text-surface-100 transition-colors" onClick={() => {
+                                  const newSet = new Set(selectedIdeas);
+                                  if (isSelected) newSet.delete(idx); else newSet.add(idx);
+                                  setSelectedIdeas(newSet);
+                                }}>{idea.title}</p>
                                 {isDuplicate && (
-                                  <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" title="A similar title already exists in your plan">
+                                  <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase" title="A similar title already exists in your plan">
                                     <AlertCircle className="w-3 h-3" /> Duplicate
                                   </div>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="badge text-[10px]">{idea.type}</span>
-                                <p className="text-xs text-surface-500">Intent: {idea.intent}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[9px] font-medium uppercase tracking-wider text-surface-400 bg-surface-800/50 px-1.5 py-0.5 rounded border border-surface-700/50">{idea.type || idea.pageType || "blog_post"}</span>
+                                <p className="text-[10px] text-surface-500">Intent: {idea.intent}</p>
                               </div>
                               {idea.metaDesc && (
-                                <div className="mt-3 p-3 bg-surface-900/50 rounded-lg border border-surface-700/30 text-xs text-surface-300 space-y-2">
+                                <div className="mt-2 p-2 bg-surface-900/50 rounded flex flex-col gap-1 border border-surface-700/30 text-[10px] text-surface-300">
                                   <p><strong className="text-surface-100">URL:</strong> /{idea.url}</p>
                                   <p><strong className="text-surface-100">H1:</strong> {idea.h1}</p>
                                   <p><strong className="text-surface-100">Meta:</strong> {idea.metaDesc}</p>
@@ -400,6 +476,139 @@ export function IdeationModal({
               </div>
             )}
 
+            {mode === "batch" && (
+              <div className="space-y-6 animate-fade-in flex flex-col h-[calc(100vh-200px)]">
+                <div className="space-y-3 flex flex-col h-1/2">
+                  <label className="block text-sm font-medium text-surface-300">Paste Keywords</label>
+                  <p className="text-xs text-surface-500">Paste your keywords below, one per line. We will generate exactly one optimized article title for each keyword.</p>
+                  <textarea
+                    value={batchKeywords}
+                    onChange={(e) => setBatchKeywords(e.target.value)}
+                    placeholder="keyword 1&#10;keyword 2&#10;keyword 3"
+                    className="flex-1 w-full bg-surface-900 border border-surface-700/50 rounded-xl px-4 py-3 text-surface-100 placeholder:text-surface-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 resize-none"
+                  />
+                  {ideaError && <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">{ideaError}</div>}
+                  <div className="flex items-center gap-4">
+                    <AIModelSelector
+                      onModelSelect={setSelectedModelId}
+                      selectedModelId={selectedModelId}
+                      estimatedPromptTokens={100}
+                      expectedOutputTokens={200}
+                    />
+                    <button
+                      onClick={handleBatchPropose}
+                      disabled={batchMut.isPending || !batchKeywords.trim()}
+                      className="btn-primary px-6 py-2.5 gap-2 text-sm bg-purple-600 hover:bg-purple-500 border-none"
+                    >
+                      {batchMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                      Propose {batchKeywords.split("\n").map(k => k.trim()).filter(Boolean).length} Ideas
+                    </button>
+                  </div>
+                </div>
+
+                {/* Re-use the proposed ideas block for Batch mode! */}
+                {proposedIdeas.length > 0 && (
+                  <div className="space-y-4 flex-1 overflow-y-auto">
+                    <div className="p-4 bg-surface-800/30 rounded-xl border border-surface-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-medium text-surface-200 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-brand-400" />
+                          Deep SEO Generation
+                        </h4>
+                        <p className="text-xs text-surface-500">
+                          Generate URLs, Meta Descriptions, H1s, H2s, and Tags for selected ideas.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <AIModelSelector
+                          onModelSelect={setFleshOutModelId}
+                          selectedModelId={fleshOutModelId}
+                          estimatedPromptTokens={500}
+                          expectedOutputTokens={800}
+                        />
+                        <button
+                          onClick={() => {
+                            const ideasToFleshOut = proposedIdeas.filter((_, i) => selectedIdeas.has(i));
+                            if (!ideasToFleshOut.length) return;
+                            fleshOutMut.mutate({
+                              projectId,
+                              topic: "Batch keywords",
+                              ideas: ideasToFleshOut.map(id => ({ title: id.title, type: id.type, intent: id.intent })),
+                              modelId: fleshOutModelId || undefined
+                            });
+                          }}
+                          disabled={fleshOutMut.isPending || selectedIdeas.size === 0}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                            highlightGenerate
+                              ? "bg-emerald-500 text-white shadow-[0_0_25px_rgba(16,185,129,0.8)] scale-105 ring-2 ring-emerald-400 ring-offset-2 ring-offset-surface-900"
+                              : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/50 hover:border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                          }`}
+                        >
+                          {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
+                          Generate SEO Data
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-b border-surface-800 pb-2">
+                      <h3 className="font-semibold text-surface-100">Generated Titles</h3>
+                      <button 
+                        onClick={() => {
+                          if (selectedIdeas.size === proposedIdeas.length) {
+                            setSelectedIdeas(new Set());
+                          } else {
+                            setSelectedIdeas(new Set(proposedIdeas.map((_, i) => i)));
+                          }
+                        }}
+                        className="text-xs text-brand-400 hover:text-brand-300 transition-colors font-medium"
+                      >
+                        {selectedIdeas.size === proposedIdeas.length ? "Deselect All" : "Select All"}
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {proposedIdeas.map((idea, i) => {
+                        const isSelected = selectedIdeas.has(i);
+                        return (
+                          <div key={i} className={`p-3 rounded-xl border transition-all ${isSelected ? "border-brand-500/50 bg-brand-500/5" : "border-surface-700/50 bg-surface-800/20 hover:border-surface-600"} flex gap-3`}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                const next = new Set(selectedIdeas);
+                                isSelected ? next.delete(i) : next.add(i);
+                                setSelectedIdeas(next);
+                              }}
+                              className="mt-1 rounded border-surface-600 text-brand-500 focus:ring-brand-500 bg-surface-900"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-medium text-surface-200">{idea.title}</h4>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-[9px] font-medium uppercase tracking-wider text-surface-400 bg-surface-800/50 px-1.5 py-0.5 rounded border border-surface-700/50">{idea.type || idea.pageType || "blog_post"}</span>
+                                <p className="text-[10px] text-surface-500">Intent: {idea.intent}</p>
+                              </div>
+                              {idea.metaDesc && (
+                                <div className="mt-2 p-2 bg-surface-900/50 rounded flex flex-col gap-1 border border-surface-700/30 text-[10px] text-surface-300">
+                                  <p><strong className="text-surface-100">URL:</strong> /{idea.url}</p>
+                                  <p><strong className="text-surface-100">H1:</strong> {idea.h1}</p>
+                                  <p><strong className="text-surface-100">Meta:</strong> {idea.metaDesc}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="pt-4 border-t border-surface-800 flex items-center justify-between">
+                      <button onClick={handleSaveToPlan} disabled={createItemMut.isPending || selectedIdeas.size === 0 || fleshOutMut.isPending} className="btn-primary gap-2 ml-auto">
+                        {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        Add {selectedIdeas.size} items to Plan
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {mode === "rss" && (
               <div className="space-y-6 animate-fade-in">
                 <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
@@ -418,11 +627,10 @@ export function IdeationModal({
                         <button
                           key={i}
                           onClick={() => setRssUrl(feed)}
-                          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                            rssUrl === feed
-                              ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
-                              : 'border-surface-700/30 bg-surface-800/30 text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
-                          }`}
+                          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${rssUrl === feed
+                            ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
+                            : 'border-surface-700/30 bg-surface-800/30 text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
+                            }`}
                         >
                           <Rss className="w-3 h-3 inline mr-1.5" />
                           {(() => { try { return new URL(feed).hostname; } catch { return feed; } })()}
@@ -446,8 +654,8 @@ export function IdeationModal({
                       }
                     }}
                   />
-                  <button 
-                    className="btn-secondary gap-2" 
+                  <button
+                    className="btn-secondary gap-2"
                     disabled={!rssUrl || analyzeRssMut.isPending}
                     onClick={() => { setRssError(null); analyzeRssMut.mutate({ url: rssUrl, modelId: selectedModelId || undefined }); }}
                   >
@@ -497,7 +705,7 @@ export function IdeationModal({
                   </h3>
                   <p className="text-xs text-purple-400/80">Chat with the SEO AI to brainstorm silos and content architectures.</p>
                 </div>
-                
+
                 <div className="flex-1 min-h-[200px] border border-surface-800 rounded-xl p-4 bg-surface-900/50 overflow-y-auto space-y-4">
                   {chatLog.length === 0 && (
                     <div className="h-full flex items-center justify-center text-surface-500 text-sm italic">

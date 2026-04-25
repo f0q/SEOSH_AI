@@ -100,7 +100,7 @@ export default function AutopilotPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                  <div className="w-9 h-9 rounded-lg bg-[#0fb881] flex items-center justify-center shadow-lg shadow-[#0fb881]/20">
                     <LayoutList className="w-4 h-4 text-white" />
                   </div>
                   <div>

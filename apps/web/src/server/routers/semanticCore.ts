@@ -10,13 +10,18 @@ import { prisma } from "../db";
 import { groupQueriesLexically, normalizeForStorage } from "../services/lexicalGrouper";
 
 import { callOpenRouter, getAIConfig } from "../services/ai";
+import { TRPCError } from "@trpc/server";
 
 export const semanticCoreRouter = router({
-  /** Get all Semantic Cores for the current user */
-  getMany: protectedProcedure.query(async ({ ctx }) => {
-    return await prisma.semanticCore.findMany({
-      where: { userId: ctx.user.id },
-      include: {
+  getMany: protectedProcedure
+    .input(z.object({ projectId: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      return await prisma.semanticCore.findMany({
+        where: { 
+          userId: ctx.user.id,
+          ...(input?.projectId ? { projectId: input.projectId } : {})
+        },
+        include: {
         project: { 
           select: { 
             name: true,
@@ -75,24 +80,53 @@ export const semanticCoreRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const groups = groupQueriesLexically(input.queries);
-      
-      // Save everything to DB inside a transaction for safety.
-      // ⚠️  Delete existing data first to prevent doubling on re-submit.
-      await prisma.$transaction(async (tx: any) => {
-        // Clear old lexical groups (queries cascade via FK)
-        await tx.lexicalGroup.deleteMany({ where: { semanticCoreId: input.semanticCoreId } });
-        // Clear orphaned queries (in case any exist without a group)
-        await tx.query.deleteMany({ where: { semanticCoreId: input.semanticCoreId } });
+      // 1. Fetch existing queries to avoid duplicates
+      const existingQueries = await prisma.query.findMany({
+        where: { semanticCoreId: input.semanticCoreId },
+        select: { normalizedText: true }
+      });
+      const existingSet = new Set(existingQueries.map(q => q.normalizedText));
 
-        for (const g of groups) {
-          const dbGroup = await tx.lexicalGroup.create({
-            data: {
-              representativeQuery: g.representative,
+      // 2. Filter out duplicates from input
+      const newQueries = input.queries.filter(q => {
+        const norm = normalizeForStorage(q);
+        return norm.length > 0 && !existingSet.has(norm);
+      });
+
+      if (newQueries.length === 0) {
+        return {
+          totalQueries: input.queries.length,
+          totalGroups: 0,
+          addedQueries: 0,
+          groups: [],
+        };
+      }
+
+      // 3. Group ONLY the new queries
+      const newGroups = groupQueriesLexically(newQueries);
+      
+      // 4. Save to DB inside a transaction, appending to existing groups if they match
+      await prisma.$transaction(async (tx: any) => {
+        for (const g of newGroups) {
+          // Check if a group with this representative query already exists
+          let dbGroup = await tx.lexicalGroup.findFirst({
+            where: {
               semanticCoreId: input.semanticCoreId,
+              representativeQuery: g.representative
             }
           });
+
+          // If not, create it
+          if (!dbGroup) {
+            dbGroup = await tx.lexicalGroup.create({
+              data: {
+                representativeQuery: g.representative,
+                semanticCoreId: input.semanticCoreId,
+              }
+            });
+          }
           
+          // Insert the new queries assigned to this group
           await tx.query.createMany({
             data: g.queries.map((q: string) => ({
               text: q,
@@ -106,9 +140,122 @@ export const semanticCoreRouter = router({
       
       return {
         totalQueries: input.queries.length,
-        totalGroups: groups.length,
-        groups: groups.slice(0, 100), // Return first 100 for preview
+        addedQueries: newQueries.length,
+        totalGroups: newGroups.length,
+        groups: newGroups.slice(0, 100), // Return first 100 for preview
       };
+    }),
+
+  /** Update a specific query's text */
+  updateQuery: protectedProcedure
+    .input(z.object({ queryId: z.string(), text: z.string() }))
+    .mutation(async ({ input }) => {
+      return prisma.query.update({
+        where: { id: input.queryId },
+        data: { text: input.text, normalizedText: normalizeForStorage(input.text) }
+      });
+    }),
+
+  /** Delete a specific query */
+  deleteQuery: protectedProcedure
+    .input(z.object({ queryId: z.string() }))
+    .mutation(async ({ input }) => {
+      const q = await prisma.query.delete({ where: { id: input.queryId } });
+      
+      // Cleanup empty group
+      const count = await prisma.query.count({ where: { groupId: q.groupId } });
+      if (count === 0 && q.groupId) {
+        await prisma.lexicalGroup.delete({ where: { id: q.groupId } });
+      }
+      return { success: true };
+    }),
+
+  /** Analyze live sitemap and generate site structure */
+  generateSiteStructure: protectedProcedure
+    .input(z.object({
+      websiteUrl: z.string().url(),
+      modelId: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      let baseUrl = input.websiteUrl;
+      try {
+        baseUrl = new URL(baseUrl).origin;
+      } catch (e) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid website URL format." });
+      }
+
+      const sitemapUrls = [
+        `${baseUrl}/sitemap.xml`,
+        `${baseUrl}/sitemap_index.xml`,
+        `${baseUrl}/sitemap.txt`,
+      ];
+
+      let urls: string[] = [];
+      let foundSitemap = false;
+
+      for (const sitemapUrl of sitemapUrls) {
+        try {
+          const res = await fetch(sitemapUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SEOSH/1.0)' },
+            signal: AbortSignal.timeout(8000)
+          });
+          if (res.ok) {
+            const text = await res.text();
+            // Simple regex to extract locs
+            const matches = [...text.matchAll(/<loc>(.*?)<\/loc>/g)];
+            if (matches.length > 0) {
+              urls = matches.map(m => m[1]);
+            } else if (text.includes("http")) {
+              // Fallback for txt sitemaps
+              urls = text.split("\n").map(l => l.trim()).filter(l => l.startsWith("http"));
+            }
+
+            if (urls.length > 0) {
+              foundSitemap = true;
+              break;
+            }
+          }
+        } catch (e) {
+          // ignore error and try next
+        }
+      }
+
+      if (!foundSitemap || urls.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Sitemap not found on the provided website. Please check the URL or configure the structure manually.",
+        });
+      }
+
+      // Sample URLs to avoid blowing up context window
+      // Prefer URLs with shorter paths as they usually represent categories/main pages
+      const uniqueUrls = Array.from(new Set(urls))
+        .sort((a, b) => a.split("/").length - b.split("/").length)
+        .slice(0, 300);
+
+      const config = getAIConfig(input.modelId);
+      const prompt = `You are an expert SEO architect. Analyze the following URLs extracted from a website's sitemap.
+Construct a logical, hierarchical website structure (categories and subcategories).
+For each category, determine the "pageType" from this list: blog_listing, service_listing, service_detail, product_listing, product_detail, info_page, homepage, promo_listing.
+
+URLs:
+${uniqueUrls.join("\n")}
+
+Respond ONLY with a valid JSON array of objects.
+Format exactly: [{ "label": "Category Name", "url": "url prefix or full url", "pageType": "page_type", "children": [{ "label": "Subcategory", "url": "..." }] }]
+No markdown wrapping. No explanations.`;
+
+      try {
+        const response = await callOpenRouter(config, prompt, true);
+        const tree = JSON.parse(response);
+        return { structure: tree };
+      } catch (e) {
+        console.error("AI Site Structure Parsing Error:", e);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "AI returned invalid JSON structure or failed to parse the sitemap.",
+        });
+      }
     }),
 
   /** Save the AI-generated site structure to the database */
@@ -128,22 +275,19 @@ export const semanticCoreRouter = router({
       });
       if (!core) throw new TRPCError({ code: "NOT_FOUND", message: "Semantic core not found" });
 
-      await prisma.semanticCore.update({
-        where: { id: input.semanticCoreId },
-        data: { siteStructure: input.siteStructure },
-      });
-
-      if (input.competitors && core.projectId) {
-        // Upsert CompanyProfile with competitors
+      if (core.projectId) {
+        // Upsert CompanyProfile with competitors and siteStructure
         await prisma.companyProfile.upsert({
           where: { projectId: core.projectId },
           create: {
             projectId: core.projectId,
             companyName: "My Company", // Default name
             competitors: input.competitors,
+            siteStructure: input.siteStructure,
           },
           update: {
-            competitors: input.competitors,
+            competitors: input.competitors ? input.competitors : undefined,
+            siteStructure: input.siteStructure,
           },
         });
       }
@@ -962,21 +1106,25 @@ Respond ONLY with the JSON array, no markdown formatting, no backticks.`;
         select: { id: true, targetKeywords: true, title: true, h1: true },
       });
 
-      // 3. Build a lookup: normalized keyword text → content item IDs
-      const keywordToItems = new Map<string, string[]>();
-      for (const item of contentItems) {
-        for (const kw of item.targetKeywords) {
-          const normalized = kw.toLowerCase().trim();
-          if (!keywordToItems.has(normalized)) keywordToItems.set(normalized, []);
-          keywordToItems.get(normalized)!.push(item.id);
-        }
-      }
+      // 3. Build a lookup array for each content item's combined searchable text
+      const itemTexts = contentItems.map(item => {
+        const combined = [...item.targetKeywords, item.title, item.h1].filter(Boolean).join(" ");
+        return {
+          id: item.id,
+          text: normalizeForStorage(combined)
+        };
+      });
 
-      // 4. For each query, check if it appears in any content item's targetKeywords
+      // 4. For each query, check if its full phrase appears within any content item's text
       let matchedCount = 0;
       for (const query of queries) {
-        const normalized = query.text.toLowerCase().trim();
-        const matchedItemIds = keywordToItems.get(normalized) || [];
+        const queryNorm = query.normalizedText || normalizeForStorage(query.text);
+        if (!queryNorm) continue;
+
+        const matchedItemIds = itemTexts
+          .filter(item => item.text.includes(queryNorm))
+          .map(item => item.id);
+        
         const usageCount = matchedItemIds.length;
 
         // Update the query's usageCount and hasContent
