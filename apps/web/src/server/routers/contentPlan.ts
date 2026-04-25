@@ -1222,7 +1222,9 @@ Output ONLY the markdown content, no wrapping code fences.`;
     .mutation(async ({ input }) => {
       const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
       if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
-      if (!item.markdownBody) throw new TRPCError({ code: "BAD_REQUEST", message: "No content to analyze. Generate content first." });
+      if (!item.markdownBody?.trim()) {
+        return { success: false, message: "No content to analyze. Generate content first." };
+      }
 
       try {
         // Update status
@@ -1280,8 +1282,12 @@ Output ONLY the markdown content, no wrapping code fences.`;
     .mutation(async ({ input }) => {
       const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
       if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
-      if (!item.markdownBody) throw new TRPCError({ code: "BAD_REQUEST", message: "No content to regenerate." });
-      if (!item.seoAnalysis) throw new TRPCError({ code: "BAD_REQUEST", message: "No analysis data. Run analysis first." });
+      if (!item.markdownBody) {
+        return { success: false, message: "No content to regenerate. Generate content first." };
+      }
+      if (!item.seoAnalysis) {
+        return { success: false, message: "No analysis data. Run analysis first." };
+      }
 
       const config = getAIConfig(input.modelId);
       const analysis = item.seoAnalysis as any;

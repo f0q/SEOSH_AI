@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
@@ -59,50 +59,68 @@ function EditableCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const commit = () => {
     setEditing(false);
     if (draft !== value) onChange(draft);
   };
 
-  if (editing) {
-    return (
-      <textarea
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !multiline) {
-            e.preventDefault();
-            commit();
-          }
-          if (e.key === "Escape") {
-            setDraft(value);
-            setEditing(false);
-          }
-        }}
-        autoFocus
-        rows={multiline ? 4 : 2}
-        className={`w-full min-w-full bg-surface-800 border border-brand-500/50 rounded-lg p-2 text-xs text-surface-100 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 resize-y shadow-lg ${className}`}
-      />
-    );
-  }
+  useEffect(() => {
+    if (!editing) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        commit();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [editing, draft, value]);
 
   return (
-    <span
-      onClick={() => { setDraft(value); setEditing(true); }}
-      className={`block cursor-text min-h-[20px] text-xs hover:text-surface-100 transition-colors ${value ? "text-surface-200" : "text-surface-600 italic"} ${className}`}
-      title=""
-    >
-      <div className="flex items-center gap-1 overflow-hidden">
-        <span className="truncate">{value || placeholder}</span>
-        {warning && (
-          <span className="shrink-0 flex items-center gap-1 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" title={warningText}>
-            <AlertCircle className="w-3 h-3" />
-          </span>
-        )}
+    <div className="relative w-full group" ref={containerRef}>
+      <div
+        onClick={() => { setDraft(value); setEditing(true); }}
+        className={`block cursor-text min-h-[20px] text-xs transition-colors hover:text-surface-100 ${value ? "text-surface-200" : "text-surface-600 italic"} ${className}`}
+        title="Click to edit"
+      >
+        <div className="flex items-center gap-1 overflow-hidden max-w-full">
+          <span className="truncate block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{value || placeholder}</span>
+          {warning && (
+            <span className="shrink-0 flex items-center gap-1 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" title={warningText}>
+              <AlertCircle className="w-3 h-3" />
+            </span>
+          )}
+        </div>
       </div>
-    </span>
+
+      {editing && (
+        <div className="absolute left-0 top-0 z-[100] w-[350px] bg-surface-900 border border-surface-600/60 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-fade-in ring-1 ring-white/5">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !multiline) {
+                e.preventDefault();
+                commit();
+              }
+              if (e.key === "Escape") {
+                setDraft(value);
+                setEditing(false);
+              }
+            }}
+            autoFocus
+            rows={multiline ? 6 : 2}
+            className="w-full bg-transparent border-0 p-3 text-sm text-surface-100 outline-none resize-y focus:ring-0"
+            placeholder={placeholder}
+          />
+          <div className="flex justify-end gap-2 px-3 pb-3 pt-1 border-t border-surface-700/50 mt-1">
+             <button onClick={() => { setDraft(value); setEditing(false); }} className="text-xs px-3 py-1.5 text-surface-400 hover:text-surface-200 hover:bg-surface-800 rounded-md transition-colors font-medium">Cancel</button>
+             <button onClick={commit} className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-md transition-colors font-medium shadow-lg shadow-indigo-500/20">Save</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -605,7 +623,17 @@ export default function ContentPlannerPage() {
   });
 
   const regenerateContentMut = trpc.contentPlan.regenerateContent.useMutation({
-    onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
+    onSuccess: (data) => {
+      if (data && "success" in data && data.success === false) {
+        setPageError(data.message as string);
+        setTimeout(() => setPageError(null), 5000);
+      }
+      utils.contentPlan.getByProject.invalidate({ projectId });
+    },
+    onError: (err) => {
+      setPageError(err.message);
+      setTimeout(() => setPageError(null), 5000);
+    }
   });
 
   const generateSeoDataBulkMut = trpc.contentPlan.generateSeoDataBulk.useMutation({
@@ -698,6 +726,8 @@ export default function ContentPlannerPage() {
 
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkRegenerating, setBulkRegenerating] = useState(false);
 
   const handleBulkGenerate = async () => {
     if (!selectedModelId || selectedRows.size === 0) return;
@@ -713,15 +743,88 @@ export default function ContentPlannerPage() {
     }
   };
 
-  const handleBulkAnalyze = async () => {
+  const handleBulkRegenerate = async () => {
     if (!selectedModelId || selectedRows.size === 0) return;
-    setBulkAnalyzing(true);
+    
+    const itemsToRegen = items.filter(item => selectedRows.has(item.id));
+    const validItems = itemsToRegen.filter(item => item.markdownBody?.trim() && item.seoAnalysis);
+    const invalidItems = itemsToRegen.filter(item => !item.markdownBody?.trim() || !item.seoAnalysis);
+
+    if (validItems.length === 0) {
+      setPageError("No valid content to regenerate. Generate and analyze first.");
+      setTimeout(() => setPageError(null), 5000);
+      return;
+    }
+
+    if (invalidItems.length > 0) {
+      setPageError("Some rows are missing content or analysis. Optimizing only valid rows.");
+      setTimeout(() => setPageError(null), 5000);
+    }
+
+    setBulkRegenerating(true);
+    try {
+      for (const item of validItems) {
+        await regenerateContentMut.mutateAsync({ contentItemId: item.id, modelId: selectedModelId });
+      }
+    } catch (e: any) {
+      console.error("Bulk regenerate error", e);
+      setPageError(e.message || "Failed to regenerate content");
+      setTimeout(() => setPageError(null), 5000);
+    } finally {
+      setBulkRegenerating(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedRows.size} content items?`)) return;
+    
+    setBulkDeleting(true);
     try {
       for (const id of Array.from(selectedRows)) {
-        await analyzeContentMut.mutateAsync({ contentItemId: id, modelId: selectedModelId });
+        await deleteItem.mutateAsync({ id });
       }
-    } catch (e) {
+      setSelectedRows(new Set());
+    } catch (e: any) {
+      console.error("Bulk delete error", e);
+      setPageError(e.message || "Failed to delete items");
+      setTimeout(() => setPageError(null), 5000);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const [pageError, setPageError] = useState<string | null>(null);
+
+  const handleBulkAnalyze = async () => {
+    if (!selectedModelId || selectedRows.size === 0) return;
+    
+    // Front-end check: Ensure content is generated
+    const itemsToAnalyze = items.filter(item => selectedRows.has(item.id));
+    const validItems = itemsToAnalyze.filter(item => item.markdownBody?.trim());
+    const emptyItems = itemsToAnalyze.filter(item => !item.markdownBody?.trim());
+    
+    if (validItems.length === 0) {
+      setPageError("No content to analyze. Generate content first.");
+      setTimeout(() => setPageError(null), 5000);
+      return;
+    }
+
+    if (emptyItems.length > 0) {
+      setPageError("Some content rows do not have content. Create content first and then analyze.");
+      setTimeout(() => setPageError(null), 5000);
+      // We do not return here; we proceed to analyze the valid items!
+    }
+
+    setBulkAnalyzing(true);
+    try {
+      for (const item of validItems) {
+        await analyzeContentMut.mutateAsync({ contentItemId: item.id, modelId: selectedModelId });
+      }
+    } catch (e: any) {
       console.error("Bulk analyze error", e);
+      setPageError(e.message || "Failed to analyze");
+      setTimeout(() => setPageError(null), 5000);
     } finally {
       setBulkAnalyzing(false);
     }
@@ -843,7 +946,7 @@ export default function ContentPlannerPage() {
 
           {/* ── Bulk Actions Bar ───────────────────────────────────────────── */}
           {selectedRows.size > 0 && (
-            <div className="glass-card px-4 py-3 flex items-center gap-3 animate-fade-in border-indigo-500/20 bg-indigo-500/5 w-fit h-fit">
+            <div className="fixed bottom-8 right-8 z-[60] shadow-[0_8px_32px_rgba(99,102,241,0.25)] glass-card px-4 py-3 flex items-center gap-3 animate-slide-in-right border-indigo-500/40 bg-surface-900/95 backdrop-blur-xl w-fit h-fit">
               <span className="text-sm font-medium text-indigo-300">
                 {selectedRows.size} selected
               </span>
@@ -874,6 +977,29 @@ export default function ContentPlannerPage() {
               >
                 {bulkAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
                 Analyze
+              </button>
+              <button
+                onClick={handleBulkRegenerate}
+                disabled={bulkRegenerating || !selectedModelId}
+                className="gap-2 text-xs py-1.5 px-3 min-h-0 h-8 rounded-lg font-medium text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/50 hover:border-amber-400 transition-colors flex items-center disabled:opacity-50"
+                title="Regenerate based on analysis for selected rows"
+              >
+                {bulkRegenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : (
+                  <>
+                    <Wand2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </>
+                )}
+                Optimize
+              </button>
+              <div className="w-px h-4 bg-indigo-500/30 mx-1" />
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="gap-2 text-xs p-1.5 min-h-0 h-8 rounded-lg font-medium text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/80 border border-red-500/30 hover:border-red-500 transition-colors flex items-center justify-center disabled:opacity-50"
+                title="Delete selected rows"
+              >
+                {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               </button>
             </div>
           )}
@@ -987,6 +1113,7 @@ export default function ContentPlannerPage() {
                     ), w: "w-8" },
                     { label: "#", w: "w-8" },
                     { label: "Actions", w: "w-36" },
+                    { label: "View", w: "w-24" },
                     { label: "Metrics", w: "w-48" },
                     { label: "Title", w: "w-56" },
                     { label: "Len", w: "w-12" },
@@ -1007,7 +1134,6 @@ export default function ContentPlannerPage() {
                     { label: "Internal Links", w: "w-48" },
                     { label: "Images", w: "w-40" },
                     { label: "Notes", w: "w-40" },
-                    { label: "View", w: "w-24" },
                     { label: "", w: "w-8" },
                   ].map((col, i) => (
                     <th
@@ -1043,6 +1169,19 @@ export default function ContentPlannerPage() {
                     {/* Actions */}
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1">
+                        {/* Generate SEO Data */}
+                        <button
+                          onClick={() => generateSeoDataBulkMut.mutate({ contentItemIds: [item.id], modelId: selectedModelId })}
+                          disabled={generateSeoDataBulkMut.isPending}
+                          className="flex items-center gap-1 px-1.5 py-1 rounded-lg border border-blue-500/50 hover:border-blue-400 bg-blue-500/5 hover:bg-blue-500/10 transition-colors"
+                          title="Generate SEO Data"
+                        >
+                          {generateSeoDataBulkMut.isPending && generateSeoDataBulkMut.variables?.contentItemIds.includes(item.id)
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                            : <Wand2 className="w-3.5 h-3.5 text-emerald-400" />
+                          }
+                          <span className="text-[10px] font-medium tracking-wider uppercase text-blue-400">SEO</span>
+                        </button>
                         {/* Generate Content */}
                         <button
                           onClick={() => generateContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId })}
@@ -1093,6 +1232,22 @@ export default function ContentPlannerPage() {
                           </button>
                         )}
                       </div>
+                    </td>
+
+                    {/* View */}
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={() => setViewingContentId(item.id)}
+                        className={`btn-ghost gap-1.5 text-xs px-2 py-1 border transition-colors whitespace-nowrap ${
+                          item.markdownBody?.trim()
+                            ? "border-indigo-500/50 text-indigo-400 hover:border-indigo-400 hover:bg-indigo-500/10"
+                            : "border-surface-700 text-surface-600 hover:border-surface-600 hover:text-surface-400"
+                        }`}
+                        title={item.markdownBody?.trim() ? "View and edit content" : "View content (empty)"}
+                      >
+                        <FileTextIcon className="w-3.5 h-3.5" />
+                        View
+                      </button>
                     </td>
 
                     {/* Metrics */}
@@ -1300,7 +1455,7 @@ export default function ContentPlannerPage() {
                     </td>
 
                     {/* H2 headings */}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 max-w-[200px]">
                       <EditableCell
                         value={(item.h2Headings ?? []).join(" | ")}
                         onChange={(v) =>
@@ -1314,7 +1469,7 @@ export default function ContentPlannerPage() {
                     </td>
 
                     {/* Keywords */}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 max-w-[200px]">
                       <EditableCell
                         value={(item.targetKeywords ?? []).join(", ")}
                         onChange={(v) =>
@@ -1328,7 +1483,7 @@ export default function ContentPlannerPage() {
                     </td>
 
                     {/* Tags */}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 max-w-[160px]">
                       <EditableCell
                         value={(item.tags ?? []).join(", ")}
                         onChange={(v) =>
@@ -1356,7 +1511,7 @@ export default function ContentPlannerPage() {
                     </td>
 
                     {/* Internal links */}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 max-w-[200px]">
                       <EditableCell
                         value={item.internalLinks ?? ""}
                         onChange={(v) => handleUpdate(item.id, "internalLinks", v)}
@@ -1366,7 +1521,7 @@ export default function ContentPlannerPage() {
                     </td>
 
                     {/* Images */}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 max-w-[200px]">
                       {item.recommendedImages && Array.isArray(item.recommendedImages) && (item.recommendedImages as any[]).length > 0 ? (
                         <div className="space-y-1">
                           {(item.recommendedImages as any[]).map((img: any, i: number) => (
@@ -1385,7 +1540,7 @@ export default function ContentPlannerPage() {
                     </td>
 
                     {/* Notes */}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 max-w-[160px]">
                       <EditableCell
                         value={item.notes ?? ""}
                         onChange={(v) => handleUpdate(item.id, "notes", v)}
@@ -1396,17 +1551,7 @@ export default function ContentPlannerPage() {
 
 
 
-                    {/* View */}
-                    <td className="px-3 py-2">
-                      <button
-                        onClick={() => setViewingContentId(item.id)}
-                        className="btn-ghost gap-1.5 text-xs px-2 py-1 border border-surface-700 hover:border-indigo-500 hover:text-indigo-400 transition-colors whitespace-nowrap"
-                        title="View and edit content"
-                      >
-                        <FileTextIcon className="w-3.5 h-3.5" />
-                        View
-                      </button>
-                    </td>
+
 
                     {/* Delete */}
                     <td className="px-3 py-2">
@@ -1566,6 +1711,15 @@ export default function ContentPlannerPage() {
           onClose={() => setViewingContentId(null)}
         />
       )}
+
+      {/* Toast Notification for page errors */}
+      <div className={`fixed bottom-28 right-8 flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl shadow-xl transition-all duration-300 z-[100] ${pageError ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
+        <AlertCircle className="w-4 h-4 shrink-0" />
+        <span className="text-sm font-medium">{pageError}</span>
+        <button onClick={() => setPageError(null)} className="ml-2 p-1 hover:bg-red-500/20 rounded-md transition-colors shrink-0">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
     </DashboardLayout>
   );

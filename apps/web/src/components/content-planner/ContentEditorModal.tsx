@@ -32,6 +32,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
   const [h2Headings, setH2Headings] = useState("");
 
   const [savedMessage, setSavedMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
 
   // Fetch item
@@ -108,6 +109,10 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
         setMarkdown(data.item.markdownBody);
         setIsAnalysisOutdated(true);
       }
+    },
+    onError: (error) => {
+      setErrorMessage(error.message);
+      setTimeout(() => setErrorMessage(""), 5000);
     }
   });
 
@@ -125,13 +130,26 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
         };
       });
       utils.contentPlan.getByProject.invalidate();
+    },
+    onError: (error) => {
+      setErrorMessage(error.message);
+      setTimeout(() => setErrorMessage(""), 5000);
     }
   });
   const regenerateMut = trpc.contentPlan.regenerateContent.useMutation({
     onSuccess: (data) => {
+      if (data && "success" in data && data.success === false) {
+        setErrorMessage(data.message as string);
+        setTimeout(() => setErrorMessage(""), 5000);
+        return;
+      }
       if (data.item?.markdownBody) {
         setMarkdown(data.item.markdownBody);
       }
+    },
+    onError: (error) => {
+      setErrorMessage(error.message);
+      setTimeout(() => setErrorMessage(""), 5000);
     }
   });
 
@@ -139,6 +157,10 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
     onSuccess: () => {
       utils.contentPlan.getByProject.invalidate();
       utils.contentPlan.getContentItem.invalidate({ id: itemId });
+    },
+    onError: (error) => {
+      setErrorMessage(error.message);
+      setTimeout(() => setErrorMessage(""), 5000);
     }
   });
 
@@ -504,6 +526,16 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
           </div>
         </div>
       </div>
+
+      {/* Toast Notification for errors */}
+      <div className={`absolute bottom-6 right-6 flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl shadow-xl transition-all duration-300 z-50 ${errorMessage ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
+        <AlertCircle className="w-4 h-4 shrink-0" />
+        <span className="text-sm font-medium">{errorMessage}</span>
+        <button onClick={() => setErrorMessage("")} className="ml-2 p-1 hover:bg-red-500/20 rounded-md transition-colors shrink-0">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
     </div>
   );
 }
