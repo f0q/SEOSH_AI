@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/trpc/client";
 import {
   X, Save, Loader2, Wand2, BarChart3, RefreshCw,
-  CheckCircle2, AlertCircle, Eye, Pencil, FileText, BrainCircuit
+  CheckCircle2, AlertCircle, Eye, Pencil, FileText, BrainCircuit,
+  Download, Send, ChevronDown
 } from "lucide-react";
 import { AIModelSelector } from "../ui/AIModelSelector";
 import { PAGE_TYPES } from "@seosh/shared/seo";
@@ -20,6 +21,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
   // Content state
   const [markdown, setMarkdown] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
 
   const [url, setUrl] = useState("");
   const [section, setSection] = useState("");
@@ -118,9 +120,14 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
 
   const analyzeMut = trpc.contentPlan.analyzeContent.useMutation({
     onSuccess: (data) => {
+      if (data && "success" in data && data.success === false) {
+        setErrorMessage(data.message as string);
+        setTimeout(() => setErrorMessage(""), 5000);
+        return;
+      }
       setIsAnalysisOutdated(false);
       utils.contentPlan.getContentItem.setData({ id: itemId }, (oldData) => {
-        if (!oldData) return oldData;
+        if (!oldData || !data.item) return oldData;
         return {
           ...oldData,
           seoAnalysis: data.analysis as any,
@@ -199,6 +206,36 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
     }
   };
 
+  const handleExportJSON = () => {
+    if (!contentItem) return;
+    const data = JSON.stringify({
+      title: contentItem.title,
+      metaTitle: contentItem.metaTitle,
+      metaDescription: contentItem.metaDesc,
+      targetKeywords: contentItem.targetKeywords,
+      content: markdown
+    }, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${contentItem.slug || "content"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportLLMS = () => {
+    if (!contentItem) return;
+    const data = `# ${contentItem.title}\n\n${markdown}`;
+    const blob = new Blob([data], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `llms.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -230,9 +267,11 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
               </div>
             </div>
           </div>
-          <button onClick={handleClose} className="p-2 text-surface-400 hover:text-surface-200 transition-colors shrink-0 ml-4">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={handleClose} className="p-2 text-surface-400 hover:text-surface-200 transition-colors shrink-0">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Body */}
@@ -248,7 +287,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                   onModelSelect={setSelectedModelId}
                   selectedModelId={selectedModelId}
                   estimatedPromptTokens={1000}
-                  buttonClassName="!border-emerald-500/30 !bg-emerald-500/5 hover:!border-emerald-500/50 max-w-sm"
+                  buttonClassName="max-w-sm"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -363,7 +402,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
           <div className="w-full lg:w-[350px] space-y-4 flex-shrink-0">
 
             {/* Actions Block */}
-            <div className="glass-card p-4 flex flex-col gap-3">
+            <div className="glass-card p-4 flex flex-col gap-3 relative z-10">
               <button
                 onClick={handleSave}
                 disabled={updateItemMut.isPending || saveDraftMut.isPending}
@@ -372,6 +411,56 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 {(updateItemMut.isPending || saveDraftMut.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save All Changes
               </button>
+
+              {/* Publish Actions */}
+              <div className="relative w-full">
+                <button
+                  onClick={() => setPublishOpen(!publishOpen)}
+                  className="flex w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-brand-500/10 border border-brand-500/30 hover:border-brand-500 hover:bg-brand-500/20 text-brand-400 transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                  Publish Actions
+                  <ChevronDown className="w-4 h-4 ml-auto" />
+                </button>
+                {publishOpen && (
+                  <div className="absolute right-0 left-0 top-full mt-2 dropdown-panel overflow-hidden z-50">
+                    <div className="p-2 text-[10px] text-surface-400 font-medium uppercase tracking-wider border-b border-surface-700/50">
+                      Integrations
+                    </div>
+                    <button className="w-full text-left px-3 py-2 text-xs text-surface-300 hover:bg-surface-700 hover:text-white transition-colors flex items-center gap-2">
+                      <Send className="w-3.5 h-3.5 text-blue-400" />
+                      Telegram
+                    </button>
+                    <button className="w-full text-left px-3 py-2 text-xs text-surface-300 hover:bg-surface-700 hover:text-white transition-colors flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-blue-300" />
+                      WordPress
+                    </button>
+                    <div className="p-2 text-[10px] text-surface-500 border-t border-surface-700/50 bg-surface-800/50">
+                      Configure in project settings
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Exports */}
+              <div className="flex items-center gap-2 w-full">
+                <button
+                  onClick={handleExportJSON}
+                  className="flex-1 flex justify-center items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-surface-700 hover:border-surface-500 bg-surface-800 hover:bg-surface-700 text-surface-200 transition-colors"
+                  title="Export as JSON"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  JSON
+                </button>
+                <button
+                  onClick={handleExportLLMS}
+                  className="flex-1 flex justify-center items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-surface-700 hover:border-surface-500 bg-surface-800 hover:bg-surface-700 text-surface-200 transition-colors"
+                  title="Export as llms.txt"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  llms.txt
+                </button>
+              </div>
             </div>
 
             {/* SEO Analysis Results */}

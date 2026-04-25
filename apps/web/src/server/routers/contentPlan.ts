@@ -986,7 +986,7 @@ The output array must be in the exact same order as input. Do not output any mar
       
       const allPlanItems = await prisma.contentItem.findMany({
         where: { contentPlanId: items[0].contentPlanId },
-        select: { tags: true, section: true }
+        select: { tags: true, section: true, url: true }
       });
       allPlanItems.forEach(i => {
         if (i.tags) i.tags.forEach(t => existingTags.add(t));
@@ -1028,8 +1028,7 @@ The output array must be in the exact same order as input. Do not output any mar
         id: item.id,
         title: item.title,
         section: item.section || undefined,
-        pageType: item.pageType || undefined,
-        intent: item.intent || undefined
+        pageType: item.pageType || undefined
       }));
 
       const allPageTypeSlugs = ["homepage", "service_listing", "service_detail", "product_listing", "product_detail", "landing_page", "blog_listing", "blog_post", "promo_listing", "promo_detail", "info_page"];

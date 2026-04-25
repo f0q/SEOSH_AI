@@ -16,6 +16,7 @@ interface AIModelSelectorProps {
   onModelSelect: (modelId: string) => void;
   selectedModelId?: string;
   estimatedPromptTokens?: number; // Pre-calculated input length (rough estimate)
+  expectedOutputTokens?: number; // Pre-calculated expected output length
   icon?: React.ElementType;
   iconColor?: string;
   buttonClassName?: string;
@@ -155,7 +156,7 @@ export function AIModelSelector({
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={buttonClassName || "flex w-full items-center justify-between gap-2 px-3 py-2 bg-brand-500/10 hover:bg-brand-500/15 border border-brand-500/20 text-brand-300 rounded-xl transition-colors text-sm font-medium"}
+        className={`flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-all text-sm font-medium border border-indigo-500/20 bg-surface-800/40 hover:bg-surface-800/80 hover:border-indigo-500/40 text-surface-50 shadow-sm ${buttonClassName || "w-full"}`}
       >
         <div className="flex items-center gap-2 overflow-hidden">
           <Icon className={`w-4 h-4 flex-shrink-0 ${iconColor}`} />

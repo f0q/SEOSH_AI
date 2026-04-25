@@ -47,6 +47,7 @@ function EditableCell({
   warning = false,
   warningText = "",
   list,
+  alignRight = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -56,6 +57,7 @@ function EditableCell({
   warning?: boolean;
   warningText?: string;
   list?: string;
+  alignRight?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -95,7 +97,7 @@ function EditableCell({
       </div>
 
       {editing && (
-        <div className="absolute left-0 top-0 z-[100] w-[350px] bg-surface-900 border border-surface-600/60 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-fade-in ring-1 ring-white/5">
+        <div className={`absolute ${alignRight ? 'right-0' : 'left-0'} top-0 z-[100] w-[350px] bg-surface-900 border border-surface-600/60 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-fade-in ring-1 ring-white/5`}>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -1493,6 +1495,7 @@ export default function ContentPlannerPage() {
                         }
                         placeholder="tag 1, tag 2"
                         multiline
+                        alignRight
                       />
                     </td>
 
@@ -1517,6 +1520,7 @@ export default function ContentPlannerPage() {
                         onChange={(v) => handleUpdate(item.id, "internalLinks", v)}
                         placeholder="/page1/, /page2/"
                         multiline
+                        alignRight
                       />
                     </td>
 
@@ -1546,6 +1550,7 @@ export default function ContentPlannerPage() {
                         onChange={(v) => handleUpdate(item.id, "notes", v)}
                         placeholder="Notes..."
                         multiline
+                        alignRight
                       />
                     </td>
 
