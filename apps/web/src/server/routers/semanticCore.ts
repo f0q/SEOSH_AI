@@ -45,7 +45,7 @@ export const semanticCoreRouter = router({
           userId: ctx.user.id,
           ...(input?.projectId ? { projectId: input.projectId } : {}),
         },
-        select: { id: true, siteUrl: true, projectId: true },
+        select: { id: true, siteUrl: true, projectId: true, categories: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
       });
     }),

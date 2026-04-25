@@ -84,21 +84,6 @@ export default function SemanticCoreWizard({ isNew, existingCoreId }: { projectI
 
   const handleTabChange = async (targetStep: number) => {
     if (step === targetStep) return;
-    if (step === 1 && pendingKeywords.trim().length > 0) {
-      setIsAutoGrouping(true);
-      try {
-        const coreId = await ensureSession();
-        await groupQueriesMut.mutateAsync({
-          semanticCoreId: coreId,
-          queries: pendingKeywords.split("\n").filter(l => l.trim().length > 0)
-        });
-        setPendingKeywords("");
-        await utils.semanticCore.getGroups.invalidate();
-      } catch (e) {
-        console.error("Auto-group failed", e);
-      }
-      setIsAutoGrouping(false);
-    }
     setStep(targetStep);
   };
 

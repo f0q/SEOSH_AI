@@ -838,29 +838,18 @@ Do not output any markdown formatting, only the JSON object.`;
       });
       const domain = project?.url?.replace(/\/+$/, "") || "https://example.com";
       const siteStructure = (project?.companyProfile as any)?.siteStructure || [];
-
-      const existingSections = new Set<string>();
-      if (Array.isArray(siteStructure)) {
-        const extractLabels = (nodes: any[]) => {
-          for (const node of nodes) {
-            if (node.label && typeof node.label === 'string') existingSections.add(node.label);
-            if (node.children && Array.isArray(node.children)) extractLabels(node.children);
-          }
-        };
-        extractLabels(siteStructure);
-      }
+      const siteSections = Array.isArray(siteStructure) ? siteStructure.map((s: any) => s.label).filter(Boolean) : [];
 
       // Fetch existing content plan data for context
       const plan = await prisma.contentPlan.findFirst({
         where: { projectId: input.projectId },
-        include: { items: { select: { tags: true, url: true, section: true, title: true } } }
+        include: { items: { select: { tags: true, url: true, title: true } } }
       });
       const existingTags = new Set<string>();
       const existingUrls: string[] = [];
       if (plan) {
         plan.items.forEach(item => {
           if (item.tags) item.tags.forEach(t => existingTags.add(t));
-          if (item.section) existingSections.add(item.section);
           if (item.url) existingUrls.push(item.url);
         });
       }
@@ -869,8 +858,8 @@ Do not output any markdown formatting, only the JSON object.`;
         ? `\nExisting tag cloud for this project (prioritize these):\n${Array.from(existingTags).join(", ")}` 
         : "";
 
-      const sectionContext = existingSections.size > 0
-        ? `\nAVAILABLE WEBSITE SECTIONS (You MUST pick 'section' exactly from this list): ${JSON.stringify(Array.from(existingSections))}`
+      const sectionContext = siteSections.length > 0
+        ? `\nAVAILABLE WEBSITE SECTIONS (You MUST pick 'section' exactly from this list): ${JSON.stringify(siteSections)}`
         : "";
 
       const categoriesContext = input.categories?.length
@@ -911,7 +900,8 @@ ${JSON.stringify(input.ideas, null, 2)}
 For EACH idea, generate ALL of these fields (even if some were already provided — override with better values):
 - "pageType": Pick from available page types. Most content will be "blog_post".
 - "schemaType": Pick matching schema. "blog_post" -> "Article", "service_detail" -> "Service", etc.
-- "section": The website section/category this belongs to.${existingSections.size > 0 ? " Pick exactly one from the AVAILABLE WEBSITE SECTIONS list." : ""}
+- "section": The website section/category this belongs to. If AVAILABLE WEBSITE SECTIONS is provided, you MUST pick exactly one from that list. If the list is NOT provided, leave this empty (""). Do NOT invent new sections.
+- "blogCategory": The blog category or semantic core category. You MUST provide a relevant category based on the topic. Do NOT leave this empty.
 - "url": A short, SEO-friendly slug for this page. Do NOT include slashes or the section path. Example: "best-running-shoes"
 - "metaDesc": Compelling meta description (max 155 chars).
 - "h1": Optimized, catchy H1 heading.
@@ -928,6 +918,7 @@ Output strictly valid JSON:
       "pageType": string,
       "schemaType": string,
       "section": string,
+      "blogCategory": string,
       "url": string,
       "metaDesc": string,
       "h1": string,
@@ -1008,7 +999,7 @@ The output array must be in the exact same order as input. Do not output any mar
       const siteSections = Array.isArray(siteStructure) ? siteStructure.map((s: any) => s.label).filter(Boolean) : [];
       const sectionContext = siteSections.length > 0
         ? `\nAVAILABLE WEBSITE SECTIONS (You MUST pick 'section' exactly from this list): ${JSON.stringify(siteSections)}`
-        : (existingSections.size > 0 ? `\nExisting website categories:\n${Array.from(existingSections).join(", ")}` : "");
+        : "";
 
       const existingUrls: string[] = [];
       allPlanItems.forEach(i => {
@@ -1056,8 +1047,8 @@ ${JSON.stringify(ideasInput, null, 2)}
 For EACH item, generate ALL of these fields (override with better values if needed):
 - "pageType": Pick from available page types.
 - "schemaType": Pick matching schema.
-- "section": The website section. Pick exactly one from the AVAILABLE WEBSITE SECTIONS list if provided.
-- "blogCategory": The blog category or semantic core category.
+- "section": The website section/category. If AVAILABLE WEBSITE SECTIONS is provided, you MUST pick exactly one from that list. If the list is NOT provided, leave this empty (""). Do NOT invent new sections.
+- "blogCategory": The blog category or semantic core category. You MUST provide a relevant category based on the topic. Do NOT leave this empty.
 - "url": A short, SEO-friendly slug. Do NOT include slashes. Example: "best-running-shoes"
 - "metaDesc": Compelling meta description (max 155 chars).
 - "h1": Optimized, catchy H1 heading.

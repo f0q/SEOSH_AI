@@ -32,7 +32,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
   const [h2Headings, setH2Headings] = useState("");
 
   const [savedMessage, setSavedMessage] = useState("");
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
 
   // Fetch item
   const { data: contentItem, isLoading } = trpc.contentPlan.getContentItem.useQuery(
@@ -54,7 +54,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
     { projectId: (contentItem as any)?.contentPlan?.projectId ?? "" },
     { enabled: !!(contentItem as any)?.contentPlan?.projectId }
   );
-  const semanticCategories = latestCore?.categories || [];
+  const semanticCategories = latestCore?.categories?.map((c: any) => c.name) || [];
 
   // Populate state
   useEffect(() => {
@@ -112,10 +112,19 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
   });
 
   const analyzeMut = trpc.contentPlan.analyzeContent.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       setIsAnalysisOutdated(false);
+      utils.contentPlan.getContentItem.setData({ id: itemId }, (oldData) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          seoAnalysis: data.analysis as any,
+          seoScore: data.item.seoScore,
+          uniqueness: data.item.uniqueness,
+          status: data.item.status,
+        };
+      });
       utils.contentPlan.getByProject.invalidate();
-      utils.contentPlan.getContentItem.invalidate({ id: itemId });
     }
   });
   const regenerateMut = trpc.contentPlan.regenerateContent.useMutation({
@@ -217,8 +226,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                   onModelSelect={setSelectedModelId}
                   selectedModelId={selectedModelId}
                   estimatedPromptTokens={1000}
-                  expectedOutputTokens={1500}
-                  className="!border-emerald-500/30 !bg-emerald-500/5 hover:!border-emerald-500/50 max-w-sm"
+                  buttonClassName="!border-emerald-500/30 !bg-emerald-500/5 hover:!border-emerald-500/50 max-w-sm"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -232,11 +240,16 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 </button>
 
                 <button
-                  onClick={() => analyzeMut.mutate({ contentItemId: itemId, modelId: selectedModelId || undefined })}
-                  disabled={analyzeMut.isPending || !markdown}
+                  onClick={async () => {
+                    if (isDirty) {
+                      await saveDraftMut.mutateAsync({ contentItemId: itemId, markdownBody: markdown });
+                    }
+                    analyzeMut.mutate({ contentItemId: itemId, modelId: selectedModelId || undefined });
+                  }}
+                  disabled={analyzeMut.isPending || saveDraftMut.isPending || !markdown}
                   className="flex items-center justify-center w-[150px] whitespace-nowrap gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/50 hover:border-blue-400 disabled:opacity-50 disabled:hover:bg-blue-500/10 disabled:hover:border-blue-500/50"
                 >
-                  {analyzeMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
+                  {(analyzeMut.isPending || saveDraftMut.isPending) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
                   Analyze
                 </button>
 
