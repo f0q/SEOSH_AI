@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Sparkles, Rss, BrainCircuit, Search, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { X, Sparkles, Rss, BrainCircuit, Search, Loader2, AlertCircle, Plus, Trash2, Tag } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
 
@@ -22,6 +22,18 @@ export function IdeationModal({
   const [selectedIdeas, setSelectedIdeas] = useState<Set<number>>(new Set());
   const [ideaError, setIdeaError] = useState<string | null>(null);
   const [rssError, setRssError] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  // Fetch semantic core categories for this project
+  const { data: scData } = trpc.semanticCore.getLatest.useQuery(
+    { projectId },
+    { enabled: !!projectId }
+  );
+  const { data: scResults } = trpc.semanticCore.getResults.useQuery(
+    { semanticCoreId: scData?.id || "" },
+    { enabled: !!scData?.id }
+  );
+  const coreCategories = scResults?.summary ? Object.keys(scResults.summary) : [];
 
   const titlesQuery = trpc.contentPlan.getProjectTitles.useQuery({ projectId });
   const existingTitles = new Set(titlesQuery.data || []);
@@ -92,7 +104,12 @@ export function IdeationModal({
   const handleProposeIdeas = () => {
     if (!topic.trim()) { setIdeaError("Please enter a topic first."); return; }
     setIdeaError(null);
-    proposeIdeasMut.mutate({ topic, projectId, modelId: selectedModelId || undefined });
+    proposeIdeasMut.mutate({ 
+      topic, 
+      projectId, 
+      modelId: selectedModelId || undefined,
+      categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+    });
   };
 
   const handleSaveToPlan = async () => {
@@ -106,15 +123,18 @@ export function IdeationModal({
             projectId,
             data: {
               url: idea.url || "",
-              section: topic,
-              pageType: idea.type,
+              section: idea.section || topic,
+              pageType: idea.pageType || idea.type || "blog_post",
+              schemaType: idea.schemaType,
               priority: 1,
               metaTitle: idea.title,
               metaDesc: idea.metaDesc,
               h1: idea.h1 || idea.title,
-              h2Headings: idea.h2Headings,
-              targetKeywords: idea.targetKeywords,
-              tags: idea.tags,
+              h2Headings: idea.h2Headings || [],
+              targetKeywords: idea.targetKeywords || [],
+              tags: idea.tags || [],
+              internalLinks: idea.internalLinks ? idea.internalLinks.join(", ") : undefined,
+              recommendedImages: idea.recommendedImages || undefined,
             },
           })
         )
@@ -221,6 +241,43 @@ export function IdeationModal({
                     </div>
                   </div>
                 </div>
+
+                {/* Category Filter Chips */}
+                {coreCategories.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-3.5 h-3.5 text-surface-500" />
+                      <span className="text-xs font-medium text-surface-400 uppercase tracking-wider">Filter by Core Category</span>
+                      {selectedCategories.length > 0 && (
+                        <button onClick={() => setSelectedCategories([])} className="text-[10px] text-brand-400 hover:text-brand-300 ml-auto">
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {coreCategories.map((cat) => {
+                        const isActive = selectedCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() => {
+                              setSelectedCategories(prev =>
+                                isActive ? prev.filter(c => c !== cat) : [...prev, cat]
+                              );
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border ${
+                              isActive
+                                ? "bg-brand-500/15 border-brand-500/30 text-brand-400"
+                                : "bg-surface-800/40 border-surface-700/40 text-surface-400 hover:bg-surface-800/60 hover:text-surface-300"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Error banner */}
                 {ideaError && (

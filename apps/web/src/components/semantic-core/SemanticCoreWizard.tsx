@@ -293,14 +293,14 @@ function StepCategories({
       {/* Keyword groups status / no-groups warning */}
       {!semanticCoreId && (
         <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-          <p className="text-sm text-amber-300">⚠ Complete Step 1 (Sitemap) first to create a session.</p>
+          <p className="text-sm text-amber-300">⚠ Create a session first to begin uploading keywords.</p>
         </div>
       )}
 
       {semanticCoreId && !groupsData.isLoading && !hasKeywordGroups && !isGenerating && (
         <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
           <p className="text-sm text-amber-300">
-            ⚠ No keyword groups found. Go to <strong>Step 2</strong> and upload your keywords first.
+            ⚠ No keyword groups found. Go to <strong>Step 1 (Keywords)</strong> and upload your keywords first.
           </p>
         </div>
       )}

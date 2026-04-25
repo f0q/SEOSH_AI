@@ -13,6 +13,7 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import Parser from "rss-parser";
 import { callOpenRouter, getAIConfig, callOpenRouterChat } from "../services/ai";
+import { getSeoProvider } from "../services/seoAnalysis";
 import {
   getDefaultSchema,
   getDefaultWordCount,
@@ -38,9 +39,11 @@ const contentItemInput = z.object({
   tags: z.array(z.string()).optional(),
   schemaType: z.string().optional(),
   internalLinks: z.string().optional(),
+  recommendedImages: z.any().optional(), // JSON: [{ description, alt, placement }]
   notes: z.string().optional(),
   title: z.string().optional(),
   slug: z.string().optional(),
+  markdownBody: z.string().optional(),
   sortOrder: z.number().optional(),
 });
 
@@ -150,6 +153,7 @@ export const contentPlanRouter = router({
           tags: input.data.tags ?? [],
           schemaType: input.data.schemaType,
           internalLinks: input.data.internalLinks,
+          recommendedImages: input.data.recommendedImages,
           notes: input.data.notes,
         },
       });
@@ -551,7 +555,12 @@ export const contentPlanRouter = router({
     }),
 
   proposeIdeas: protectedProcedure
-    .input(z.object({ topic: z.string(), projectId: z.string(), modelId: z.string().optional() }))
+    .input(z.object({ 
+      topic: z.string(), 
+      projectId: z.string(), 
+      modelId: z.string().optional(),
+      categories: z.array(z.string()).optional(), // Filter by SC categories
+    }))
     .mutation(async ({ input }) => {
       const config = getAIConfig(input.modelId);
       
@@ -582,6 +591,28 @@ export const contentPlanRouter = router({
         });
       }
 
+      // Fetch unused/least-used keywords from linked semantic core
+      let keywordContext = "";
+      const sc = await prisma.semanticCore.findFirst({
+        where: { projectId: input.projectId },
+        select: { id: true }
+      });
+      if (sc) {
+        const categoryFilter = input.categories?.length 
+          ? { category: { name: { in: input.categories } } } 
+          : {};
+        const queries = await prisma.query.findMany({
+          where: { semanticCoreId: sc.id, ...categoryFilter },
+          select: { text: true, usageCount: true, category: { select: { name: true } } },
+          orderBy: { usageCount: "asc" },
+          take: 30,
+        });
+        if (queries.length > 0) {
+          const keywordList = queries.map(q => `"${q.text}" (usage: ${q.usageCount}, cat: ${q.category?.name || "uncategorized"})`).join("\n");
+          keywordContext = `\n\nHere are the least-used keywords from the project's semantic core (prioritize these in your proposals — the ones with usage=0 are most important):\n${keywordList}\n`;
+        }
+      }
+
       // All available page type slugs from the system
       const allPageTypeSlugs = ["homepage", "service_listing", "service_detail", "product_listing", "product_detail", "landing_page", "blog_listing", "blog_post", "promo_listing", "promo_detail", "info_page"];
       const allSchemaTypes = ["LocalBusiness", "Service", "ItemList", "Product", "Offer", "OfferCatalog", "Blog", "Article", "WebPage"];
@@ -594,9 +625,13 @@ export const contentPlanRouter = router({
         ? `\nExisting tag cloud for this project:\n${Array.from(existingTags).join(", ")}\nPrioritize these existing tags. You may add new ones if absolutely necessary.` 
         : "";
 
+      const categoriesContext = input.categories?.length
+        ? `\nThe user wants ideas specifically from these semantic core categories: ${input.categories.join(", ")}. Focus on these topics.`
+        : "";
+
       const prompt = `You are an expert SEO content strategist.
 The user wants to build a topical silo/cluster around the topic: "${input.topic}".
-The target domain is: ${domain}${sectionContext}${tagsContext}
+The target domain is: ${domain}${sectionContext}${tagsContext}${categoriesContext}${keywordContext}
 
 Propose exactly 5 distinct, high-quality article ideas that comprehensively cover this topic.
 For each article, you MUST define ALL of the following fields:
@@ -617,13 +652,17 @@ Do not output any markdown formatting, only the JSON object.`;
 
       try {
         const aiResponse = await callOpenRouter(config, prompt, true);
-        const parsed = JSON.parse(aiResponse);
+        let cleaned = aiResponse.trim();
+        if (cleaned.startsWith("```")) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+        }
+        const parsed = JSON.parse(cleaned);
         return { ideas: parsed.ideas || [], domain };
       } catch (err) {
         console.error("AI Generation Error:", err);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to generate ideas from AI.",
+          message: `Failed to generate ideas: ${(err as Error).message}`,
         });
       }
     }),
@@ -717,22 +756,27 @@ Do not output any markdown formatting, only the JSON object.`;
     .mutation(async ({ input }) => {
       const config = getAIConfig(input.modelId);
 
-      // Fetch project domain
+      // Fetch project domain + company profile (site structure)
       const project = await prisma.project.findUnique({
         where: { id: input.projectId },
-        select: { url: true }
+        include: { companyProfile: true }
       });
       const domain = project?.url?.replace(/\/+$/, "") || "https://example.com";
+      const siteStructure = (project?.companyProfile as any)?.siteStructure || [];
 
-      // Fetch existing tags to provide context
+      // Fetch existing content plan data for context
       const plan = await prisma.contentPlan.findFirst({
         where: { projectId: input.projectId },
-        include: { items: { select: { tags: true } } }
+        include: { items: { select: { tags: true, url: true, section: true, title: true } } }
       });
       const existingTags = new Set<string>();
+      const existingSections = new Set<string>();
+      const existingUrls: string[] = [];
       if (plan) {
         plan.items.forEach(item => {
           if (item.tags) item.tags.forEach(t => existingTags.add(t));
+          if (item.section) existingSections.add(item.section);
+          if (item.url) existingUrls.push(item.url);
         });
       }
 
@@ -740,45 +784,369 @@ Do not output any markdown formatting, only the JSON object.`;
         ? `\nExisting tag cloud for this project (prioritize these):\n${Array.from(existingTags).join(", ")}` 
         : "";
 
-      const prompt = `You are an expert SEO specialist.
-I have a list of content ideas for the topic: "${input.topic}".
-The target domain is: ${domain}${tagsContext}
+      const sectionContext = existingSections.size > 0
+        ? `\nExisting website sections/categories:\n${Array.from(existingSections).join(", ")}\nPick from these when relevant.`
+        : "";
 
-Here are the ideas (each already has a title, section, pageType, schemaType, intent, and url):
+      // Build internal linking context from site structure
+      const structurePages = siteStructure.flatMap((s: any) => 
+        (s.children || []).map((c: any) => c.url || c.label).concat([s.url || `/${s.label?.toLowerCase()}`])
+      ).filter(Boolean);
+      const internalLinkContext = structurePages.length > 0
+        ? `\nAvailable pages for internal linking (suggest 2-3 per article):\n${structurePages.slice(0, 20).join(", ")}`
+        : existingUrls.length > 0
+        ? `\nExisting content URLs for internal linking (suggest 2-3 per article):\n${existingUrls.slice(0, 15).join(", ")}`
+        : "";
+
+      const allPageTypeSlugs = ["homepage", "service_listing", "service_detail", "product_listing", "product_detail", "landing_page", "blog_listing", "blog_post", "promo_listing", "promo_detail", "info_page"];
+      const allSchemaTypes = ["LocalBusiness", "Service", "ItemList", "Product", "Offer", "OfferCatalog", "Blog", "Article", "WebPage"];
+
+      const prompt = `You are an expert SEO specialist filling out a comprehensive content plan.
+The target domain is: ${domain}
+Topic cluster: "${input.topic}"${sectionContext}${tagsContext}${internalLinkContext}
+
+Available page types: ${JSON.stringify(allPageTypeSlugs)}
+Available schema types: ${JSON.stringify(allSchemaTypes)}
+
+Here are the content ideas to enrich:
 ${JSON.stringify(input.ideas, null, 2)}
 
-For each idea, generate ONLY the missing SEO details:
-- "metaDesc": A compelling meta description (max 155 chars).
-- "h1": An optimized, catchy H1 heading.
-- "h2Headings": An array of 3 to 6 logical H2 subheadings.
-- "targetKeywords": An array of 3 to 5 LSI/target keywords.
-- "tags": An array of 3 to 5 related website tags.${existingTags.size > 0 ? " Prioritize the existing tags listed above." : ""}
+For EACH idea, generate ALL of these fields (even if some were already provided — override with better values):
+- "pageType": Pick from available page types. Most content will be "blog_post".
+- "schemaType": Pick matching schema. "blog_post" -> "Article", "service_detail" -> "Service", etc.
+- "section": The website section/category this belongs to.${existingSections.size > 0 ? " Pick from existing sections above." : ""}
+- "url": Full URL path as /{section-slug}/{seo-friendly-slug}. No domain. Example: /blog/best-running-shoes
+- "metaDesc": Compelling meta description (max 155 chars).
+- "h1": Optimized, catchy H1 heading.
+- "h2Headings": Array of 3 to 6 logical H2 subheadings.
+- "targetKeywords": Array of 3 to 5 LSI/target keywords.
+- "tags": Array of 3 to 5 related tags.${existingTags.size > 0 ? " Prioritize existing tags." : ""}
+- "internalLinks": Array of 2-3 suggested internal page paths to link within this article (e.g. "/services", "/about", "/blog/related-post").
+- "recommendedImages": Array of 2-3 objects: { "description": "what the image should show", "alt": "SEO alt text", "placement": "hero" | "inline" | "infographic" }.
 
-Output strictly valid JSON matching this schema:
+Output strictly valid JSON:
 {
   "enrichedIdeas": [
     {
+      "pageType": string,
+      "schemaType": string,
+      "section": string,
+      "url": string,
       "metaDesc": string,
       "h1": string,
       "h2Headings": [string],
       "targetKeywords": [string],
-      "tags": [string]
+      "tags": [string],
+      "internalLinks": [string],
+      "recommendedImages": [{ "description": string, "alt": string, "placement": string }]
     }
   ]
 }
-The output array must be in the exact same order as the input ideas. Do not output any markdown formatting, only the JSON object.`;
+The output array must be in the exact same order as input. Do not output any markdown, only JSON.`;
 
       try {
         const aiResponse = await callOpenRouter(config, prompt, true);
-        const parsed = JSON.parse(aiResponse);
-        return { enrichedIdeas: parsed.enrichedIdeas || [] };
+        
+        // Sanitize: strip markdown code fences if present
+        let cleaned = aiResponse.trim();
+        if (cleaned.startsWith("```")) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+        }
+        
+        try {
+          const parsed = JSON.parse(cleaned);
+          return { enrichedIdeas: parsed.enrichedIdeas || [] };
+        } catch (parseErr) {
+          console.error("JSON Parse Error in fleshOutIdeas. Raw response (first 500 chars):", cleaned.substring(0, 500));
+          console.error("Response length:", cleaned.length, "chars");
+          throw new Error(`AI returned invalid JSON (${cleaned.length} chars). Response may have been truncated.`);
+        }
       } catch (err) {
         console.error("AI Flesh Out Error:", err);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to flesh out ideas with AI.",
+          message: `Failed to generate SEO data: ${(err as Error).message}`,
         });
       }
+    }),
+
+  // ─── Content Generation Pipeline ────────────────────────────────────────
+
+  /** Generate full markdown content for a content item */
+  generateContent: protectedProcedure
+    .input(z.object({
+      contentItemId: z.string(),
+      modelId: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
+
+      const config = getAIConfig(input.modelId);
+
+      // Build comprehensive prompt from all row fields
+      const images = (item.recommendedImages as any[]) || [];
+      const imageInstructions = images.length > 0
+        ? `\n\nInclude these images in the content at appropriate positions:\n${images.map((img, i) => `Image ${i + 1}: ![${img.alt}](PROMPT: ${img.description}) — placement: ${img.placement}`).join("\n")}`
+        : "\n\nInclude 2-3 image placeholders in the format: ![alt text](PROMPT: description of image to generate)";
+
+      const prompt = `You are an expert SEO content writer. Write a complete, high-quality article in Markdown format.
+
+Title (H1): ${item.h1 || item.metaTitle || item.title}
+Meta Title: ${item.metaTitle || item.title}
+Meta Description: ${item.metaDesc || ""}
+Page Type: ${item.pageType || "blog_post"}
+Section/Category: ${item.section || "blog"}
+Target Keywords: ${(item.targetKeywords || []).join(", ")}
+Schema Type: ${item.schemaType || "Article"}
+H2 Headings to include: ${(item.h2Headings || []).join(", ")}
+Internal Links to include: ${item.internalLinks || "none specified"}
+Target Word Count: ${item.targetWordCount || 1500}
+${imageInstructions}
+
+Requirements:
+1. Start with the H1 heading (# title).
+2. Use all provided H2 headings as sections.
+3. Naturally weave in the target keywords (don't stuff).
+4. Include the specified internal links naturally in context.
+5. Write in a professional but engaging tone.
+6. Include image placeholders at appropriate positions.
+7. End with a compelling conclusion/CTA.
+8. Target the specified word count.
+9. Make content E-E-A-T compliant (show expertise, cite experience).
+
+Output ONLY the markdown content, no wrapping code fences.`;
+
+      try {
+        // Update status to GENERATING
+        await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: { status: "GENERATING" },
+        });
+
+        const markdown = await callOpenRouter(config, prompt, false);
+
+        // Save generated content
+        const updated = await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: {
+            markdownBody: markdown,
+            status: "GENERATED",
+          },
+        });
+
+        return { success: true, wordCount: markdown.split(/\s+/).length, item: updated };
+      } catch (err) {
+        // Revert status on failure
+        await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: { status: "DRAFT" },
+        });
+        console.error("Content Generation Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to generate content.",
+        });
+      }
+    }),
+
+  /** Analyze generated content using external SEO services */
+  analyzeContent: protectedProcedure
+    .input(z.object({
+      contentItemId: z.string(),
+      provider: z.string().optional(), // "text.ru", "ai-self", etc.
+      modelId: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
+      if (!item.markdownBody) throw new TRPCError({ code: "BAD_REQUEST", message: "No content to analyze. Generate content first." });
+
+      try {
+        // Update status
+        await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: { status: "ANALYZING" },
+        });
+
+        // Get the appropriate provider
+        const config = getAIConfig(input.modelId);
+        const aiCallFn = async (prompt: string) => callOpenRouter(config, prompt, true);
+        const provider = getSeoProvider(input.provider || "ai-self", aiCallFn);
+
+        // Strip image prompts for analysis (send only text)
+        const textOnly = item.markdownBody
+          .replace(/!\[([^\]]*)\]\(PROMPT:[^)]*\)/g, "") // Remove image prompts
+          .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")        // Remove all images
+          .replace(/#{1,6}\s/g, "")                       // Remove markdown headings syntax
+          .trim();
+
+        const title = item.h1 || item.metaTitle || item.title;
+        const result = await provider.analyze(textOnly, title);
+
+        // Save analysis results
+        const updated = await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: {
+            seoAnalysis: result as any,
+            seoScore: Math.round((result.uniqueness + result.naturalness + result.eeat + result.readability) / 4),
+            uniqueness: result.uniqueness,
+            status: "RECOMMENDATIONS",
+          },
+        });
+
+        return { success: true, analysis: result, item: updated };
+      } catch (err) {
+        await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: { status: "GENERATED" },
+        });
+        console.error("Content Analysis Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Analysis failed: ${(err as Error).message}`,
+        });
+      }
+    }),
+
+  /** Regenerate content based on SEO analysis recommendations */
+  regenerateContent: protectedProcedure
+    .input(z.object({
+      contentItemId: z.string(),
+      modelId: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
+      if (!item.markdownBody) throw new TRPCError({ code: "BAD_REQUEST", message: "No content to regenerate." });
+      if (!item.seoAnalysis) throw new TRPCError({ code: "BAD_REQUEST", message: "No analysis data. Run analysis first." });
+
+      const config = getAIConfig(input.modelId);
+      const analysis = item.seoAnalysis as any;
+
+      const prompt = `You are an expert SEO content optimizer. Rewrite the following article to improve its SEO scores based on the analysis below.
+
+CURRENT ARTICLE:
+${item.markdownBody}
+
+SEO ANALYSIS RESULTS:
+- Uniqueness: ${analysis.uniqueness}%
+- Spam Score: ${analysis.spamScore}% (lower is better)
+- Naturalness: ${analysis.naturalness}%
+- E-E-A-T: ${analysis.eeat}%
+- Readability: ${analysis.readability}%
+- Water/Filler: ${analysis.waterScore}%
+
+RECOMMENDATIONS TO ADDRESS:
+${(analysis.recommendations || []).map((r: string, i: number) => `${i + 1}. ${r}`).join("\n")}
+
+TARGET KEYWORDS: ${(item.targetKeywords || []).join(", ")}
+
+Requirements:
+1. Address ALL recommendations above.
+2. Improve uniqueness — rephrase similar sections, add original insights.
+3. Reduce spam — lower keyword density if too high, use synonyms.
+4. Improve naturalness — make it sound more human-written.
+5. Strengthen E-E-A-T — add expertise signals, cite sources.
+6. Keep the same structure (H1, H2s) but improve content quality.
+7. Keep image placeholders intact.
+8. Maintain or exceed the original word count.
+
+Output ONLY the improved markdown content, no wrapping code fences.`;
+
+      try {
+        await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: { status: "OPTIMIZING" },
+        });
+
+        const improved = await callOpenRouter(config, prompt, false);
+
+        const updated = await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: {
+            markdownBody: improved,
+            status: "OPTIMIZED",
+          },
+        });
+
+        return { success: true, wordCount: improved.split(/\s+/).length, item: updated };
+      } catch (err) {
+        await prisma.contentItem.update({
+          where: { id: input.contentItemId },
+          data: { status: "RECOMMENDATIONS" },
+        });
+        console.error("Content Regeneration Error:", err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to regenerate content.",
+        });
+      }
+    }),
+
+  /** Save content as draft */
+  saveDraft: protectedProcedure
+    .input(z.object({
+      contentItemId: z.string(),
+      markdownBody: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const data: Record<string, unknown> = {};
+      if (input.markdownBody !== undefined) data.markdownBody = input.markdownBody;
+      // Don't change status if it's already past DRAFT (e.g., GENERATED, OPTIMIZED)
+      
+      return prisma.contentItem.update({
+        where: { id: input.contentItemId },
+        data,
+      });
+    }),
+
+  /** Get all content items with generated content for the content section */
+  getContentItems: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      statusFilter: z.string().optional(), // e.g., "DRAFT", "GENERATED", "PUBLISHED"
+    }))
+    .query(async ({ input }) => {
+      const plan = await prisma.contentPlan.findFirst({
+        where: { projectId: input.projectId },
+      });
+      if (!plan) return [];
+
+      const where: Record<string, unknown> = { contentPlanId: plan.id };
+      if (input.statusFilter) {
+        where.status = input.statusFilter;
+      }
+
+      return prisma.contentItem.findMany({
+        where,
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          metaTitle: true,
+          h1: true,
+          section: true,
+          pageType: true,
+          status: true,
+          url: true,
+          markdownBody: true,
+          seoScore: true,
+          uniqueness: true,
+          seoAnalysis: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    }),
+
+  /** Get a single content item by ID */
+  getContentItem: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
+      return prisma.contentItem.findUnique({
+        where: { id: input.id },
+      });
     }),
 
   // ─── CSV Import ──────────────────────────────────────────────────────────

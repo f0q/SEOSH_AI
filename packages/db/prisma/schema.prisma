@@ -349,6 +349,7 @@ model ContentItem {
   tags           String[]      // Column: Теги (cloud tags)
   schemaType     String?       // Column: Schema (LocalBusiness, Article, etc.)
   internalLinks  String?       @db.Text // Column: Внутренние ссылки
+  recommendedImages Json?      // AI-suggested images: [{ description, alt, placement }]
   notes          String?       @db.Text // Column: Примечания
 
   // ── Content body ────────────────────────────────────────────────────────

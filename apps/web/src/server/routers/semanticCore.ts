@@ -210,7 +210,7 @@ export const semanticCoreRouter = router({
       const repStrings = reps.map((r: any) => r.representativeQuery);
 
       if (repStrings.length === 0)
-        throw new Error("No keyword groups found. Complete Step 2 (upload keywords) first.");
+        throw new Error("No keyword groups found. Complete Step 1 (Keywords) first.");
 
       const langNames: Record<string, string> = {
         ru: "Russian", en: "English", de: "German", es: "Spanish",
@@ -605,7 +605,7 @@ Rules:
         select: { id: true, representativeQuery: true },
       });
       if (groups.length === 0)
-        throw new Error("No keyword groups found. Complete Step 2 first.");
+        throw new Error("No keyword groups found. Complete Step 1 (Keywords) first.");
 
       const langNames: Record<string, string> = {
         ru: "Russian", en: "English", de: "German", es: "Spanish",

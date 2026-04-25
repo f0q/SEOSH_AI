@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
-import { ChevronLeft, Download, Brain, Globe, Search, Loader2, RefreshCw, Tag, Layers, BarChart3, FileText, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, Download, Brain, Globe, Search, Loader2, RefreshCw, Tag, Layers, BarChart3, FileText, CheckCircle2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { getCatColor } from "@/lib/categoryColors";
 
@@ -53,6 +53,12 @@ export default function SemanticCoreDetail({ params }: PageProps) {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Link
+                href={`/semantic-core/new?coreId=${id}`}
+                className="btn-secondary gap-2 text-sm"
+              >
+                <Pencil className="w-4 h-4" /> Edit Core
+              </Link>
               <button
                 onClick={() => syncMut.mutate({ semanticCoreId: id })}
                 disabled={syncMut.isPending}
@@ -201,7 +207,6 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                       <th className="p-3 font-medium text-surface-400">Keyword</th>
                       <th className="p-3 font-medium text-surface-400">Category</th>
                       <th className="p-3 font-medium text-surface-400 w-20 text-center">Usage</th>
-                      <th className="p-3 font-medium text-surface-400">Target Page</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-800/30">
@@ -237,16 +242,6 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                             <span className={`text-xs font-bold px-2 py-1 rounded ${
                               row.usageCount === 1 ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
                             }`}>×{row.usageCount}</span>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          {row.page ? (
-                            <a href={row.page} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-brand-400 hover:underline">
-                              <Globe className="w-3 h-3" />
-                              {new URL(row.page).pathname}
-                            </a>
-                          ) : (
-                            <span className="text-xs text-surface-500 italic">Unassigned</span>
                           )}
                         </td>
                       </tr>

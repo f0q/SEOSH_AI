@@ -194,13 +194,13 @@ export default function OnboardingWizard() {
           return (
             <div key={step.id} className="flex items-center">
               <button
-                onClick={() => step.id < currentStep && setCurrentStep(step.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 ${
+                onClick={() => setCurrentStep(step.id)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer ${
                   isCurrent
                     ? "bg-brand-500/15 border border-brand-500/30 text-brand-400"
                     : isCompleted
-                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 cursor-pointer hover:bg-emerald-500/15"
-                    : "bg-surface-800/30 border border-surface-700/30 text-surface-500"
+                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/15"
+                    : "bg-surface-800/30 border border-surface-700/30 text-surface-400 hover:bg-surface-800/50 hover:text-surface-200"
                 }`}
               >
                 <div

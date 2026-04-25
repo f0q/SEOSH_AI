@@ -10,7 +10,7 @@ import {
   LayoutList, Plus, Trash2, ChevronLeft, Users, Mail,
   Sparkles, ShieldCheck, Lightbulb, X, Check, Loader2,
   ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown, Wand2, AlertCircle,
-  Upload, FileSpreadsheet, FileText as FileTextIcon,
+  Upload, FileSpreadsheet, FileText as FileTextIcon, Image, BarChart3, RefreshCw, Save,
 } from "lucide-react";
 import { IdeationModal } from "@/components/content-planner/IdeationModal";
 
@@ -574,6 +574,18 @@ export default function ContentPlannerPage() {
     onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
   });
 
+  const generateContentMut = trpc.contentPlan.generateContent.useMutation({
+    onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
+  });
+
+  const analyzeContentMut = trpc.contentPlan.analyzeContent.useMutation({
+    onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
+  });
+
+  const regenerateContentMut = trpc.contentPlan.regenerateContent.useMutation({
+    onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
+  });
+
   const { data: shares = [] } = trpc.contentPlan.listShares.useQuery(
     { projectId },
     { enabled: !!projectId }
@@ -786,7 +798,9 @@ export default function ContentPlannerPage() {
                     { label: "Tags", w: "w-40" },
                     { label: "Schema", w: "w-32" },
                     { label: "Internal Links", w: "w-48" },
+                    { label: "Images", w: "w-40" },
                     { label: "Notes", w: "w-40" },
+                    { label: "Actions", w: "w-36" },
                     { label: "", w: "w-8" },
                   ].map((col, i) => (
                     <th
@@ -1036,6 +1050,81 @@ export default function ContentPlannerPage() {
                         placeholder="Notes..."
                         multiline
                       />
+                    </td>
+
+                    {/* Images */}
+                    <td className="px-3 py-2">
+                      {item.recommendedImages && Array.isArray(item.recommendedImages) && (item.recommendedImages as any[]).length > 0 ? (
+                        <div className="space-y-1">
+                          {(item.recommendedImages as any[]).map((img: any, i: number) => (
+                            <div key={i} className="text-[10px] text-surface-400 flex items-start gap-1">
+                              <Image className="w-3 h-3 text-purple-400 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-surface-300 truncate max-w-[150px]" title={img.description}>{img.description}</p>
+                                <p className="text-surface-500 italic">alt: {img.alt}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-surface-600">—</span>
+                      )}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1">
+                        {/* Generate Content */}
+                        <button
+                          onClick={() => generateContentMut.mutate({ contentItemId: item.id })}
+                          disabled={generateContentMut.isPending}
+                          className="p-1.5 rounded-lg text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                          title="Generate content"
+                        >
+                          {generateContentMut.isPending && generateContentMut.variables?.contentItemId === item.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Wand2 className="w-3.5 h-3.5" />
+                          }
+                        </button>
+                        {/* Analyze Content */}
+                        <button
+                          onClick={() => analyzeContentMut.mutate({ contentItemId: item.id })}
+                          disabled={analyzeContentMut.isPending || !item.markdownBody}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            item.markdownBody
+                              ? "text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10"
+                              : "text-surface-600 cursor-not-allowed"
+                          }`}
+                          title={item.markdownBody ? "Analyze content" : "Generate content first"}
+                        >
+                          {analyzeContentMut.isPending && analyzeContentMut.variables?.contentItemId === item.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <BarChart3 className="w-3.5 h-3.5" />
+                          }
+                        </button>
+                        {/* Regenerate */}
+                        {item.seoAnalysis && (
+                          <button
+                            onClick={() => regenerateContentMut.mutate({ contentItemId: item.id })}
+                            disabled={regenerateContentMut.isPending}
+                            className="p-1.5 rounded-lg text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                            title="Regenerate based on analysis"
+                          >
+                            {regenerateContentMut.isPending && regenerateContentMut.variables?.contentItemId === item.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <RefreshCw className="w-3.5 h-3.5" />
+                            }
+                          </button>
+                        )}
+                        {/* SEO Score badge */}
+                        {item.seoScore != null && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            item.seoScore >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
+                            item.seoScore >= 50 ? 'text-amber-400 bg-amber-500/10' :
+                            'text-red-400 bg-red-500/10'
+                          }`}>{item.seoScore}</span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Delete */}

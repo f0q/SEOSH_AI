@@ -25,11 +25,12 @@ export default function ProjectSettingsPage() {
   const { data: allCores } = trpc.semanticCore.getMany.useQuery();
   const linkMutation = trpc.semanticCore.linkToProject.useMutation();
   const deleteProject = trpc.projects.delete.useMutation();
-  const updateRssFeedsMut = trpc.projects.updateRssFeeds.useMutation({
-    onSuccess: () => utils.projects.get.invalidate({ id: projectId }),
-  });
   const router = useRouter();
   const utils = trpc.useUtils();
+
+  const updateRssFeedsMut = trpc.projects.updateRssFeeds.useMutation({
+    onSuccess: () => { utils.projects.get.invalidate({ id: projectId }); },
+  });
 
   const [newRssUrl, setNewRssUrl] = useState("");
   const rssFeeds: string[] = (projectData?.companyProfile as any)?.rssFeeds || [];
@@ -202,15 +203,15 @@ export default function ProjectSettingsPage() {
                       ))}
                     </ul>
                   )}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <input
                       type="url"
                       value={newRssUrl}
                       onChange={(e) => setNewRssUrl(e.target.value)}
                       placeholder="https://competitor.com/feed.xml"
-                      className="input-field !py-1.5 !text-sm flex-1"
+                      className="input-field !py-1.5 !text-sm flex-1 min-w-0"
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && newRssUrl.trim()) {
+                        if (e.key === "Enter" && newRssUrl.trim() && projectId) {
                           updateRssFeedsMut.mutate({ projectId, rssFeeds: [...rssFeeds, newRssUrl.trim()] });
                           setNewRssUrl("");
                         }
@@ -218,13 +219,13 @@ export default function ProjectSettingsPage() {
                     />
                     <button
                       onClick={() => {
-                        if (newRssUrl.trim()) {
+                        if (newRssUrl.trim() && projectId) {
                           updateRssFeedsMut.mutate({ projectId, rssFeeds: [...rssFeeds, newRssUrl.trim()] });
                           setNewRssUrl("");
                         }
                       }}
-                      disabled={!newRssUrl.trim() || updateRssFeedsMut.isPending}
-                      className="btn-secondary !py-1.5 !px-3 text-xs gap-1"
+                      disabled={!newRssUrl.trim() || !projectId || updateRssFeedsMut.isPending}
+                      className="btn-secondary !py-1.5 !px-3 text-xs gap-1 flex-shrink-0"
                     >
                       <Plus className="w-3.5 h-3.5" /> Add
                     </button>
@@ -236,32 +237,69 @@ export default function ProjectSettingsPage() {
                 <div className="p-4 border-b border-surface-800/50 bg-surface-800/20">
                   <h2 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                     <Brain className="w-4 h-4 text-purple-400" />
-                    Connected Semantic Core
+                    Semantic Core
                   </h2>
                 </div>
-                <div className="p-4 space-y-4">
-                  <div>
-                    <label className="text-xs text-surface-500 uppercase tracking-wider mb-2 block">
-                      Select Core for this Project
-                    </label>
-                    <select
-                      value={latestCore?.id || ""}
-                      onChange={(e) => handleLinkCore(e.target.value)}
-                      className="input-field !py-2 !px-3 !text-sm !w-full"
-                    >
-                      <option value="">None / Unassigned</option>
-                      {allCores?.map((core: any) => (
-                        <option key={core.id} value={core.id}>
-                          {core.siteUrl === "merged-cores" ? "Master Core (Merged)" : (core.siteUrl || `Core ${core.id.split('-')[0]}`)}
-                        </option>
-                      ))}
-                    </select>
-                    {latestCore && (
-                      <p className="text-xs text-surface-500 mt-2">
-                        Currently using: <span className="font-medium text-surface-300">{latestCore.siteUrl || `Core ${latestCore.id.split('-')[0]}`}</span>
-                      </p>
-                    )}
-                  </div>
+                <div className="p-4 space-y-3">
+                  {latestCore ? (
+                    <>
+                      <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/20 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                            <Brain className="w-4 h-4 text-purple-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-surface-200 truncate">
+                              {latestCore.siteUrl === "merged-cores" ? "Master Core (Merged)" : (latestCore.siteUrl || `Core ${latestCore.id.split('-')[0]}`)}
+                            </p>
+                            <p className="text-[10px] text-surface-500 uppercase tracking-wider">Connected</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/semantic-core/${latestCore.id}`}
+                          className="btn-secondary !py-1.5 !px-3 text-xs gap-1 flex-1 justify-center"
+                        >
+                          <Layers className="w-3.5 h-3.5" /> View Details
+                        </Link>
+                        <Link
+                          href={`/semantic-core/new?coreId=${latestCore.id}`}
+                          className="btn-secondary !py-1.5 !px-3 text-xs gap-1 flex-1 justify-center"
+                        >
+                          <Pencil className="w-3.5 h-3.5" /> Edit Core
+                        </Link>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-4">
+                      <Brain className="w-10 h-10 text-surface-600 mx-auto mb-2" />
+                      <p className="text-sm text-surface-400 mb-1">No semantic core linked</p>
+                      <p className="text-xs text-surface-500 mb-4">Create or link a semantic core to enable keyword-driven content planning.</p>
+                      <div className="flex gap-2 justify-center">
+                        <Link
+                          href={`/semantic-core/new?projectId=${projectId}`}
+                          className="btn-primary !py-1.5 !px-3 text-xs gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Create New Core
+                        </Link>
+                        {allCores && allCores.length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => handleLinkCore(e.target.value)}
+                            className="input-field !py-1.5 !px-3 !text-xs"
+                          >
+                            <option value="">Link Existing...</option>
+                            {allCores.filter((c: any) => !c.projectId).map((core: any) => (
+                              <option key={core.id} value={core.id}>
+                                {core.siteUrl === "merged-cores" ? "Master Core (Merged)" : (core.siteUrl || `Core ${core.id.split('-')[0]}`)}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

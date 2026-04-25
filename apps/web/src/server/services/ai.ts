@@ -16,7 +16,7 @@ export async function callOpenRouter(
       model: config.model,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
-      max_tokens: jsonMode ? 1500 : 800,
+      max_tokens: jsonMode ? 4000 : 2000,
       response_format: jsonMode ? { type: "json_object" } : undefined,
     }),
   });
