@@ -617,20 +617,27 @@ export default function ContentPlannerPage() {
   });
 
   const generateContentMut = trpc.contentPlan.generateContent.useMutation({
-    onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
+    onSuccess: (_, variables) => {
+      utils.contentPlan.getByProject.invalidate({ projectId });
+      utils.contentPlan.getContentItem.invalidate({ id: variables.contentItemId });
+    },
   });
 
   const analyzeContentMut = trpc.contentPlan.analyzeContent.useMutation({
-    onSuccess: () => utils.contentPlan.getByProject.invalidate({ projectId }),
+    onSuccess: (_, variables) => {
+      utils.contentPlan.getByProject.invalidate({ projectId });
+      utils.contentPlan.getContentItem.invalidate({ id: variables.contentItemId });
+    },
   });
 
   const regenerateContentMut = trpc.contentPlan.regenerateContent.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       if (data && "success" in data && data.success === false) {
         setPageError(data.message as string);
         setTimeout(() => setPageError(null), 5000);
       }
       utils.contentPlan.getByProject.invalidate({ projectId });
+      utils.contentPlan.getContentItem.invalidate({ id: variables.contentItemId });
     },
     onError: (err) => {
       setPageError(err.message);
@@ -639,8 +646,9 @@ export default function ContentPlannerPage() {
   });
 
   const generateSeoDataBulkMut = trpc.contentPlan.generateSeoDataBulk.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       utils.contentPlan.getByProject.invalidate({ projectId });
+      variables.contentItemIds.forEach(id => utils.contentPlan.getContentItem.invalidate({ id }));
     },
   });
 
@@ -1417,7 +1425,7 @@ export default function ContentPlannerPage() {
                     </td>
 
                     {/* Meta Desc */}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 max-w-[200px]">
                       <EditableCell
                         value={item.metaDesc ?? ""}
                         onChange={(v) => handleUpdate(item.id, "metaDesc", v)}
@@ -1607,8 +1615,8 @@ export default function ContentPlannerPage() {
                     {/* BLOG CATEGORY */}
                     <td className="px-3 py-2">
                       <EditableCell
-                        value={draftRow.blogCategory || ""}
-                        onChange={(v) => setDraftRow({ ...draftRow, blogCategory: v })}
+                        value={(draftRow as any).blogCategory || ""}
+                        onChange={(v) => setDraftRow({ ...draftRow, blogCategory: v } as any)}
                         placeholder="Blog Cat"
                         className="text-surface-400 min-w-[100px]"
                       />

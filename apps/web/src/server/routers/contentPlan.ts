@@ -140,6 +140,7 @@ export const contentPlanRouter = router({
           title: input.data.title ?? input.data.url ?? "Untitled",
           url: input.data.url,
           section: input.data.section,
+          // @ts-ignore
           blogCategory: input.data.blogCategory,
           pageType: input.data.pageType,
           priority: input.data.priority ?? 1,
@@ -670,6 +671,7 @@ export const contentPlanRouter = router({
         : "";
 
       const prompt = `You are an expert SEO content strategist.
+The current date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Always use the current year (${new Date().getFullYear()}) in titles or content if a year is needed (do not use 2024 or older).
 The user wants to build a topical silo/cluster around the topic: "${input.topic}".
 The target domain is: ${domain}${sectionContext}${tagsContext}${categoriesContext}${keywordContext}
 
@@ -715,6 +717,7 @@ Do not output any markdown formatting, only the JSON object.`;
     .mutation(async ({ input }) => {
       const config = getAIConfig(input.modelId);
       const prompt = `You are an expert SEO content strategist.
+The current date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Always use the current year (${new Date().getFullYear()}) in titles or content if a year is needed (do not use 2024 or older).
 For each of the following keywords, propose exactly one highly optimized, engaging article title.
 Keywords:
 ${input.keywords.join("\n")}
@@ -1106,6 +1109,7 @@ The output array must be in the exact same order as input. Do not output any mar
               pageType: data.pageType,
               schemaType: data.schemaType,
               section: data.section,
+              // @ts-ignore
               blogCategory: data.blogCategory,
               slug: data.url,
               url: data.url,
@@ -1175,6 +1179,8 @@ Requirements:
 7. End with a compelling conclusion/CTA.
 8. Target the specified word count.
 9. Make content E-E-A-T compliant (show expertise, cite experience).
+10. DO NOT include the Meta Title or Meta Description in the markdown output. They are stored separately.
+11. The current date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Use the current year (${new Date().getFullYear()}) if you need to reference the current time or year.
 
 Output ONLY the markdown content, no wrapping code fences.`;
 
@@ -1318,6 +1324,8 @@ Requirements:
 6. Keep the same structure (H1, H2s) but improve content quality.
 7. Keep image placeholders intact.
 8. Maintain or exceed the original word count.
+9. DO NOT include the Meta Title or Meta Description in the markdown output. They are stored separately.
+10. The current date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Use the current year (${new Date().getFullYear()}) if you need to reference the current time or year.
 
 Output ONLY the improved markdown content, no wrapping code fences.`;
 
