@@ -12,8 +12,10 @@ import { prisma } from "../db";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import Parser from "rss-parser";
-import { callOpenRouter, getAIConfig, callOpenRouterChat } from "../services/ai";
+import { callOpenRouter, getAIConfig, callOpenRouterChat, callOpenRouterWithCost, callOpenRouterChatWithCost } from "../services/ai";
 import { getSeoProvider } from "../services/seoAnalysis";
+import { decrypt } from "../lib/encryption";
+import { ensureBalance, deductByCost, getBalance } from "../services/tokenService";
 import {
   getDefaultSchema,
   getDefaultWordCount,
@@ -1150,9 +1152,12 @@ The output array must be in the exact same order as input. Do not output any mar
       contentItemId: z.string(),
       modelId: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
       if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
+
+      // Check token balance before starting
+      await ensureBalance(ctx.user.id, 1);
 
       const config = getAIConfig(input.modelId);
 
@@ -1198,20 +1203,23 @@ Output ONLY the markdown content, no wrapping code fences.`;
           data: { status: "GENERATING" },
         });
 
-        const markdown = await callOpenRouter(config, prompt, false);
+        const result = await callOpenRouterWithCost(config, prompt, false);
+
+        // Deduct tokens based on actual cost
+        await deductByCost(ctx.user.id, result.costUsd, "AI_CONTENT_GENERATE", `Generate: ${item.title}`);
 
         // Save generated content and mark analysis as outdated
         const existingSeo = (item.seoAnalysis as any) || {};
         const updated = await prisma.contentItem.update({
           where: { id: input.contentItemId },
           data: {
-            markdownBody: markdown,
+            markdownBody: result.text,
             status: "GENERATED",
             seoAnalysis: { ...existingSeo, contentModifiedAt: new Date().toISOString() } as any,
           },
         });
 
-        return { success: true, wordCount: markdown.split(/\s+/).length, item: updated };
+        return { success: true, wordCount: result.text.split(/\s+/).length, item: updated };
       } catch (err) {
         // Revert status on failure
         await prisma.contentItem.update({
@@ -1234,7 +1242,7 @@ Output ONLY the markdown content, no wrapping code fences.`;
       modelId: z.string().optional(),
       phase: z.enum(["expert", "ai", "both"]).default("both"),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
       if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
       if (!item.markdownBody?.trim()) {
@@ -1248,8 +1256,26 @@ Output ONLY the markdown content, no wrapping code fences.`;
           data: { status: "ANALYZING" },
         });
 
+        // Load user's Text.ru API key
+        const userPrefs = await prisma.userAIPreferences.findUnique({ where: { userId: ctx.user.id } });
+        const encryptedKeys = (userPrefs?.apiKeys as Record<string, string>) || {};
+        let textRuApiKey: string | undefined;
+        if (encryptedKeys.textru) {
+          try { textRuApiKey = decrypt(encryptedKeys.textru); } catch { /* corrupted key */ }
+        }
+
         const config = getAIConfig(input.modelId);
-        const aiCallFn = async (prompt: string) => callOpenRouter(config, prompt, true);
+        let totalAiCostUsd = 0;
+        const aiCallFn = async (prompt: string) => {
+          const result = await callOpenRouterWithCost(config, prompt, true);
+          totalAiCostUsd += result.costUsd;
+          return result.text;
+        };
+
+        // Check balance for AI-based phases
+        if (input.phase === "ai" || input.phase === "both") {
+          await ensureBalance(ctx.user.id, 1);
+        }
 
         // Strip image prompts for analysis (send only text)
         const textOnly = item.markdownBody
@@ -1287,15 +1313,16 @@ Output ONLY the markdown content, no wrapping code fences.`;
             where: { id: input.contentItemId },
             data: { seoAnalysis: merged as any, seoScore, status: "RECOMMENDATIONS" },
           });
+          // Deduct for AI analysis
+          if (totalAiCostUsd > 0) await deductByCost(ctx.user.id, totalAiCostUsd, "SEO_ANALYSIS", "AI SEO Analysis");
           return { success: true, analysis: merged, item: updated };
         }
 
         // ── Expert-only analysis (Text.ru background) ──
         if (input.phase === "expert") {
-          const hasTextRu = !!process.env.TEXTRU_API_KEY;
-          if (!hasTextRu) {
+          if (!textRuApiKey) {
             await prisma.contentItem.update({ where: { id: input.contentItemId }, data: { status: "RECOMMENDATIONS" } });
-            return { success: false, message: "Expert analysis provider not configured (TEXTRU_API_KEY missing)." };
+            return { success: false, message: "Text.ru API key not configured. Add it in Settings → API Keys." };
           }
 
           // Mark as pending
@@ -1310,7 +1337,7 @@ Output ONLY the markdown content, no wrapping code fences.`;
           console.log(`[analyzeContent] Expert-only: starting Text.ru for ${contentItemId}...`);
           (async () => {
             try {
-              const textRuProvider = getSeoProvider("text.ru");
+              const textRuProvider = getSeoProvider("text.ru", undefined, textRuApiKey);
               const textRuResult = await textRuProvider.analyze(textOnly, title);
               console.log(`[analyzeContent] Expert complete: uniqueness=${textRuResult.uniqueness}, spam=${textRuResult.spamScore}, water=${textRuResult.waterScore}`);
 
@@ -1379,13 +1406,13 @@ Output ONLY the markdown content, no wrapping code fences.`;
           },
         });
 
-        const hasTextRu = !!process.env.TEXTRU_API_KEY;
+        const hasTextRu = !!textRuApiKey;
         if (hasTextRu) {
           const contentItemId = input.contentItemId;
           console.log(`[analyzeContent] Phase 2: Starting Text.ru background for ${contentItemId}...`);
           (async () => {
             try {
-              const textRuProvider = getSeoProvider("text.ru");
+              const textRuProvider = getSeoProvider("text.ru", undefined, textRuApiKey);
               const textRuResult = await textRuProvider.analyze(textOnly, title);
               console.log(`[analyzeContent] Phase 2 complete: uniqueness=${textRuResult.uniqueness}, spam=${textRuResult.spamScore}, water=${textRuResult.waterScore}`);
 
@@ -1432,6 +1459,9 @@ Output ONLY the markdown content, no wrapping code fences.`;
           })();
         }
 
+        // Deduct for AI portion of analysis (Text.ru is free — uses user's API key)
+        if (totalAiCostUsd > 0) await deductByCost(ctx.user.id, totalAiCostUsd, "SEO_ANALYSIS", "AI SEO Analysis (hybrid)");
+
         return { success: true, analysis: aiOnlyResult, item: updated };
       } catch (err) {
         await prisma.contentItem.update({
@@ -1452,12 +1482,15 @@ Output ONLY the markdown content, no wrapping code fences.`;
       contentItemId: z.string(),
       modelId: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
       if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
       if (!item.markdownBody) {
         return { success: false, message: "No content to regenerate. Generate content first." };
       }
+
+      // Check token balance
+      await ensureBalance(ctx.user.id, 1);
       if (!item.seoAnalysis) {
         return { success: false, message: "No analysis data. Run analysis first." };
       }
@@ -1514,19 +1547,22 @@ Output ONLY the improved markdown content, no wrapping code fences.`;
           data: { status: "OPTIMIZING" },
         });
 
-        const improved = await callOpenRouter(config, prompt, false);
+        const result = await callOpenRouterWithCost(config, prompt, false);
+
+        // Deduct tokens based on actual cost
+        await deductByCost(ctx.user.id, result.costUsd, "AI_CONTENT_OPTIMIZE", `Optimize: ${item.title}`);
 
         const existingSeo = (item.seoAnalysis as any) || {};
         const updated = await prisma.contentItem.update({
           where: { id: input.contentItemId },
           data: {
-            markdownBody: improved,
+            markdownBody: result.text,
             status: "OPTIMIZED",
             seoAnalysis: { ...existingSeo, contentModifiedAt: new Date().toISOString() } as any,
           },
         });
 
-        return { success: true, wordCount: improved.split(/\s+/).length, item: updated };
+        return { success: true, wordCount: result.text.split(/\s+/).length, item: updated };
       } catch (err) {
         await prisma.contentItem.update({
           where: { id: input.contentItemId },

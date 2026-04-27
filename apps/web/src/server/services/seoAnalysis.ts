@@ -45,10 +45,14 @@ export interface SeoAnalysisProvider {
 // Uses text.ru API for uniqueness, spam, and naturalness checks
 class TextRuProvider implements SeoAnalysisProvider {
   name = "text.ru";
+  private apiKey: string;
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
   
   async analyze(text: string, title: string): Promise<SeoAnalysisResult> {
-    const apiKey = process.env.TEXTRU_API_KEY;
-    if (!apiKey) throw new Error("TEXTRU_API_KEY not configured");
+    const apiKey = this.apiKey;
 
     // Sanitize text: remove zero-width chars, normalize whitespace
     const cleanText = text
@@ -285,8 +289,8 @@ class HybridTextRuAiProvider implements SeoAnalysisProvider {
   private textRu: TextRuProvider;
   private aiSelf: AiSelfAnalysisProvider;
 
-  constructor(aiCallFn: (prompt: string) => Promise<string>) {
-    this.textRu = new TextRuProvider();
+  constructor(aiCallFn: (prompt: string) => Promise<string>, textRuApiKey: string) {
+    this.textRu = new TextRuProvider(textRuApiKey);
     this.aiSelf = new AiSelfAnalysisProvider(aiCallFn);
   }
 
@@ -341,16 +345,17 @@ class HybridTextRuAiProvider implements SeoAnalysisProvider {
 
 export function getSeoProvider(
   preferredProvider?: string,
-  aiCallFn?: (prompt: string) => Promise<string>
+  aiCallFn?: (prompt: string) => Promise<string>,
+  textRuApiKey?: string
 ): SeoAnalysisProvider {
-  const hasTextRu = !!process.env.TEXTRU_API_KEY;
+  const hasTextRu = !!textRuApiKey;
 
   if (preferredProvider === "hybrid" && hasTextRu && aiCallFn) {
-    return new HybridTextRuAiProvider(aiCallFn);
+    return new HybridTextRuAiProvider(aiCallFn, textRuApiKey!);
   }
   
   if (preferredProvider === "text.ru" && hasTextRu) {
-    return new TextRuProvider();
+    return new TextRuProvider(textRuApiKey!);
   }
   
   // Fallback to AI self-analysis
@@ -358,11 +363,11 @@ export function getSeoProvider(
     return new AiSelfAnalysisProvider(aiCallFn);
   }
   
-  throw new Error("No SEO analysis provider available. Configure API keys or provide an AI callback.");
+  throw new Error("No SEO analysis provider available. Configure your Text.ru API key in Settings.");
 }
 
 export const AVAILABLE_PROVIDERS = [
-  { id: "hybrid", name: "Hybrid (Text.ru + AI)", description: "Best overall: Uniqueness + E-E-A-T", requiresKey: "TEXTRU_API_KEY" },
-  { id: "text.ru", name: "Text.ru", description: "Russian-focused uniqueness & spam check", requiresKey: "TEXTRU_API_KEY" },
+  { id: "hybrid", name: "Hybrid (Text.ru + AI)", description: "Best overall: Uniqueness + E-E-A-T", requiresKey: "textru" },
+  { id: "text.ru", name: "Text.ru", description: "Russian-focused uniqueness & spam check", requiresKey: "textru" },
   { id: "ai-self", name: "AI Self-Analysis", description: "Uses project AI for content evaluation (fallback)", requiresKey: null },
 ];

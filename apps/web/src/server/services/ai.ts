@@ -1,9 +1,32 @@
 // ─── Shared OpenRouter Call ───────────────────────────────────────────────────
+
+/**
+ * Result from an OpenRouter API call.
+ * Includes the response text and the USD cost from OpenRouter's usage field.
+ */
+export interface AICallResult {
+  text: string;
+  costUsd: number; // Actual USD cost charged by OpenRouter
+}
+
 export async function callOpenRouter(
   config: { apiKey: string; model: string; baseUrl: string },
   prompt: string,
   jsonMode: boolean = false
 ): Promise<string> {
+  const result = await callOpenRouterWithCost(config, prompt, jsonMode);
+  return result.text;
+}
+
+/**
+ * Call OpenRouter and return both the response text and the USD cost.
+ * Used when we need to track token spending.
+ */
+export async function callOpenRouterWithCost(
+  config: { apiKey: string; model: string; baseUrl: string },
+  prompt: string,
+  jsonMode: boolean = false
+): Promise<AICallResult> {
   const res = await fetch(`${config.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -27,13 +50,27 @@ export async function callOpenRouter(
   }
   
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const costUsd = data.usage?.cost ?? 0;
+
+  return { text, costUsd };
 }
 
 export async function callOpenRouterChat(
   config: { apiKey: string; model: string; baseUrl: string },
   messages: { role: string; content: string }[],
 ): Promise<string> {
+  const result = await callOpenRouterChatWithCost(config, messages);
+  return result.text;
+}
+
+/**
+ * Chat-style call with cost tracking.
+ */
+export async function callOpenRouterChatWithCost(
+  config: { apiKey: string; model: string; baseUrl: string },
+  messages: { role: string; content: string }[],
+): Promise<AICallResult> {
   const res = await fetch(`${config.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -56,7 +93,10 @@ export async function callOpenRouterChat(
   }
   
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const costUsd = data.usage?.cost ?? 0;
+
+  return { text, costUsd };
 }
 
 // ─── Helper to get AI config from env ───────────────────────────────────────

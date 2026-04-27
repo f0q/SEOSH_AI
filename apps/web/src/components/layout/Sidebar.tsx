@@ -196,6 +196,36 @@ function ReadinessBar({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+// ── Sidebar Token Balance ────────────────────────────────────────────────────
+function SidebarTokenBalance() {
+  const { data } = trpc.settings.getTokenBalance.useQuery(undefined, {
+    refetchInterval: 30000, // refresh every 30s
+  });
+  const tokens = data?.tokens ?? 0;
+
+  return (
+    <div className="glass-card p-3 animate-fade-in">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs text-surface-400">Tokens</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Coins className="w-4 h-4 text-brand-400" />
+        <span className="text-lg font-bold text-surface-100">{tokens.toLocaleString()}</span>
+      </div>
+      <div className="mt-2 h-1.5 bg-surface-800 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${
+            tokens > 500 ? "bg-gradient-to-r from-brand-500 to-accent-500" :
+            tokens > 0 ? "bg-gradient-to-r from-amber-500 to-orange-500" :
+            "bg-red-500"
+          }`}
+          style={{ width: `${Math.min(100, (tokens / 2000) * 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 export default function Sidebar() {
   const pathname = usePathname();
@@ -267,21 +297,7 @@ export default function Sidebar() {
         <ReadinessBar collapsed={collapsed} />
 
         {/* Token balance */}
-        {!collapsed && (
-          <div className="glass-card p-3 animate-fade-in">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-surface-400">Tokens</span>
-              <span className="badge badge-brand text-xs">Free</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Coins className="w-4 h-4 text-brand-400" />
-              <span className="text-lg font-bold text-surface-100">200</span>
-            </div>
-            <div className="mt-2 h-1.5 bg-surface-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-brand-500 to-accent-500 rounded-full w-full" />
-            </div>
-          </div>
-        )}
+        {!collapsed && <SidebarTokenBalance />}
 
         {/* Settings / Billing */}
         {bottomItems.map((item) => {

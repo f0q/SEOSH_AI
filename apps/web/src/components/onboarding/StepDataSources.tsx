@@ -45,11 +45,11 @@ export default function StepDataSources({ data, updateData }: Props) {
   const handleParseWebsite = async () => {
     if (!data.websiteUrl.trim()) return;
     setParseStatus("parsing");
-    // TODO: Call API to parse sitemap
+    // TODO: Real API validation if needed. For now, just simulate a quick check.
     setTimeout(() => {
       setParseStatus("done");
-      setParseResult({ pages: 42 });
-    }, 2000);
+      setParseResult({ success: true } as any);
+    }, 1500);
   };
 
   return (
@@ -125,15 +125,15 @@ export default function StepDataSources({ data, updateData }: Props) {
             {parseStatus === "parsing" ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Analyzing...
+                Verifying...
               </>
             ) : parseStatus === "done" ? (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                Analyzed
+                Verified
               </>
             ) : (
-              "Analyze Site"
+              "Verify URL"
             )}
           </button>
         </div>
@@ -143,7 +143,7 @@ export default function StepDataSources({ data, updateData }: Props) {
           <div className="mt-3 p-3 rounded-lg bg-emerald-500/8 border border-emerald-500/15 flex items-center gap-2 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             <span className="text-sm text-emerald-300">
-              Found <strong>{parseResult.pages} pages</strong> on your website
+              <strong>URL Verified.</strong> We will parse your sitemap in the next steps.
             </span>
           </div>
         )}

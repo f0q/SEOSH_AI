@@ -1,7 +1,7 @@
 # SEOSH.AI — System Architecture
 
 > **Living Document** — Updated every time global functionality changes.  
-> Last updated: 2026-04-22 · Phase: SC→CP Bridge (v0.4)
+> Last updated: 2026-04-27 · Phase: User API Keys (v0.5)
 
 ---
 
@@ -43,7 +43,10 @@ SEOSH_AI/
 │       │   │   ├── trpc.ts          # tRPC context + auth session
 │       │   │   ├── db.ts            # Shared Prisma client singleton
 │       │   │   ├── services/        # Business logic services
-│       │   │   │   └── lexicalGrouper.ts  # N-gram keyword clustering
+│       │   │   │   ├── lexicalGrouper.ts  # N-gram keyword clustering
+│       │   │   │   └── seoAnalysis.ts     # SEO analysis providers (Text.ru, AI)
+│       │   │   ├── lib/
+│       │   │   │   ├── encryption.ts      # AES-256-GCM for API keys
 │       │   │   └── routers/
 │       │   │       ├── ai.ts        # AI provider config (stub)
 │       │   │       ├── autopilot.ts # Autopilot config + queue
@@ -53,7 +56,8 @@ SEOSH_AI/
 │       │   │       ├── dashboard.ts # Overview stats
 │       │   │       ├── projects.ts  # Project CRUD + onboarding
 │       │   │       ├── publishing.ts  # (not yet created)
-│       │   │       └── semanticCore.ts  # Keyword clustering + categories
+│       │   │       ├── semanticCore.ts  # Keyword clustering + categories
+│       │   │       └── settings.ts     # User settings + API key management
 │       │   ├── lib/
 │       │   │   ├── auth.ts          # better-auth config
 │       │   │   └── project-context.tsx  # Active project global state
@@ -137,9 +141,9 @@ Global:
 | Autopilot Queue | ✅ | 🟡 | 🔴 mock | `getQueue` exists, UI uses MOCK_QUEUE |
 | WordPress Publish | ✅ (PublisherConnector) | ❌ | ❌ | Connector model only |
 | Telegram Approval | ✅ (AutopilotConfig) | ❌ | ❌ | Config form only |
-| Billing | ✅ | ❌ | 🔴 static | Hardcoded "200 tokens" |
+| Billing | ✅ | ✅ | ✅ | Dynamic pricing ($1=200 tokens), real balance, transaction history |
 | Analytics | — | ❌ | 🔴 shell | Page exists, no data |
-| Settings | — | ❌ | 🔴 shell | Page exists, no functionality |
+| Settings | ✅ | ✅ | ✅ | API key management (encrypted), multi-provider |
 | Email (invites) | ✅ | 🟡 | ✅ | Logs to console, not sent |
 
 ---
@@ -265,6 +269,8 @@ Invitee → /content-plan/shared/{accessToken}
 | `SMTP_HOST/PORT/USER/PASS` | Email sending | contentPlan invites (planned) |
 | `TELEGRAM_BOT_TOKEN` | Autopilot approvals | autopilot (planned) |
 | `NEXT_PUBLIC_APP_URL` | Invite URLs, callbacks | contentPlan, auth |
+| `ENCRYPTION_SECRET` | AES-256-GCM key for API key encryption | settings router |
+| `ADMIN_SECRET` | Admin panel access key (for curl/API) | admin router |
 
 ---
 

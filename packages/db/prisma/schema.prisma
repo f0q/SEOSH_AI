@@ -121,7 +121,7 @@ model AIProviderConfig {
   @@map("ai_provider_configs")
 }
 
-/// Per-user AI model preferences
+/// Per-user AI model preferences and API keys
 model UserAIPreferences {
   id             String  @id @default(uuid())
   userId         String  @unique
@@ -129,6 +129,7 @@ model UserAIPreferences {
   modelCategorize String? // model for semantic categorization
   modelContent    String? // model for content generation
   modelAnalyze    String? // model for analysis tasks
+  apiKeys        Json?   // Encrypted API keys: { "textru": "encrypted...", "copyscape": "encrypted...", ... }
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

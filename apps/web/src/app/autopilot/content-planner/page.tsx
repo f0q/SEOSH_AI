@@ -1193,18 +1193,34 @@ export default function ContentPlannerPage() {
                           <span className="text-[10px] font-medium tracking-wider uppercase text-blue-400">SEO</span>
                         </button>
                         {/* Generate Content */}
-                        <button
-                          onClick={() => generateContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId })}
-                          disabled={generateContentMut.isPending}
-                          className="flex items-center gap-1 px-1.5 py-1 rounded-lg text-emerald-400/70 hover:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/50 hover:border-emerald-400 transition-colors"
-                          title="Generate content"
-                        >
-                          {generateContentMut.isPending && generateContentMut.variables?.contentItemId === item.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <Wand2 className="w-3.5 h-3.5" />
-                          }
-                          <span className="text-[10px] font-medium tracking-wider uppercase">Gen</span>
-                        </button>
+                        {(() => {
+                          const isSeoReady = Boolean(
+                            item.metaTitle?.trim() && 
+                            item.metaDesc?.trim() && 
+                            item.h1?.trim() && 
+                            item.h2Headings && item.h2Headings.length > 0 && 
+                            item.targetKeywords && item.targetKeywords.length > 0
+                          );
+                          
+                          return (
+                            <button
+                              onClick={() => generateContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId })}
+                              disabled={generateContentMut.isPending || !isSeoReady}
+                              className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition-colors border ${
+                                isSeoReady 
+                                  ? "text-emerald-400/70 hover:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/50 hover:border-emerald-400"
+                                  : "text-surface-600 cursor-not-allowed border-surface-700 bg-surface-800/50"
+                              }`}
+                              title={isSeoReady ? "Generate content" : "Generate SEO data first (Title, Meta, H1, H2, Keywords)"}
+                            >
+                              {generateContentMut.isPending && generateContentMut.variables?.contentItemId === item.id
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <Wand2 className="w-3.5 h-3.5" />
+                              }
+                              <span className="text-[10px] font-medium tracking-wider uppercase">Gen</span>
+                            </button>
+                          );
+                        })()}
                         {/* Expert Analysis */}
                         <button
                           onClick={() => analyzeContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId, phase: "expert" })}

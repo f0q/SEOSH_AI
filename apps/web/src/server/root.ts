@@ -11,6 +11,8 @@ import { autopilotRouter } from "./routers/autopilot";
 import { contentRouter } from "./routers/content";
 import { contentPlanRouter } from "./routers/contentPlan";
 import { dashboardRouter } from "./routers/dashboard";
+import { settingsRouter } from "./routers/settings";
+import { adminRouter } from "./routers/admin";
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -20,6 +22,8 @@ export const appRouter = router({
   content: contentRouter,
   contentPlan: contentPlanRouter,
   dashboard: dashboardRouter,
+  settings: settingsRouter,
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;
