@@ -116,6 +116,11 @@ export const teamRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: "This email already has access to this project." });
       }
 
+      // Remove any revoked records so we can re-invite
+      await prisma.projectMember.deleteMany({
+        where: { projectId: input.projectId, email: input.email, status: "REVOKED" },
+      });
+
       // Generate credentials
       const accessToken = crypto.randomBytes(32).toString("hex");
       const tempPassword = crypto.randomBytes(6).toString("hex");
@@ -146,7 +151,7 @@ export const teamRouter = router({
 ╚══════════════════════════════════════════════════════════
       `);
 
-      return { success: true, memberId: member.id };
+      return { success: true, memberId: member.id, inviteUrl, tempPassword };
     }),
 
   /** Update a team member's role */

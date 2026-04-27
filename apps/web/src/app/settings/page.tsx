@@ -460,13 +460,15 @@ function TeamMembersSection() {
 
   const utils = trpc.useUtils();
   const inviteMut = trpc.team.inviteMember.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       utils.team.listAllMembers.invalidate();
+      setLastInviteUrl(data.inviteUrl);
+      setLastInvitePassword(data.tempPassword);
+      setLastInviteEmail(inviteEmail);
       setInviteEmail("");
       setInviteRole("VIEWER");
       setShowInviteForm(false);
       setInviteSuccess(true);
-      setTimeout(() => setInviteSuccess(false), 4000);
     },
   });
   const updateRoleMut = trpc.team.updateRole.useMutation({
@@ -481,6 +483,10 @@ function TeamMembersSection() {
   const [inviteRole, setInviteRole] = useState<"VIEWER" | "EDITOR" | "ADMIN">("VIEWER");
   const [inviteProject, setInviteProject] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [lastInviteUrl, setLastInviteUrl] = useState("");
+  const [lastInviteEmail, setLastInviteEmail] = useState("");
+  const [lastInvitePassword, setLastInvitePassword] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const canInvite = canInviteQuery.data?.allowed ?? false;
   const projects = membersQuery.data?.projects || [];
@@ -592,11 +598,33 @@ function TeamMembersSection() {
         </div>
       )}
 
-      {/* Success toast */}
+      {/* Success with invite link */}
       {inviteSuccess && (
-        <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 animate-fade-in">
-          <Check className="w-4 h-4 text-emerald-400" />
-          <p className="text-sm text-emerald-400">Invite sent successfully! Check the server console for the invite link.</p>
+        <div className="glass-card p-4 mb-4 border border-emerald-500/20 animate-fade-in space-y-3">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-400" />
+            <p className="text-sm text-emerald-400">Invite created for <strong>{lastInviteEmail}</strong></p>
+          </div>
+          {lastInviteUrl && (
+            <div className="flex gap-2">
+              <input readOnly value={lastInviteUrl} className="input-field text-xs flex-1 font-mono" />
+              <button
+                onClick={() => { navigator.clipboard.writeText(lastInviteUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                className="btn-secondary gap-1 flex-shrink-0 text-xs"
+              >
+                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Mail className="w-3 h-3" />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          )}
+          {lastInvitePassword && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-800/50">
+              <span className="text-[11px] text-surface-400">Password:</span>
+              <code className="text-sm text-amber-400 font-mono font-bold">{lastInvitePassword}</code>
+            </div>
+          )}
+          <p className="text-[11px] text-surface-500">Share the link and password with the invitee.</p>
+          <button onClick={() => setInviteSuccess(false)} className="text-[11px] text-surface-500 hover:text-surface-300">Dismiss</button>
         </div>
       )}
 
