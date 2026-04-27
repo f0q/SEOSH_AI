@@ -1066,6 +1066,7 @@ For EACH item, generate ALL of these fields (override with better values if need
 - "h2Headings": Array of 3 to 6 logical H2 subheadings.
 - "targetKeywords": Array of 3 to 5 LSI/target keywords.
 - "tags": Array of 3 to 5 related tags.
+- "targetWordCount": Recommended word count for this article (integer). Consider topic complexity and keyword competitiveness. Typical ranges: simple info page 500-800, blog post 1000-2000, in-depth guide 2000-3500, pillar content 3000-5000.
 - "internalLinks": Array of 2-3 suggested internal relative paths to link within this article. Do NOT include the domain name. Example: "/services/seo" or "/blog/related-post".
 - "recommendedImages": Array of 2-3 objects: { "description": "what the image should show", "alt": "SEO alt text", "placement": "hero" | "inline" | "infographic" }.
 
@@ -1083,6 +1084,7 @@ Output strictly valid JSON:
       "h2Headings": [string],
       "targetKeywords": [string],
       "tags": [string],
+      "targetWordCount": number,
       "internalLinks": [string],
       "recommendedImages": [{ "description": string, "alt": string, "placement": string }]
     }
@@ -1127,6 +1129,7 @@ The output array must be in the exact same order as input. Do not output any mar
               h2Headings: data.h2Headings,
               targetKeywords: data.targetKeywords,
               tags: data.tags,
+              targetWordCount: data.targetWordCount ? parseInt(data.targetWordCount, 10) || undefined : undefined,
               internalLinks: data.internalLinks ? data.internalLinks.join(", ") : undefined,
               recommendedImages: data.recommendedImages || undefined,
             }
@@ -1153,7 +1156,18 @@ The output array must be in the exact same order as input. Do not output any mar
       modelId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
+      const item = await prisma.contentItem.findUnique({ 
+        where: { id: input.contentItemId },
+        include: {
+          contentPlan: {
+            include: {
+              project: {
+                include: { companyProfile: true }
+              }
+            }
+          }
+        }
+      });
       if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Content item not found" });
 
       // Check token balance before starting
@@ -1167,6 +1181,15 @@ The output array must be in the exact same order as input. Do not output any mar
         ? `\n\nCRITICAL INSTRUCTION FOR IMAGES:\nYou MUST include these exact image placeholders in the content at appropriate positions. Do NOT alter the alt text or the prompt:\n${images.map((img, i) => `![${img.alt}](PROMPT: ${img.description})`).join("\n")}`
         : "\n\nInclude 2-3 image placeholders in the format: ![alt text](PROMPT: description of image to generate)";
 
+      const company = item.contentPlan?.project?.companyProfile;
+      const companyContext = company 
+        ? `\nCompany Context:\n- Company Name: ${company.companyName}\n- Industry/Products: ${company.industry || "N/A"}\n- Target Audience: ${(company.targetAudience as any)?.segments?.join(", ") || "N/A"}\n`
+        : "";
+        
+      const companyRule = company
+        ? `\n12. COMPANY MENTION RULE: Do NOT constantly reference "${company.companyName}" or say "In our company we...". Keep the article strictly informative and objective. ONLY mention the company "${company.companyName}" once at the very end of the article (as a brief conclusion/CTA), and ONLY if our services actually overlap with the article's topic.`
+        : "";
+
       const prompt = `You are an expert SEO content writer. Write a complete, high-quality article in Markdown format.
 
 Title (H1): ${item.h1 || item.metaTitle || item.title}
@@ -1178,13 +1201,13 @@ Target Keywords: ${(item.targetKeywords || []).join(", ")}
 Schema Type: ${item.schemaType || "Article"}
 H2 Headings to include: ${(item.h2Headings || []).join(", ")}
 Internal Links to include: ${item.internalLinks || "none specified"}
-Target Word Count: ${item.targetWordCount || 1500}
+Target Word Count: ${item.targetWordCount || 1500}${companyContext}
 ${imageInstructions}
 
 Requirements:
 1. Start with the H1 heading (# title).
 2. Use all provided H2 headings as sections.
-3. Naturally weave in the target keywords (don't stuff).
+3. KEYWORD DENSITY LIMIT: Use the provided target keywords extremely sparingly and naturally. Do NOT repeat the exact same keyword more than 2-3 times across the entire article. Instead of repeating the main target keywords, use a wide variety of LSI (Latent Semantic Indexing) keywords, synonyms, and related contextual phrases. Your goal is to maintain a maximum keyword density of 1-1.5% to completely avoid over-optimization and spam.
 4. Include the specified internal links naturally in context.
 5. Write in a professional but engaging tone.
 6. Include the EXACT image placeholders provided above at appropriate positions.
@@ -1192,7 +1215,7 @@ Requirements:
 8. Target the specified word count.
 9. Make content E-E-A-T compliant (show expertise, cite experience).
 10. DO NOT include the Meta Title or Meta Description in the markdown output. They are stored separately.
-11. The current date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Use the current year (${new Date().getFullYear()}) if you need to reference the current time or year.
+11. The current date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Use the current year (${new Date().getFullYear()}) if you need to reference the current time or year.${companyRule}
 
 Output ONLY the markdown content, no wrapping code fences.`;
 

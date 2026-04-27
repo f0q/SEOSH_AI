@@ -124,6 +124,10 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
   const isAnalysisOutdated = isExpertOutdated || isAiOutdated;
 
   const generateMut = trpc.contentPlan.generateContent.useMutation({
+    onMutate: () => {
+      // Immediate invalidation so the list refetches and shows GENERATING status
+      utils.contentPlan.getByProject.invalidate();
+    },
     onSuccess: (data) => {
       if (data.item?.markdownBody) {
         setMarkdown(data.item.markdownBody);
@@ -133,6 +137,9 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
     onError: (error) => {
       setErrorMessage(error.message);
       setTimeout(() => setErrorMessage(""), 5000);
+    },
+    onSettled: () => {
+      utils.contentPlan.getByProject.invalidate();
     }
   });
 
@@ -689,23 +696,25 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                     {analysis.textRuError && <span className="text-red-400 normal-case font-normal ml-1 text-[9px]">Error: {analysis.textRuError}</span>}
                   </div>
                   {[
-                    { label: "Уникальность", value: analysis.uniqueness, good: 80, isPercentage: true },
-                    ...(analysis.spellingErrors !== undefined ? [{ label: "Ошибок правописания", value: analysis.spellingErrors, good: 0, invert: true, isPercentage: false }] : []),
-                    { label: "Заспамленность", value: analysis.spamScore, good: 30, invert: true, isPercentage: true },
-                    { label: "Вода", value: analysis.waterScore, good: 15, invert: true, isPercentage: true },
+                    { label: "Уникальность", value: analysis.uniqueness, good: 80, ok: 50, invert: false, isPercentage: true },
+                    { label: "Заспамленность", value: analysis.spamScore, good: 30, ok: 60, invert: true, isPercentage: true },
+                    { label: "Вода", value: analysis.waterScore, good: 15, ok: 25, invert: true, isPercentage: true },
                   ].map(metric => {
                     const isGood = metric.invert ? metric.value <= metric.good : metric.value >= metric.good;
+                    const isOk = metric.invert ? metric.value <= metric.ok : metric.value >= metric.ok;
+                    const color = isGood ? "text-emerald-400" : isOk ? "text-amber-400" : "text-red-400";
+                    const bgColor = isGood ? "bg-emerald-500" : isOk ? "bg-amber-500" : "bg-red-500";
                     return (
                       <div key={metric.label} className="space-y-1">
                         <div className="flex justify-between text-[11px]">
                           <span className="text-surface-400">{metric.label}</span>
-                          <span className={isGood ? "text-emerald-400" : "text-amber-400"}>
+                          <span className={color}>
                             {metric.isPercentage ? `${Math.round(metric.value)}%` : metric.value}
                           </span>
                         </div>
                         <div className="h-1.5 rounded-full bg-surface-800/50 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${isGood ? "bg-emerald-500" : "bg-amber-500"}`}
+                            className={`h-full rounded-full transition-all ${bgColor}`}
                             style={{ width: `${metric.isPercentage ? Math.min(100, Math.max(0, metric.value)) : metric.value === 0 ? 100 : 0}%` }}
                           />
                         </div>
@@ -725,22 +734,25 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                     )}
                   </div>
                   {[
-                    { label: "Естественность", value: analysis.naturalness, good: 80, isPercentage: true },
-                    { label: "E-E-A-T", value: analysis.eeat, good: 70, isPercentage: true },
-                    { label: "Читабельность", value: analysis.readability, good: 70, isPercentage: true },
+                    { label: "Естественность", value: analysis.naturalness, good: 80, ok: 50, isPercentage: true },
+                    { label: "E-E-A-T", value: analysis.eeat, good: 80, ok: 50, isPercentage: true },
+                    { label: "Читабельность", value: analysis.readability, good: 80, ok: 50, isPercentage: true },
                   ].map(metric => {
                     const isGood = metric.value >= metric.good;
+                    const isOk = metric.value >= metric.ok;
+                    const color = isGood ? "text-emerald-400" : isOk ? "text-amber-400" : "text-red-400";
+                    const bgColor = isGood ? "bg-emerald-500" : isOk ? "bg-amber-500" : "bg-red-500";
                     return (
                       <div key={metric.label} className="space-y-1">
                         <div className="flex justify-between text-[11px]">
                           <span className="text-surface-400">{metric.label}</span>
-                          <span className={isGood ? "text-emerald-400" : "text-amber-400"}>
+                          <span className={color}>
                             {metric.isPercentage ? `${Math.round(metric.value)}%` : metric.value}
                           </span>
                         </div>
                         <div className="h-1.5 rounded-full bg-surface-800/50 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${isGood ? "bg-emerald-500" : "bg-amber-500"}`}
+                            className={`h-full rounded-full transition-all ${bgColor}`}
                             style={{ width: `${Math.min(100, Math.max(0, metric.value))}%` }}
                           />
                         </div>

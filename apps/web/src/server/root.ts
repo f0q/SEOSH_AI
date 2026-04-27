@@ -13,6 +13,7 @@ import { contentPlanRouter } from "./routers/contentPlan";
 import { dashboardRouter } from "./routers/dashboard";
 import { settingsRouter } from "./routers/settings";
 import { adminRouter } from "./routers/admin";
+import { teamRouter } from "./routers/team";
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -24,6 +25,7 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   settings: settingsRouter,
   admin: adminRouter,
+  team: teamRouter,
 });
 
 export type AppRouter = typeof appRouter;

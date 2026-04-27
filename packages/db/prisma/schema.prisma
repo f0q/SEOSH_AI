@@ -158,6 +158,7 @@ model Project {
   contentPlans   ContentPlan[]
   sitemapPages   SitemapPage[]
   autopilotConfig AutopilotConfig?
+  members        ProjectMember[]
 
   @@map("projects")
 }
@@ -456,6 +457,34 @@ enum ShareStatus {
   PENDING  // Invite sent, not yet accepted
   ACTIVE   // User has accepted and logged in
   REVOKED  // Admin revoked access
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROJECT TEAM MEMBERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Project-level team member — grants access to all project resources
+model ProjectMember {
+  id           String            @id @default(uuid())
+  projectId    String
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  email        String
+  role         ProjectMemberRole @default(VIEWER)
+  invitedBy    String            // userId of the person who sent the invite
+  status       ShareStatus       @default(PENDING)
+  accessToken  String?           @unique // URL token for invite link
+  tempPassword String?           // Cleared after first login
+  createdAt    DateTime          @default(now())
+  acceptedAt   DateTime?
+
+  @@unique([projectId, email])
+  @@map("project_members")
+}
+
+enum ProjectMemberRole {
+  VIEWER   // Can view content plans, content, analytics
+  EDITOR   // Can edit content, generate, analyze
+  ADMIN    // Full access + can invite others
 }
 
 enum MediaType {

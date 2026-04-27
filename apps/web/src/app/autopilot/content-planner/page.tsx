@@ -908,16 +908,11 @@ export default function ContentPlannerPage() {
             </button>
 
             <button
-              onClick={() => setShowInvite(true)}
+              onClick={() => router.push("/settings")}
               className="btn-secondary gap-2 text-sm"
             >
               <Users className="w-4 h-4" />
-              Invite
-              {activeShares.length > 0 && (
-                <span className="ml-1 w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs flex items-center justify-center">
-                  {activeShares.length}
-                </span>
-              )}
+              Team
             </button>
           </div>
         </div>
@@ -1205,7 +1200,7 @@ export default function ContentPlannerPage() {
                           return (
                             <button
                               onClick={() => generateContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId })}
-                              disabled={generateContentMut.isPending || !isSeoReady}
+                              disabled={generateContentMut.isPending || item.status === "GENERATING" || !isSeoReady}
                               className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition-colors border ${
                                 isSeoReady 
                                   ? "text-emerald-400/70 hover:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/50 hover:border-emerald-400"
@@ -1213,7 +1208,7 @@ export default function ContentPlannerPage() {
                               }`}
                               title={isSeoReady ? "Generate content" : "Generate SEO data first (Title, Meta, H1, H2, Keywords)"}
                             >
-                              {generateContentMut.isPending && generateContentMut.variables?.contentItemId === item.id
+                              {(generateContentMut.isPending && generateContentMut.variables?.contentItemId === item.id) || item.status === "GENERATING"
                                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                 : <Wand2 className="w-3.5 h-3.5" />
                               }
@@ -1316,27 +1311,19 @@ export default function ContentPlannerPage() {
                                   {/* Uniqueness */}
                                   <div className="flex flex-col items-center gap-0.5 group relative" title="Уникальность (Expert)">
                                     <Fingerprint className="w-3 h-3 text-emerald-400 opacity-70 group-hover:opacity-100" />
-                                    <span className="text-[9px] font-medium text-emerald-400/80">{Math.round(analysis.uniqueness)}%</span>
+                                    <span className={`text-[9px] font-medium ${analysis.uniqueness >= 80 ? 'text-emerald-400' : analysis.uniqueness >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.uniqueness)}%</span>
                                   </div>
-                                  
-                                  {/* Spelling */}
-                                  {analysis.spellingErrors !== undefined && (
-                                    <div className="flex flex-col items-center gap-0.5 group relative" title={`${analysis.spellingErrors} ошибок правописания (Expert)`}>
-                                      <SpellCheck className={`w-3 h-3 opacity-70 group-hover:opacity-100 ${analysis.spellingErrors > 0 ? 'text-red-400' : 'text-emerald-400'}`} />
-                                      <span className={`text-[9px] font-medium ${analysis.spellingErrors > 0 ? 'text-red-400/80' : 'text-emerald-400/80'}`}>{analysis.spellingErrors}</span>
-                                    </div>
-                                  )}
 
                                   {/* Spam */}
                                   <div className="flex flex-col items-center gap-0.5 group relative" title="Заспамленность (Expert)">
-                                    <AlertTriangle className={`w-3 h-3 opacity-70 group-hover:opacity-100 ${analysis.spamScore > 30 ? 'text-red-400' : 'text-amber-400'}`} />
-                                    <span className={`text-[9px] font-medium ${analysis.spamScore > 30 ? 'text-red-400/80' : 'text-amber-400/80'}`}>{Math.round(analysis.spamScore)}%</span>
+                                    <AlertTriangle className="w-3 h-3 text-red-400 opacity-70 group-hover:opacity-100" />
+                                    <span className={`text-[9px] font-medium ${analysis.spamScore <= 30 ? 'text-emerald-400' : analysis.spamScore <= 60 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.spamScore)}%</span>
                                   </div>
 
                                   {/* Water */}
                                   <div className="flex flex-col items-center gap-0.5 group relative" title="Вода (Expert)">
                                     <Droplet className="w-3 h-3 text-blue-400 opacity-70 group-hover:opacity-100" />
-                                    <span className="text-[9px] font-medium text-blue-400/80">{Math.round(analysis.waterScore)}%</span>
+                                    <span className={`text-[9px] font-medium ${analysis.waterScore <= 15 ? 'text-emerald-400' : analysis.waterScore <= 25 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.waterScore)}%</span>
                                   </div>
                                 </>
                               )}
@@ -1347,19 +1334,19 @@ export default function ContentPlannerPage() {
                               {/* Naturalness */}
                               <div className="flex flex-col items-center gap-0.5 group relative" title="Естественность (AI)">
                                 <Leaf className="w-3 h-3 text-teal-400 opacity-70 group-hover:opacity-100" />
-                                <span className="text-[9px] font-medium text-teal-400/80">{Math.round(analysis.naturalness)}%</span>
+                                <span className={`text-[9px] font-medium ${analysis.naturalness >= 80 ? 'text-emerald-400' : analysis.naturalness >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.naturalness)}%</span>
                               </div>
 
                               {/* E-E-A-T */}
                               <div className="flex flex-col items-center gap-0.5 group relative" title="E-E-A-T (AI)">
                                 <ShieldCheck className="w-3 h-3 text-indigo-400 opacity-70 group-hover:opacity-100" />
-                                <span className="text-[9px] font-medium text-indigo-400/80">{Math.round(analysis.eeat)}%</span>
+                                <span className={`text-[9px] font-medium ${analysis.eeat >= 80 ? 'text-emerald-400' : analysis.eeat >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.eeat)}%</span>
                               </div>
 
                               {/* Readability */}
                               <div className="flex flex-col items-center gap-0.5 group relative" title="Читабельность (AI)">
                                 <BookOpen className="w-3 h-3 text-cyan-400 opacity-70 group-hover:opacity-100" />
-                                <span className="text-[9px] font-medium text-cyan-400/80">{Math.round(analysis.readability)}%</span>
+                                <span className={`text-[9px] font-medium ${analysis.readability >= 80 ? 'text-emerald-400' : analysis.readability >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.readability)}%</span>
                               </div>
                             </div>
 
@@ -1759,12 +1746,7 @@ export default function ContentPlannerPage() {
       </div>
 
       {/* Modals */}
-      {showInvite && (
-        <InviteModal
-          projectId={activeProject.id}
-          onClose={() => setShowInvite(false)}
-        />
-      )}
+
       {/* Ideation Modal */}
       {showIdeation && (
         <IdeationModal
