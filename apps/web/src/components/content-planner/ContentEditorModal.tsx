@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AIModelSelector } from "../ui/AIModelSelector";
 import { PAGE_TYPES } from "@seosh/shared/seo";
+import DOMPurify from 'isomorphic-dompurify';
 
 interface ContentEditorModalProps {
   itemId: string;
@@ -573,16 +574,18 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                   <div
                     className="prose prose-invert prose-sm max-w-none text-surface-200 h-[600px] overflow-y-auto custom-scrollbar pr-2"
                     dangerouslySetInnerHTML={{
-                      __html: markdown
-                        .replace(/^# (.*$)/gm, '<h1 class="text-xl font-bold text-surface-50 mb-3">$1</h1>')
-                        .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold text-surface-100 mt-6 mb-2">$1</h2>')
-                        .replace(/^### (.*$)/gm, '<h3 class="text-base font-medium text-surface-200 mt-4 mb-2">$1</h3>')
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                        .replace(/!\[([^\]]*)\]\(PROMPT: ([^)]*)\)/g, '<div class="my-4 p-4 border border-dashed border-purple-500/30 rounded-xl bg-purple-500/5 text-center"><p class="text-xs text-purple-400">🖼 Image: $2</p><p class="text-[10px] text-surface-500 mt-1">alt: $1</p></div>')
-                        .replace(/\[([^\]]*)\]\(([^)]*)\)/g, '<a href="$2" class="text-brand-400 hover:underline">$1</a>')
-                        .replace(/\n\n/g, '</p><p class="mb-3 leading-relaxed">')
-                        .replace(/^(?!<[hpa])/gm, '<p class="mb-3 leading-relaxed">')
+                      __html: DOMPurify.sanitize(
+                        markdown
+                          .replace(/^# (.*$)/gm, '<h1 class="text-xl font-bold text-surface-50 mb-3">$1</h1>')
+                          .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold text-surface-100 mt-6 mb-2">$1</h2>')
+                          .replace(/^### (.*$)/gm, '<h3 class="text-base font-medium text-surface-200 mt-4 mb-2">$1</h3>')
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                          .replace(/!\[([^\]]*)\]\(PROMPT: ([^)]*)\)/g, '<div class="my-4 p-4 border border-dashed border-purple-500/30 rounded-xl bg-purple-500/5 text-center"><p class="text-xs text-purple-400">🖼 Image: $2</p><p class="text-[10px] text-surface-500 mt-1">alt: $1</p></div>')
+                          .replace(/\[([^\]]*)\]\(([^)]*)\)/g, '<a href="$2" class="text-brand-400 hover:underline">$1</a>')
+                          .replace(/\n\n/g, '</p><p class="mb-3 leading-relaxed">')
+                          .replace(/^(?!<[hpa])/gm, '<p class="mb-3 leading-relaxed">')
+                      )
                     }}
                   />
                 )}
