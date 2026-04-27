@@ -11,7 +11,7 @@ import {
   Sparkles, ShieldCheck, Lightbulb, X, Check, Loader2, Bot,
   ExternalLink, Copy, CheckCheck, Tag, Search, ChevronDown, Wand2, AlertCircle, BrainCircuit,
   Upload, FileSpreadsheet, FileText as FileTextIcon, Image, BarChart3, RefreshCw, Save,
-  Fingerprint, Leaf, BookOpen, Droplet, AlertTriangle, HelpCircle
+  Fingerprint, Leaf, BookOpen, Droplet, AlertTriangle, HelpCircle, SpellCheck
 } from "lucide-react";
 import { IdeationModal } from "@/components/content-planner/IdeationModal";
 import { ContentEditorModal } from "@/components/content-planner/ContentEditorModal";
@@ -1205,18 +1205,35 @@ export default function ContentPlannerPage() {
                           }
                           <span className="text-[10px] font-medium tracking-wider uppercase">Gen</span>
                         </button>
-                        {/* Analyze Content */}
+                        {/* Expert Analysis */}
                         <button
-                          onClick={() => analyzeContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId })}
+                          onClick={() => analyzeContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId, phase: "expert" })}
                           disabled={analyzeContentMut.isPending || !item.markdownBody}
                           className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition-colors border ${
                             item.markdownBody
                               ? "text-blue-400/70 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/50 hover:border-blue-400"
                               : "text-surface-600 cursor-not-allowed border-surface-700 bg-surface-800/50"
                           }`}
-                          title={item.markdownBody ? "Analyze content" : "Generate content first"}
+                          title={item.markdownBody ? "Expert Analysis (уникальность, правописание, спам, вода)" : "Generate content first"}
                         >
-                          {analyzeContentMut.isPending && analyzeContentMut.variables?.contentItemId === item.id
+                          {analyzeContentMut.isPending && analyzeContentMut.variables?.contentItemId === item.id && analyzeContentMut.variables?.phase === "expert"
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <BarChart3 className="w-3.5 h-3.5" />
+                          }
+                          <span className="text-[10px] font-medium tracking-wider uppercase">Exp</span>
+                        </button>
+                        {/* AI Analysis */}
+                        <button
+                          onClick={() => analyzeContentMut.mutate({ contentItemId: item.id, modelId: selectedModelId, phase: "ai" })}
+                          disabled={analyzeContentMut.isPending || !item.markdownBody}
+                          className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition-colors border ${
+                            item.markdownBody
+                              ? "text-blue-400/70 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/50 hover:border-blue-400"
+                              : "text-surface-600 cursor-not-allowed border-surface-700 bg-surface-800/50"
+                          }`}
+                          title={item.markdownBody ? "AI Analysis (EEAT, естественность, читабельность)" : "Generate content first"}
+                        >
+                          {analyzeContentMut.isPending && analyzeContentMut.variables?.contentItemId === item.id && analyzeContentMut.variables?.phase === "ai"
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             : <BarChart3 className="w-3.5 h-3.5" />
                           }
@@ -1265,40 +1282,74 @@ export default function ContentPlannerPage() {
                       {item.seoAnalysis ? (() => {
                         const analysis = item.seoAnalysis as any;
                         return (
-                          <div className="flex items-center gap-2">
-                            {/* Uniqueness */}
-                            <div className="flex flex-col items-center gap-0.5 group relative" title="Uniqueness: How original the content is">
-                              <Fingerprint className="w-3 h-3 text-emerald-400 opacity-70 group-hover:opacity-100" />
-                              <span className="text-[9px] font-medium text-emerald-400/80">{Math.round(analysis.uniqueness)}%</span>
-                            </div>
-                            
-                            {/* Naturalness */}
-                            <div className="flex flex-col items-center gap-0.5 group relative" title="Naturalness: How human-like the writing sounds">
-                              <Leaf className="w-3 h-3 text-teal-400 opacity-70 group-hover:opacity-100" />
-                              <span className="text-[9px] font-medium text-teal-400/80">{Math.round(analysis.naturalness)}%</span>
+                          <div className="flex items-center gap-3">
+                            {/* Expert Metrics */}
+                            <div className="flex items-center gap-1.5 border-r border-surface-700/50 pr-3">
+                              {analysis.isTextRuPending ? (
+                                <div className="flex flex-col items-center gap-0.5 group relative" title="Expert Analysis processing...">
+                                  <Loader2 className="w-4 h-4 text-violet-400 animate-spin" />
+                                  <span className="text-[8px] text-violet-400/70 animate-pulse">Expert</span>
+                                </div>
+                              ) : analysis.textRuError ? (
+                                <div className="flex flex-col items-center gap-0.5 group relative" title={`Expert Analysis error: ${analysis.textRuError}`}>
+                                  <AlertCircle className="w-4 h-4 text-red-400" />
+                                  <span className="text-[8px] text-red-400/70">Ошибка</span>
+                                </div>
+                              ) : (
+                                <>
+                                  {/* Uniqueness */}
+                                  <div className="flex flex-col items-center gap-0.5 group relative" title="Уникальность (Expert)">
+                                    <Fingerprint className="w-3 h-3 text-emerald-400 opacity-70 group-hover:opacity-100" />
+                                    <span className="text-[9px] font-medium text-emerald-400/80">{Math.round(analysis.uniqueness)}%</span>
+                                  </div>
+                                  
+                                  {/* Spelling */}
+                                  {analysis.spellingErrors !== undefined && (
+                                    <div className="flex flex-col items-center gap-0.5 group relative" title={`${analysis.spellingErrors} ошибок правописания (Expert)`}>
+                                      <SpellCheck className={`w-3 h-3 opacity-70 group-hover:opacity-100 ${analysis.spellingErrors > 0 ? 'text-red-400' : 'text-emerald-400'}`} />
+                                      <span className={`text-[9px] font-medium ${analysis.spellingErrors > 0 ? 'text-red-400/80' : 'text-emerald-400/80'}`}>{analysis.spellingErrors}</span>
+                                    </div>
+                                  )}
+
+                                  {/* Spam */}
+                                  <div className="flex flex-col items-center gap-0.5 group relative" title="Заспамленность (Expert)">
+                                    <AlertTriangle className={`w-3 h-3 opacity-70 group-hover:opacity-100 ${analysis.spamScore > 30 ? 'text-red-400' : 'text-amber-400'}`} />
+                                    <span className={`text-[9px] font-medium ${analysis.spamScore > 30 ? 'text-red-400/80' : 'text-amber-400/80'}`}>{Math.round(analysis.spamScore)}%</span>
+                                  </div>
+
+                                  {/* Water */}
+                                  <div className="flex flex-col items-center gap-0.5 group relative" title="Вода (Expert)">
+                                    <Droplet className="w-3 h-3 text-blue-400 opacity-70 group-hover:opacity-100" />
+                                    <span className="text-[9px] font-medium text-blue-400/80">{Math.round(analysis.waterScore)}%</span>
+                                  </div>
+                                </>
+                              )}
                             </div>
 
-                            {/* E-E-A-T */}
-                            <div className="flex flex-col items-center gap-0.5 group relative" title="E-E-A-T: Expertise, Experience, Authority, Trust">
-                              <ShieldCheck className="w-3 h-3 text-indigo-400 opacity-70 group-hover:opacity-100" />
-                              <span className="text-[9px] font-medium text-indigo-400/80">{Math.round(analysis.eeat)}%</span>
-                            </div>
+                            {/* AI Metrics */}
+                            <div className="flex items-center gap-1.5">
+                              {/* Naturalness */}
+                              <div className="flex flex-col items-center gap-0.5 group relative" title="Естественность (AI)">
+                                <Leaf className="w-3 h-3 text-teal-400 opacity-70 group-hover:opacity-100" />
+                                <span className="text-[9px] font-medium text-teal-400/80">{Math.round(analysis.naturalness)}%</span>
+                              </div>
 
-                            {/* Readability */}
-                            <div className="flex flex-col items-center gap-0.5 group relative" title="Readability: How easy the text is to read">
-                              <BookOpen className="w-3 h-3 text-cyan-400 opacity-70 group-hover:opacity-100" />
-                              <span className="text-[9px] font-medium text-cyan-400/80">{Math.round(analysis.readability)}%</span>
-                            </div>
+                              {/* E-E-A-T */}
+                              <div className="flex flex-col items-center gap-0.5 group relative" title="E-E-A-T (AI)">
+                                <ShieldCheck className="w-3 h-3 text-indigo-400 opacity-70 group-hover:opacity-100" />
+                                <span className="text-[9px] font-medium text-indigo-400/80">{Math.round(analysis.eeat)}%</span>
+                              </div>
 
-                            {/* Spam / Water */}
-                            <div className="flex flex-col items-center gap-0.5 group relative" title={`Spam Score: ${Math.round(analysis.spamScore)}% | Water/Filler: ${Math.round(analysis.waterScore)}%`}>
-                              <AlertTriangle className={`w-3 h-3 opacity-70 group-hover:opacity-100 ${analysis.spamScore > 30 ? 'text-red-400' : 'text-amber-400'}`} />
-                              <span className={`text-[9px] font-medium ${analysis.spamScore > 30 ? 'text-red-400/80' : 'text-amber-400/80'}`}>{Math.round(analysis.spamScore)}%</span>
+                              {/* Readability */}
+                              <div className="flex flex-col items-center gap-0.5 group relative" title="Читабельность (AI)">
+                                <BookOpen className="w-3 h-3 text-cyan-400 opacity-70 group-hover:opacity-100" />
+                                <span className="text-[9px] font-medium text-cyan-400/80">{Math.round(analysis.readability)}%</span>
+                              </div>
                             </div>
 
                             {/* Overall SEO Score */}
                             {item.seoScore != null && (
-                              <div className="ml-2" title="Overall SEO Score">
+                              <div className="ml-1" title="Overall SEO Score">
                                 <span className={`text-sm font-black px-2 py-1 rounded ${
                                   item.seoScore >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
                                   item.seoScore >= 50 ? 'text-amber-400 bg-amber-500/10' :

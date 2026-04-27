@@ -182,6 +182,13 @@ export const contentPlanRouter = router({
         updateData.metaDescLength = input.data.metaDesc?.length ?? null;
       }
 
+      // Mark analysis as outdated since content/metadata changed
+      const item = await prisma.contentItem.findUnique({ where: { id: input.id }, select: { seoAnalysis: true } });
+      if (item?.seoAnalysis) {
+        const seo = item.seoAnalysis as any;
+        updateData.seoAnalysis = { ...seo, contentModifiedAt: new Date().toISOString() } as any;
+      }
+
       return prisma.contentItem.update({
         where: { id: input.id },
         data: updateData,
@@ -1193,12 +1200,14 @@ Output ONLY the markdown content, no wrapping code fences.`;
 
         const markdown = await callOpenRouter(config, prompt, false);
 
-        // Save generated content
+        // Save generated content and mark analysis as outdated
+        const existingSeo = (item.seoAnalysis as any) || {};
         const updated = await prisma.contentItem.update({
           where: { id: input.contentItemId },
           data: {
             markdownBody: markdown,
             status: "GENERATED",
+            seoAnalysis: { ...existingSeo, contentModifiedAt: new Date().toISOString() } as any,
           },
         });
 
@@ -1221,8 +1230,9 @@ Output ONLY the markdown content, no wrapping code fences.`;
   analyzeContent: protectedProcedure
     .input(z.object({
       contentItemId: z.string(),
-      provider: z.string().optional(), // "text.ru", "ai-self", etc.
+      provider: z.string().optional(),
       modelId: z.string().optional(),
+      phase: z.enum(["expert", "ai", "both"]).default("both"),
     }))
     .mutation(async ({ input }) => {
       const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId } });
@@ -1238,33 +1248,191 @@ Output ONLY the markdown content, no wrapping code fences.`;
           data: { status: "ANALYZING" },
         });
 
-        // Get the appropriate provider
         const config = getAIConfig(input.modelId);
         const aiCallFn = async (prompt: string) => callOpenRouter(config, prompt, true);
-        const provider = getSeoProvider(input.provider || "ai-self", aiCallFn);
 
         // Strip image prompts for analysis (send only text)
         const textOnly = item.markdownBody
-          .replace(/!\[([^\]]*)\]\(PROMPT:[^)]*\)/g, "") // Remove image prompts
-          .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")        // Remove all images
-          .replace(/#{1,6}\s/g, "")                       // Remove markdown headings syntax
+          .replace(/!\[([^\]]*)\]\(PROMPT:[^)]*\)/g, "")
+          .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")
+          .replace(/#{1,6}\s/g, "")
           .trim();
 
         const title = item.h1 || item.metaTitle || item.title;
-        const result = await provider.analyze(textOnly, title);
+        const existingAnalysis = (item.seoAnalysis as any) || {};
 
-        // Save analysis results
+        // ── AI-only analysis ──
+        if (input.phase === "ai") {
+          const aiProvider = getSeoProvider("ai-self", aiCallFn) as any;
+          // Pass expert data so AI recommendations consider Text.ru metrics
+          const aiResult = await aiProvider.analyze(textOnly, title, undefined, existingAnalysis);
+          console.log(`[analyzeContent] AI-only: eeat=${aiResult.eeat}, naturalness=${aiResult.naturalness}`);
+
+          const merged = {
+            ...existingAnalysis,
+            naturalness: aiResult.naturalness,
+            eeat: aiResult.eeat,
+            readability: aiResult.readability,
+            keywordDensity: aiResult.keywordDensity,
+            recommendations: aiResult.recommendations,
+            provider: existingAnalysis.provider || "ai-self",
+            analyzedAt: new Date().toISOString(),
+            aiAnalyzedAt: new Date().toISOString(),
+            raw: { ...existingAnalysis.raw, ai: aiResult.raw },
+          };
+          // Recalculate seoScore from all available data
+          const seoScore = Math.round(((merged.uniqueness || 0) + merged.naturalness + merged.eeat + merged.readability) / 4);
+
+          const updated = await prisma.contentItem.update({
+            where: { id: input.contentItemId },
+            data: { seoAnalysis: merged as any, seoScore, status: "RECOMMENDATIONS" },
+          });
+          return { success: true, analysis: merged, item: updated };
+        }
+
+        // ── Expert-only analysis (Text.ru background) ──
+        if (input.phase === "expert") {
+          const hasTextRu = !!process.env.TEXTRU_API_KEY;
+          if (!hasTextRu) {
+            await prisma.contentItem.update({ where: { id: input.contentItemId }, data: { status: "RECOMMENDATIONS" } });
+            return { success: false, message: "Expert analysis provider not configured (TEXTRU_API_KEY missing)." };
+          }
+
+          // Mark as pending
+          const pending = { ...existingAnalysis, isTextRuPending: true, textRuError: undefined, analyzedAt: new Date().toISOString(), expertAnalyzedAt: new Date().toISOString() };
+          await prisma.contentItem.update({
+            where: { id: input.contentItemId },
+            data: { seoAnalysis: pending as any, status: "RECOMMENDATIONS" },
+          });
+
+          // Fire-and-forget background
+          const contentItemId = input.contentItemId;
+          console.log(`[analyzeContent] Expert-only: starting Text.ru for ${contentItemId}...`);
+          (async () => {
+            try {
+              const textRuProvider = getSeoProvider("text.ru");
+              const textRuResult = await textRuProvider.analyze(textOnly, title);
+              console.log(`[analyzeContent] Expert complete: uniqueness=${textRuResult.uniqueness}, spam=${textRuResult.spamScore}, water=${textRuResult.waterScore}`);
+
+              const currentItem = await prisma.contentItem.findUnique({ where: { id: contentItemId } });
+              const current = (currentItem?.seoAnalysis as any) || {};
+
+              const merged = {
+                ...current,
+                uniqueness: textRuResult.uniqueness,
+                waterScore: textRuResult.waterScore,
+                spellingErrors: textRuResult.spellingErrors ?? 0,
+                spellDetail: textRuResult.spellDetail ?? [],
+                seoDetail: textRuResult.seoDetail ?? null,
+                spamScore: textRuResult.spamScore,
+                isTextRuPending: false,
+                textRuError: undefined,
+                analyzedAt: new Date().toISOString(),
+                expertAnalyzedAt: new Date().toISOString(),
+                provider: "hybrid-text.ru+gemini",
+                raw: { ...current.raw, textRu: textRuResult.raw },
+              };
+              const seoScore = Math.round(((merged.uniqueness || 0) + (merged.naturalness || 0) + (merged.eeat || 0) + (merged.readability || 0)) / 4);
+
+              await prisma.contentItem.update({
+                where: { id: contentItemId },
+                data: { seoAnalysis: merged as any, seoScore, uniqueness: textRuResult.uniqueness },
+              });
+              console.log(`[analyzeContent] Expert: saved for ${contentItemId}`);
+            } catch (bgErr) {
+              console.error(`[analyzeContent] Expert failed:`, (bgErr as Error).message);
+              try {
+                const currentItem = await prisma.contentItem.findUnique({ where: { id: contentItemId } });
+                if (currentItem?.seoAnalysis) {
+                  const current = currentItem.seoAnalysis as any;
+                  current.isTextRuPending = false;
+                  current.textRuError = (bgErr as Error).message;
+                  await prisma.contentItem.update({ where: { id: contentItemId }, data: { seoAnalysis: current } });
+                }
+              } catch (_) {}
+            }
+          })();
+
+          return { success: true, analysis: pending, item: { ...item, seoAnalysis: pending } };
+        }
+
+        // ── Both (default): AI sync + Expert background ──
+        const aiProvider = getSeoProvider("ai-self", aiCallFn) as any;
+        const aiResult = await aiProvider.analyze(textOnly, title, undefined, existingAnalysis);
+        console.log(`[analyzeContent] Phase 1 (AI) complete: eeat=${aiResult.eeat}, naturalness=${aiResult.naturalness}`);
+
+        const aiOnlyResult = {
+          ...aiResult,
+          provider: "hybrid-text.ru+gemini",
+          isTextRuPending: true,
+          analyzedAt: new Date().toISOString(),
+          aiAnalyzedAt: new Date().toISOString(),
+        };
+        
         const updated = await prisma.contentItem.update({
           where: { id: input.contentItemId },
           data: {
-            seoAnalysis: result as any,
-            seoScore: Math.round((result.uniqueness + result.naturalness + result.eeat + result.readability) / 4),
-            uniqueness: result.uniqueness,
+            seoAnalysis: aiOnlyResult as any,
+            seoScore: Math.round((aiResult.naturalness + aiResult.eeat + aiResult.readability) / 3),
+            uniqueness: 0,
             status: "RECOMMENDATIONS",
           },
         });
 
-        return { success: true, analysis: result, item: updated };
+        const hasTextRu = !!process.env.TEXTRU_API_KEY;
+        if (hasTextRu) {
+          const contentItemId = input.contentItemId;
+          console.log(`[analyzeContent] Phase 2: Starting Text.ru background for ${contentItemId}...`);
+          (async () => {
+            try {
+              const textRuProvider = getSeoProvider("text.ru");
+              const textRuResult = await textRuProvider.analyze(textOnly, title);
+              console.log(`[analyzeContent] Phase 2 complete: uniqueness=${textRuResult.uniqueness}, spam=${textRuResult.spamScore}, water=${textRuResult.waterScore}`);
+
+              const mergedResult = {
+                uniqueness: textRuResult.uniqueness,
+                waterScore: textRuResult.waterScore,
+                spellingErrors: textRuResult.spellingErrors ?? 0,
+                spellDetail: textRuResult.spellDetail ?? [],
+                seoDetail: textRuResult.seoDetail ?? null,
+                spamScore: textRuResult.spamScore,
+                naturalness: aiResult.naturalness,
+                eeat: aiResult.eeat,
+                readability: aiResult.readability,
+                keywordDensity: aiResult.keywordDensity,
+                recommendations: aiResult.recommendations,
+                provider: "hybrid-text.ru+gemini",
+                isTextRuPending: false,
+                analyzedAt: new Date().toISOString(),
+                expertAnalyzedAt: new Date().toISOString(),
+                raw: { textRu: textRuResult.raw, ai: aiResult.raw },
+              };
+
+              await prisma.contentItem.update({
+                where: { id: contentItemId },
+                data: {
+                  seoAnalysis: mergedResult as any,
+                  seoScore: Math.round((textRuResult.uniqueness + aiResult.naturalness + aiResult.eeat + aiResult.readability) / 4),
+                  uniqueness: textRuResult.uniqueness,
+                },
+              });
+              console.log(`[analyzeContent] Phase 2: Saved merged results for ${contentItemId}`);
+            } catch (bgErr) {
+              console.error(`[analyzeContent] Phase 2 failed:`, (bgErr as Error).message);
+              try {
+                const currentItem = await prisma.contentItem.findUnique({ where: { id: contentItemId } });
+                if (currentItem?.seoAnalysis) {
+                  const current = currentItem.seoAnalysis as any;
+                  current.isTextRuPending = false;
+                  current.textRuError = (bgErr as Error).message;
+                  await prisma.contentItem.update({ where: { id: contentItemId }, data: { seoAnalysis: current } });
+                }
+              } catch (_) {}
+            }
+          })();
+        }
+
+        return { success: true, analysis: aiOnlyResult, item: updated };
       } catch (err) {
         await prisma.contentItem.update({
           where: { id: input.contentItemId },
@@ -1297,35 +1465,46 @@ Output ONLY the markdown content, no wrapping code fences.`;
       const config = getAIConfig(input.modelId);
       const analysis = item.seoAnalysis as any;
 
+      const recommendationsList = (analysis.recommendations || [])
+        .map((r: string, i: number) => (i + 1) + ". " + r)
+        .join("\n");
+      const keywordsList = (item.targetKeywords || []).join(", ");
+
       const prompt = `You are an expert SEO content optimizer. Rewrite the following article to improve its SEO scores based on the analysis below.
 
 CURRENT ARTICLE:
 ${item.markdownBody}
 
-SEO ANALYSIS RESULTS:
-- Uniqueness: ${analysis.uniqueness}%
-- Spam Score: ${analysis.spamScore}% (lower is better)
-- Naturalness: ${analysis.naturalness}%
-- E-E-A-T: ${analysis.eeat}%
-- Readability: ${analysis.readability}%
-- Water/Filler: ${analysis.waterScore}%
+SEO ANALYSIS RESULTS (Expert Analysis — external provider):
+- Uniqueness: ${analysis.uniqueness ?? 'N/A'}%${analysis.uniqueness != null && analysis.uniqueness < 80 ? ' ⚠️ LOW — must rephrase heavily' : ''}
+- Spam Score: ${analysis.spamScore ?? 'N/A'}% (lower is better, target <30%)${analysis.spamScore != null && analysis.spamScore > 30 ? ' ⚠️ HIGH — reduce keyword repetition' : ''}
+- Water/Filler: ${analysis.waterScore ?? 'N/A'}% (lower is better, target <15%)${analysis.waterScore != null && analysis.waterScore > 15 ? ' ⚠️ HIGH — remove filler words and phrases' : ''}
+- Spelling Errors: ${analysis.spellingErrors ?? 'N/A'}${analysis.spellingErrors > 0 ? ' ⚠️ FIX all spelling and grammar errors' : ''}
+
+SEO ANALYSIS RESULTS (AI Analysis):
+- Naturalness: ${analysis.naturalness ?? 'N/A'}%${analysis.naturalness != null && analysis.naturalness < 80 ? ' ⚠️ improve natural language flow' : ''}
+- E-E-A-T: ${analysis.eeat ?? 'N/A'}%${analysis.eeat != null && analysis.eeat < 70 ? ' ⚠️ strengthen expertise signals' : ''}
+- Readability: ${analysis.readability ?? 'N/A'}%${analysis.readability != null && analysis.readability < 70 ? ' ⚠️ simplify language, shorter sentences' : ''}
+- Keyword Density: ${analysis.keywordDensity ?? 'N/A'}%
 
 RECOMMENDATIONS TO ADDRESS:
-${(analysis.recommendations || []).map((r: string, i: number) => `${i + 1}. ${r}`).join("\n")}
+${recommendationsList}
 
-TARGET KEYWORDS: ${(item.targetKeywords || []).join(", ")}
+TARGET KEYWORDS: ${keywordsList}
 
 Requirements:
 1. Address ALL recommendations above.
-2. Improve uniqueness — rephrase similar sections, add original insights.
-3. Reduce spam — lower keyword density if too high, use synonyms.
-4. Improve naturalness — make it sound more human-written.
-5. Strengthen E-E-A-T — add expertise signals, cite sources.
-6. Keep the same structure (H1, H2s) but improve content quality.
-7. Keep image placeholders intact.
-8. Maintain or exceed the original word count.
-9. DO NOT include the Meta Title or Meta Description in the markdown output. They are stored separately.
-10. The current date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Use the current year (${new Date().getFullYear()}) if you need to reference the current time or year.
+2. Improve uniqueness — rephrase similar sections, add original insights and examples.
+3. Reduce spam — lower keyword density if too high, use synonyms and related terms.
+4. Remove water/filler — cut empty phrases like "стоит отметить", "важно понимать", "как известно".
+5. Fix ALL spelling errors found by the expert analysis.
+6. Improve naturalness — make it sound more human-written, avoid robotic patterns.
+7. Strengthen E-E-A-T — add expertise signals, concrete data, cite sources where possible.
+8. Keep the same structure (H1, H2s) but improve content quality.
+9. Keep image placeholders intact (lines starting with ![).
+10. Maintain or exceed the original word count.
+11. DO NOT include the Meta Title or Meta Description in the markdown output. They are stored separately.
+12. The current date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Use the current year (${new Date().getFullYear()}) if you need to reference the current time or year.
 
 Output ONLY the improved markdown content, no wrapping code fences.`;
 
@@ -1337,11 +1516,13 @@ Output ONLY the improved markdown content, no wrapping code fences.`;
 
         const improved = await callOpenRouter(config, prompt, false);
 
+        const existingSeo = (item.seoAnalysis as any) || {};
         const updated = await prisma.contentItem.update({
           where: { id: input.contentItemId },
           data: {
             markdownBody: improved,
             status: "OPTIMIZED",
+            seoAnalysis: { ...existingSeo, contentModifiedAt: new Date().toISOString() } as any,
           },
         });
 
@@ -1366,8 +1547,16 @@ Output ONLY the improved markdown content, no wrapping code fences.`;
       markdownBody: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
+      const item = await prisma.contentItem.findUnique({ where: { id: input.contentItemId }, select: { seoAnalysis: true } });
       const data: Record<string, unknown> = {};
-      if (input.markdownBody !== undefined) data.markdownBody = input.markdownBody;
+      if (input.markdownBody !== undefined) {
+        data.markdownBody = input.markdownBody;
+        // Mark analysis as outdated since text changed
+        if (item?.seoAnalysis) {
+          const seo = item.seoAnalysis as any;
+          data.seoAnalysis = { ...seo, contentModifiedAt: new Date().toISOString() } as any;
+        }
+      }
       // Don't change status if it's already past DRAFT (e.g., GENERATED, OPTIMIZED)
       
       return prisma.contentItem.update({
