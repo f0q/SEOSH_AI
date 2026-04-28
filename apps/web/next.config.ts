@@ -2,15 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  experimental: {
-    // This helps resolve packages in monorepos
-    outputFileTracingRoot: process.cwd(),
-  },
-  // Transpile local workspace packages
+  // Moved from experimental as per Next.js 16 warnings
+  outputFileTracingRoot: process.cwd(),
   transpilePackages: ["@seosh/db", "@seosh/shared"],
-  // Ignore lint and type errors during build (checked locally instead)
-  eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  // Fix Turbopack workspace root detection issue
+  experimental: {
+    turbo: {
+      root: "../../",
+    },
+  },
 };
 
 export default nextConfig;
