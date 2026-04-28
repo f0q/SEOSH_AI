@@ -101,7 +101,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 # ─── 9. Run database migrations ─────────────────────────
 echo "→ Running database migrations..."
 sleep 5  # Wait for DB to be ready
-docker compose -f docker-compose.prod.yml exec app npx prisma migrate deploy --schema=./packages/db/prisma/schema.prisma
+docker compose -f docker-compose.prod.yml --env-file .env.production exec app npx prisma migrate deploy --schema=./packages/db/prisma/schema.prisma
 
 echo ""
 echo "╔══════════════════════════════════════════════════════"
