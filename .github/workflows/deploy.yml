@@ -1,0 +1,29 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy SEOSH.AI
+    runs-on: ubuntu-latest
+    environment: jamal7
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            cd /opt/seosh-ai
+            git pull origin main
+            docker compose -f docker-compose.prod.yml --env-file .env.production build app --no-cache
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+            sleep 5
+            docker compose -f docker-compose.prod.yml exec -T app npx prisma migrate deploy --schema=./packages/db/prisma/schema.prisma
+            echo "✅ Deployed at $(date)"
