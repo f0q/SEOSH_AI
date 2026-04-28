@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
+  experimental: {
+    // This helps resolve packages in monorepos
+    outputFileTracingRoot: process.cwd(),
+  },
 };
 
 export default nextConfig;
