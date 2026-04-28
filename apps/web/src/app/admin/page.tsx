@@ -51,7 +51,7 @@ export default function AdminPage() {
       email: newUserEmail,
       password: newUserPassword,
       name: newUserName,
-      role: "USER"
+      role: "user"
     });
 
     setCreatingUser(false);
