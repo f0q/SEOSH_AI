@@ -27,8 +27,8 @@ COPY . .
 # Generate Prisma client
 RUN cd packages/db && npx prisma generate
 
-# Create symlink so Turbopack correctly resolves all hoisted modules without losing the workspace root context
-RUN ln -s /app/node_modules apps/web/node_modules
+# Copy node_modules so Turbopack correctly resolves all hoisted modules without crossing the filesystem root
+RUN cp -a /app/node_modules apps/web/node_modules
 
 # Build the Next.js application
 ENV NEXT_TELEMETRY_DISABLED=1
