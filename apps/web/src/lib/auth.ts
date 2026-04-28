@@ -12,7 +12,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin } from "better-auth/plugins";
 import { PrismaClient } from "@prisma/client";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 
 import { sendEmail } from "./email";
 
@@ -30,13 +30,11 @@ export const auth = betterAuth({
     requireEmailVerification: process.env.NODE_ENV === "production", // Require verification in production
   },
   hooks: {
-    before: {
-      signUp: async () => {
-        // Registration is temporarily closed
-        // Only superadmins can issue access via admin panel in the future
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path.startsWith("/sign-up") && ctx.path !== "/sign-up/admin") {
         throw new APIError("BAD_REQUEST", { message: "Registration is closed. Access is invitation only." });
       }
-    }
+    })
   },
   emailVerification: {
     sendOnSignUp: true,
