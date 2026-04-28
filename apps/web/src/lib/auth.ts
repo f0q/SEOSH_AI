@@ -12,6 +12,8 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
 
+import { sendEmail } from "./email";
+
 const prisma = new PrismaClient();
 
 export const auth = betterAuth({
@@ -20,7 +22,26 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // Disable in dev; enable in prod
+    requireEmailVerification: process.env.NODE_ENV === "production", // Require verification in production
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your email address - SEOSH.AI",
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2>Welcome to SEOSH.AI!</h2>
+            <p>Please click the button below to verify your email address and activate your account.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${url}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Verify Email</a>
+            </div>
+            <p style="color: #666; font-size: 14px;">If you didn't request this email, you can safely ignore it.</p>
+          </div>
+        `,
+      });
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days

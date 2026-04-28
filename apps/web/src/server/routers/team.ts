@@ -9,6 +9,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@/server/db";
 import crypto from "crypto";
+import { sendEmail } from "@/lib/email";
 
 // ─── Billing Tier Gate ──────────────────────────────────────────────────────
 // In the future, this will check the user's billing plan.
@@ -137,11 +138,33 @@ export const teamRouter = router({
         },
       });
 
-      // Dev mode: log to console
       const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${accessToken}`;
-      console.log(`
+      
+      // Attempt to send email
+      const emailSent = await sendEmail({
+        to: input.email,
+        subject: `You've been invited to join ${project.name} on SEOSH.AI`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2>You've been invited!</h2>
+            <p>You have been invited to join the project <strong>${project.name}</strong> on SEOSH.AI with the role of <strong>${input.role}</strong>.</p>
+            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 0 0 10px 0;"><strong>Your temporary password:</strong></p>
+              <code style="font-size: 18px; color: #111827;">${tempPassword}</code>
+            </div>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${inviteUrl}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>
+            </div>
+            <p style="color: #666; font-size: 14px;">We recommend changing your password after you log in.</p>
+          </div>
+        `,
+      });
+
+      if (!emailSent) {
+        // Fallback log for development
+        console.log(`
 ╔══════════════════════════════════════════════════════════
-║  PROJECT INVITE (dev mode — email not sent)
+║  PROJECT INVITE (Email failed/not configured)
 ╠══════════════════════════════════════════════════════════
 ║  To:       ${input.email}
 ║  Project:  ${project.name}
@@ -149,7 +172,8 @@ export const teamRouter = router({
 ║  URL:      ${inviteUrl}
 ║  Password: ${tempPassword}
 ╚══════════════════════════════════════════════════════════
-      `);
+        `);
+      }
 
       return { success: true, memberId: member.id, inviteUrl, tempPassword };
     }),
