@@ -1,0 +1,16 @@
+# ─────────────────────────────────────────────────────────
+# SEOSH.AI — Caddyfile (auto-SSL reverse proxy)
+# ─────────────────────────────────────────────────────────
+
+seosh.aijam.pro {
+	reverse_proxy app:3000
+
+	encode gzip
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

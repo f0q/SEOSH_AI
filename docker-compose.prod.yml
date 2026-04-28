@@ -1,4 +1,30 @@
+# ─────────────────────────────────────────────────────────
+# SEOSH.AI — Production Docker Compose
+# Domain: seosh.aijam.pro
+# ─────────────────────────────────────────────────────────
+
 services:
+  # ─── Next.js App ──────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env.production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - seosh-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── PostgreSQL ─────────────────────────────────────
   db:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -8,61 +34,72 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-seosh_ai}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - seosh-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-seosh} -d ${POSTGRES_DB:-seosh_ai}"]
+      test: ["CMD-SHELL", "pg_isready -U seosh -d seosh_ai"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # ─── Redis ──────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secret}
     volumes:
       - redisdata:/data
+    networks:
+      - seosh-net
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # ─── MinIO (S3-compatible storage) ──────────────────
   minio:
     image: minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-seosh_minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - miniodata:/data
+    networks:
+      - seosh-net
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+  # ─── Caddy (reverse proxy + auto SSL) ──────────────
+  caddy:
+    image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-seosh}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-seosh_ai}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - NEXTAUTH_URL=${NEXT_PUBLIC_APP_URL}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
-      # Add other environment variables as needed
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
-      db:
+      app:
         condition: service_healthy
-      redis:
-        condition: service_healthy
+    networks:
+      - seosh-net
 
 volumes:
   pgdata:
   redisdata:
   miniodata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  seosh-net:
+    driver: bridge

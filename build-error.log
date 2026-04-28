@@ -1,0 +1,33 @@
+
+> web@0.1.0 build
+> next build
+
+▲ Next.js 16.2.4 (Turbopack)
+- Environments: .env.local, .env
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 3.4s
+  Running TypeScript ...
+  Finished TypeScript in 7.2s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/19) ...
+  Generating static pages using 7 workers (4/19) 
+⨯ useSearchParams() should be wrapped in a suspense boundary at page "/projects/new". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at S (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/apps/web/.next/server/chunks/ssr/_0lrc8l1._.js:2:2692)
+    at r (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/apps/web/.next/server/chunks/ssr/_0lrc8l1._.js:4:6760)
+    at /Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/apps/web/.next/server/chunks/ssr/apps_web_src_components_onboarding_OnboardingWizard_tsx_0kb4llb._.js:1:23311
+    at an (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:84267)
+    at ai (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:86086)
+    at ai (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:104615)
+    at al (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:107860)
+    at ao (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:105275)
+    at am (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:112789)
+    at ai (/Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:98715)
+Error occurred prerendering page "/projects/new". Read more: https://nextjs.org/docs/messages/prerender-error
+Export encountered an error on /projects/new/page: /projects/new, exiting the build.
+⨯ Next.js build worker exited with code: 1 and signal: null
+npm ERR! Lifecycle script `build` failed with error: 
+npm ERR! Error: command failed 
+npm ERR!   in workspace: web@0.1.0 
+npm ERR!   at location: /Volumes/Dock/02_my_projects/00_raw_vibe_coding/08_SEO_projects/SEOSH_AI/apps/web 
