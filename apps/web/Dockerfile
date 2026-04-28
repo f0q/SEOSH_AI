@@ -27,8 +27,8 @@ COPY . .
 # Generate Prisma client
 RUN cd packages/db && npx prisma generate
 
-# Create dummy .git directory so Turbopack correctly identifies the monorepo root
-RUN mkdir .git
+# Create symlink so Turbopack correctly resolves all hoisted modules without losing the workspace root context
+RUN ln -s /app/node_modules apps/web/node_modules
 
 # Build the Next.js application
 ENV NEXT_TELEMETRY_DISABLED=1
