@@ -10,10 +10,14 @@ export const metadata = {
   title: "New Project",
 };
 
+import { Suspense } from "react";
+
 export default function NewProjectPage() {
   return (
     <DashboardLayout>
-      <OnboardingWizard />
+      <Suspense fallback={<div className="p-8 text-center text-surface-400">Loading wizard...</div>}>
+        <OnboardingWizard />
+      </Suspense>
     </DashboardLayout>
   );
 }
