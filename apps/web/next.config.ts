@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   transpilePackages: ["@seosh/db", "@seosh/shared"],
   typescript: { ignoreBuildErrors: true },
-  turbopack: {
-    root: path.join(process.cwd(), "../../"),
-  },
 };
 
 export default nextConfig;
