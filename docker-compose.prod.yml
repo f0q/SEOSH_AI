@@ -9,6 +9,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://seosh.aijam.pro}
     restart: unless-stopped
     env_file: .env.production
     depends_on:
