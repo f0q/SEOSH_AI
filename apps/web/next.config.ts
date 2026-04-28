@@ -6,10 +6,6 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   transpilePackages: ["@seosh/db", "@seosh/shared"],
   typescript: { ignoreBuildErrors: true },
-  // Fix Turbopack workspace root detection issue when .git is ignored
-  turbopack: {
-    root: "../../",
-  },
 };
 
 export default nextConfig;

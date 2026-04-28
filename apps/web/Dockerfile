@@ -27,6 +27,9 @@ COPY . .
 # Generate Prisma client
 RUN cd packages/db && npx prisma generate
 
+# Copy next into local node_modules to fix Turbopack root detection
+RUN mkdir -p apps/web/node_modules && cp -r node_modules/next apps/web/node_modules/
+
 # Build the Next.js application
 ENV NEXT_TELEMETRY_DISABLED=1
 # Use a dummy env var during build if needed
