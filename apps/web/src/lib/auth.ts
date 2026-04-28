@@ -27,7 +27,7 @@ export const auth = betterAuth({
   ],
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: process.env.NODE_ENV === "production", // Require verification in production
+    requireEmailVerification: false, // Disabled since registration is closed and admin creates users
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
