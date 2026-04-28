@@ -2,14 +2,21 @@
 
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { ShieldCheck, Users, Plus, Minus, History, Coins, RefreshCw, Loader2, Search } from "lucide-react";
+import { ShieldCheck, Users, Plus, Minus, History, Coins, RefreshCw, Loader2, Search, UserPlus } from "lucide-react";
 import { trpc } from "@/trpc/client";
+import { authClient } from "@/lib/auth-client";
 
 export default function AdminPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [search, setSearch] = useState("");
+
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [createUserMsg, setCreateUserMsg] = useState("");
 
   const usersQuery = trpc.admin.listUsers.useQuery();
   const historyQuery = trpc.admin.getUserHistory.useQuery(
@@ -33,6 +40,32 @@ export default function AdminPage() {
   );
 
   const selectedUser = usersQuery.data?.find((u) => u.id === selectedUserId);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingUser(true);
+    setCreateUserMsg("");
+    
+    // @ts-ignore
+    const { data, error } = await authClient.admin.createUser({
+      email: newUserEmail,
+      password: newUserPassword,
+      name: newUserName,
+      role: "USER"
+    });
+
+    setCreatingUser(false);
+
+    if (error) {
+      setCreateUserMsg(`Error: ${error.message}`);
+    } else {
+      setCreateUserMsg("User created successfully!");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserName("");
+      usersQuery.refetch();
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -100,6 +133,53 @@ export default function AdminPage() {
 
           {/* User Detail & Actions */}
           <div className="space-y-4">
+            
+            {/* Create User Card */}
+            <div className="glass-card p-5 border-brand-500/30">
+              <h3 className="text-sm font-semibold text-surface-100 flex items-center gap-2 mb-4">
+                <UserPlus className="w-4 h-4 text-brand-400" />
+                Create New User
+              </h3>
+              <form onSubmit={handleCreateUser} className="space-y-3">
+                <input
+                  type="text"
+                  required
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  placeholder="Full Name"
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50"
+                />
+                <input
+                  type="email"
+                  required
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="Email Address"
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50"
+                />
+                <input
+                  type="text"
+                  required
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingUser}
+                  className="w-full py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {creatingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create User"}
+                </button>
+                {createUserMsg && (
+                  <p className={`text-xs mt-2 ${createUserMsg.includes("Error") ? "text-red-400" : "text-emerald-400"}`}>
+                    {createUserMsg}
+                  </p>
+                )}
+              </form>
+            </div>
+
             {selectedUser ? (
               <>
                 {/* Balance Card */}
