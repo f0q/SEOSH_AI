@@ -7,7 +7,7 @@ set -euo pipefail
 
 DOMAIN="seosh.aijam.pro"
 APP_DIR="/opt/seosh-ai"
-REPO_URL="https://github.com/YOUR_USER/SEOSH_AI.git"  # ← Update this
+REPO_URL="https://github.com/f0q/SEOSH_AI.git"  # ← Update this
 
 echo "══════════════════════════════════════════════════════"
 echo "  SEOSH.AI — Server Setup (Ubuntu 24.04)"
