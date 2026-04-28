@@ -19,6 +19,6 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 
 echo "→ Running migrations..."
 sleep 5
-docker compose -f docker-compose.prod.yml --env-file .env.production exec app npx prisma migrate deploy --schema=./packages/db/prisma/schema.prisma
+docker compose -f docker-compose.prod.yml --env-file .env.production exec app npx prisma@6.5.0 migrate deploy --schema=./packages/db/prisma/schema.prisma
 
 echo "✅ Deploy complete! https://seosh.aijam.pro"
