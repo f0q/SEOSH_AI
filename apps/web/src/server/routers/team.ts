@@ -126,16 +126,17 @@ export const teamRouter = router({
       const accessToken = crypto.randomBytes(32).toString("hex");
       const tempPassword = crypto.randomBytes(6).toString("hex");
 
-      // Create a real user account if one doesn't exist yet
+      // Create a real user account if one doesn't exist, or update password if re-inviting
       const existingUser = await prisma.user.findUnique({
         where: { email: input.email },
       });
 
+      const bcrypt = await import("bcryptjs");
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
       if (!existingUser) {
         // Create user account directly in DB (bypassing the sign-up hook)
         const userId = crypto.randomUUID();
-        const bcrypt = await import("bcryptjs");
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
         await prisma.user.create({
           data: {
@@ -154,6 +155,12 @@ export const teamRouter = router({
             userId: userId,
             password: hashedPassword,
           },
+        });
+      } else {
+        // User exists — update their password to the new temp password
+        await prisma.account.updateMany({
+          where: { userId: existingUser.id, providerId: "credential" },
+          data: { password: hashedPassword },
         });
       }
 
