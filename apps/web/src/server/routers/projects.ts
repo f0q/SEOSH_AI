@@ -8,21 +8,44 @@ import { z } from "zod";
 import { prisma } from "../db";
 
 export const projectsRouter = router({
-  /** List all projects for current user */
+  /** List all projects for current user (owned + member of) */
   list: protectedProcedure.query(async ({ ctx }) => {
+    // Get projects the user is a member of
+    const memberships = await prisma.projectMember.findMany({
+      where: { email: ctx.user.email, status: "ACTIVE" },
+      select: { projectId: true },
+    });
+    const memberProjectIds = memberships.map(m => m.projectId);
+
     return await prisma.project.findMany({
-      where: { userId: ctx.user.id },
+      where: {
+        OR: [
+          { userId: ctx.user.id },
+          { id: { in: memberProjectIds } },
+        ],
+      },
       include: { companyProfile: true },
       orderBy: { createdAt: "desc" },
     });
   }),
 
-  /** Get a single project by ID with its company profile */
+  /** Get a single project by ID (owned or member) */
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
+      // Check ownership or membership
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId: input.id, email: ctx.user.email, status: "ACTIVE" },
+      });
+
       return await prisma.project.findFirst({
-        where: { id: input.id, userId: ctx.user.id },
+        where: {
+          id: input.id,
+          OR: [
+            { userId: ctx.user.id },
+            ...(isMember ? [{ id: input.id }] : []),
+          ],
+        },
         include: { companyProfile: true },
       });
     }),
