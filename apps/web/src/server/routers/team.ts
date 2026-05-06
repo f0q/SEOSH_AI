@@ -127,16 +127,6 @@ export const teamRouter = router({
       const accessToken = crypto.randomBytes(32).toString("hex");
       const tempPassword = crypto.randomBytes(6).toString("hex");
 
-      // Create a real user account if one doesn't exist, or reset if re-inviting
-      const existingUser = await prisma.user.findUnique({
-        where: { email: input.email },
-      });
-
-      if (existingUser) {
-        // Delete old user so we can recreate with correct password
-        await prisma.user.delete({ where: { id: existingUser.id } });
-      }
-
       // Hash password using scrypt — exact same params as better-auth
       // See: node_modules/@better-auth/utils/dist/password.node.mjs
       const salt = crypto.randomBytes(16).toString("hex");
@@ -144,25 +134,42 @@ export const teamRouter = router({
       const key = crypto.scryptSync(tempPassword.normalize("NFKC"), salt, dkLen, { N, r, p, maxmem: 128 * N * r * 2 });
       const hashedPassword = `${salt}:${key.toString("hex")}`;
 
-      const userId = crypto.randomUUID();
-      await prisma.user.create({
-        data: {
-          id: userId,
-          name: input.email.split("@")[0],
-          email: input.email,
-          emailVerified: true,
-          role: "USER",
-        },
+      // Create a real user account if one doesn't exist, or update password if re-inviting
+      const existingUser = await prisma.user.findUnique({
+        where: { email: input.email },
       });
 
-      await prisma.account.create({
-        data: {
-          accountId: userId,
-          providerId: "credential",
-          userId: userId,
-          password: hashedPassword,
-        },
-      });
+      let userId: string;
+
+      if (existingUser) {
+        // User exists — just update their password (don't delete to preserve other data)
+        userId = existingUser.id;
+        await prisma.account.updateMany({
+          where: { userId: existingUser.id, providerId: "credential" },
+          data: { password: hashedPassword },
+        });
+      } else {
+        // Create new user with scrypt-hashed password
+        userId = crypto.randomUUID();
+        await prisma.user.create({
+          data: {
+            id: userId,
+            name: input.email.split("@")[0],
+            email: input.email,
+            emailVerified: true,
+            role: "USER",
+          },
+        });
+
+        await prisma.account.create({
+          data: {
+            accountId: userId,
+            providerId: "credential",
+            userId: userId,
+            password: hashedPassword,
+          },
+        });
+      }
 
       const member = await prisma.projectMember.create({
         data: {
@@ -172,7 +179,8 @@ export const teamRouter = router({
           invitedBy: ctx.user.id,
           accessToken,
           tempPassword,
-          status: "PENDING",
+          status: "ACTIVE",  // Active immediately — admin is granting access
+          acceptedAt: new Date(),
         },
       });
 
