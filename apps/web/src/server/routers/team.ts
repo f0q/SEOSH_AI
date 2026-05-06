@@ -126,6 +126,37 @@ export const teamRouter = router({
       const accessToken = crypto.randomBytes(32).toString("hex");
       const tempPassword = crypto.randomBytes(6).toString("hex");
 
+      // Create a real user account if one doesn't exist yet
+      const existingUser = await prisma.user.findUnique({
+        where: { email: input.email },
+      });
+
+      if (!existingUser) {
+        // Create user account directly in DB (bypassing the sign-up hook)
+        const userId = crypto.randomUUID();
+        const bcrypt = await import("bcryptjs");
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        await prisma.user.create({
+          data: {
+            id: userId,
+            name: input.email.split("@")[0],
+            email: input.email,
+            emailVerified: true,
+            role: "USER",
+          },
+        });
+
+        await prisma.account.create({
+          data: {
+            accountId: userId,
+            providerId: "credential",
+            userId: userId,
+            password: hashedPassword,
+          },
+        });
+      }
+
       const member = await prisma.projectMember.create({
         data: {
           projectId: input.projectId,
