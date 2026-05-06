@@ -291,9 +291,9 @@ export default function Sidebar() {
 
       {/* ── Bottom Section ── */}
       <div className="px-3 pb-4 space-y-1 flex-shrink-0">
+        {/* Autopilot + Readiness + Settings — owner only */}
         {!isLoading && !isTeamMember && (
           <>
-            {/* Autopilot — highlighted */}
             <Link
               href="/autopilot"
               className={`nav-item ${pathname.startsWith("/autopilot") ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""} border border-brand-500/20 bg-brand-500/5 hover:bg-brand-500/10 mb-2`}
@@ -303,27 +303,32 @@ export default function Sidebar() {
               {!collapsed && <span className="animate-fade-in text-brand-300 font-medium">Autopilot</span>}
             </Link>
 
-            {/* Readiness bar */}
             <ReadinessBar collapsed={collapsed} />
 
-            {/* Token balance */}
+            <Link
+              href="/settings"
+              className={`nav-item ${pathname === "/settings" ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""}`}
+              title={collapsed ? "Settings" : undefined}
+            >
+              <Settings className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span className="animate-fade-in">Settings</span>}
+            </Link>
+          </>
+        )}
+
+        {/* Token balance + Billing — visible to everyone (per-user) */}
+        {!isLoading && (
+          <>
             {!collapsed && <SidebarTokenBalance />}
 
-            {/* Settings / Billing */}
-            {bottomItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`nav-item ${isActive ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""}`}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span className="animate-fade-in">{item.label}</span>}
-                </Link>
-              );
-            })}
+            <Link
+              href="/billing"
+              className={`nav-item ${pathname === "/billing" ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""}`}
+              title={collapsed ? "Billing" : undefined}
+            >
+              <Coins className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span className="animate-fade-in">Billing</span>}
+            </Link>
           </>
         )}
       </div>

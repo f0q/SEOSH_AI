@@ -14,7 +14,7 @@ import Header from "@/components/layout/Header";
 import { useProject } from "@/lib/project-context";
 
 /** Routes that team members (non-owners) are allowed to access */
-const MEMBER_ALLOWED_ROUTES = ["/autopilot/content-planner"];
+const MEMBER_ALLOWED_ROUTES = ["/autopilot/content-planner", "/billing"];
 
 export default function DashboardLayout({
   children,
