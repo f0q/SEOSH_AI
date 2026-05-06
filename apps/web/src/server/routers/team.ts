@@ -4,7 +4,7 @@
  * Access is gated by billing tier (currently: only SUPERADMIN/ADMIN can invite).
  */
 
-import { router, protectedProcedure } from "@/server/trpc";
+import { router, protectedProcedure, publicProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@/server/db";
@@ -252,5 +252,33 @@ export const teamRouter = router({
         where: { id: input.memberId },
         data: { status: "REVOKED" },
       });
+    }),
+
+  /** Accept an invitation via token (public — no auth required) */
+  acceptInvite: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .mutation(async ({ input }) => {
+      const member = await prisma.projectMember.findFirst({
+        where: { accessToken: input.token, status: "PENDING" },
+        include: { project: true },
+      });
+
+      if (!member) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "This invitation link is invalid or has already been used.",
+        });
+      }
+
+      await prisma.projectMember.update({
+        where: { id: member.id },
+        data: {
+          status: "ACTIVE",
+          acceptedAt: new Date(),
+          accessToken: null, // Invalidate token after use
+        },
+      });
+
+      return { success: true, projectName: member.project.name };
     }),
 });
