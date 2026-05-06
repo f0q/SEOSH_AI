@@ -29,14 +29,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false, // Disabled since registration is closed and admin creates users
   },
-  hooks: {
-    before: createAuthMiddleware(async (ctx) => {
-      // Block public sign-up but allow admin-created users
-      if (ctx.path.startsWith("/sign-up") && !ctx.path.includes("admin")) {
-        throw new APIError("BAD_REQUEST", { message: "Registration is closed. Access is invitation only." });
-      }
-    })
-  },
+  // Note: Registration page is removed from UI. No sign-up blocking hook needed.
   emailVerification: {
     sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {

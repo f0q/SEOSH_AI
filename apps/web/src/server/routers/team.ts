@@ -127,35 +127,35 @@ export const teamRouter = router({
       const accessToken = crypto.randomBytes(32).toString("hex");
       const tempPassword = crypto.randomBytes(6).toString("hex");
 
-      // Create a real user account if one doesn't exist, or update password if re-inviting
+      // Create a real user account if one doesn't exist, or reset if re-inviting
       const existingUser = await prisma.user.findUnique({
         where: { email: input.email },
       });
 
-      if (!existingUser) {
-        // Create user via better-auth admin API (uses correct password hashing)
-        await auth.api.createUser({
+      if (existingUser) {
+        // Delete old user so we can recreate with correct password
+        await prisma.user.delete({ where: { id: existingUser.id } });
+      }
+
+      // Create user via better-auth native sign-up (correct scrypt hashing)
+      try {
+        await auth.api.signUpEmail({
           body: {
             email: input.email,
             password: tempPassword,
             name: input.email.split("@")[0],
-            role: "user",
           },
         });
-        // Mark email as verified since admin is inviting
-        await prisma.user.update({
-          where: { email: input.email },
-          data: { emailVerified: true },
-        });
-      } else {
-        // User exists — update their password via better-auth
-        await auth.api.setPassword({
-          body: {
-            userId: existingUser.id,
-            newPassword: tempPassword,
-          },
-        });
+      } catch (e: any) {
+        console.error("Failed to create user via auth.api.signUpEmail:", e?.message || e);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user account." });
       }
+
+      // Mark email as verified since admin is inviting
+      await prisma.user.update({
+        where: { email: input.email },
+        data: { emailVerified: true },
+      });
 
       const member = await prisma.projectMember.create({
         data: {
