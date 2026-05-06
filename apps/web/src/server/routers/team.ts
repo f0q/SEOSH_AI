@@ -137,10 +137,12 @@ export const teamRouter = router({
         await prisma.user.delete({ where: { id: existingUser.id } });
       }
 
-      // Hash password using scrypt — same format as better-auth (salt:hash = 161 chars)
-      const salt = crypto.randomBytes(16);
-      const hash = crypto.scryptSync(tempPassword, salt, 64, { N: 16384, r: 8, p: 1 });
-      const hashedPassword = salt.toString("hex") + ":" + hash.toString("hex");
+      // Hash password using scrypt — exact same params as better-auth
+      // See: node_modules/@better-auth/utils/dist/password.node.mjs
+      const salt = crypto.randomBytes(16).toString("hex");
+      const N = 16384, r = 16, p = 1, dkLen = 64;
+      const key = crypto.scryptSync(tempPassword.normalize("NFKC"), salt, dkLen, { N, r, p, maxmem: 128 * N * r * 2 });
+      const hashedPassword = `${salt}:${key.toString("hex")}`;
 
       const userId = crypto.randomUUID();
       await prisma.user.create({
