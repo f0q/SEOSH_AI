@@ -17,12 +17,14 @@ interface Project {
   url?: string | null;
   status: string;
   createdAt: Date;
+  memberRole?: string | null; // set if user is a team member (not owner)
 }
 
 interface ProjectContextValue {
   activeProject: Project | null;
   projects: Project[];
   isLoading: boolean;
+  isTeamMember: boolean; // true if active project is one where user is a member (not owner)
   setActiveProjectId: (id: string) => void;
 }
 
@@ -30,6 +32,7 @@ const ProjectContext = createContext<ProjectContextValue>({
   activeProject: null,
   projects: [],
   isLoading: true,
+  isTeamMember: false,
   setActiveProjectId: () => {},
 });
 
@@ -62,8 +65,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     ? (projects.find((p) => p.id === activeProjectId) ?? null)
     : null;
 
+  // Check if user is a team member (not owner) for the active project
+  const isTeamMember = !!activeProject?.memberRole;
+
   return (
-    <ProjectContext.Provider value={{ activeProject, projects, isLoading, setActiveProjectId }}>
+    <ProjectContext.Provider value={{ activeProject, projects, isLoading, isTeamMember, setActiveProjectId }}>
       {children}
     </ProjectContext.Provider>
   );

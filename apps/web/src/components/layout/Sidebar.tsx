@@ -230,6 +230,12 @@ function SidebarTokenBalance() {
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { isTeamMember } = useProject();
+
+  // Team members only see Content Planner
+  const visibleNavItems = isTeamMember
+    ? navItems.filter(item => item.href === "/autopilot/content-planner")
+    : navItems;
 
   return (
     <aside
@@ -265,7 +271,7 @@ export default function Sidebar() {
 
       {/* ── Main Nav ── */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
             <Link
@@ -283,37 +289,41 @@ export default function Sidebar() {
 
       {/* ── Bottom Section ── */}
       <div className="px-3 pb-4 space-y-1 flex-shrink-0">
-        {/* Autopilot — highlighted */}
-        <Link
-          href="/autopilot"
-          className={`nav-item ${pathname.startsWith("/autopilot") ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""} border border-brand-500/20 bg-brand-500/5 hover:bg-brand-500/10 mb-2`}
-          title={collapsed ? "Autopilot" : undefined}
-        >
-          <Bot className="w-5 h-5 flex-shrink-0 text-brand-400" />
-          {!collapsed && <span className="animate-fade-in text-brand-300 font-medium">Autopilot</span>}
-        </Link>
-
-        {/* Readiness bar */}
-        <ReadinessBar collapsed={collapsed} />
-
-        {/* Token balance */}
-        {!collapsed && <SidebarTokenBalance />}
-
-        {/* Settings / Billing */}
-        {bottomItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
+        {!isTeamMember && (
+          <>
+            {/* Autopilot — highlighted */}
             <Link
-              key={item.href}
-              href={item.href}
-              className={`nav-item ${isActive ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""}`}
-              title={collapsed ? item.label : undefined}
+              href="/autopilot"
+              className={`nav-item ${pathname.startsWith("/autopilot") ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""} border border-brand-500/20 bg-brand-500/5 hover:bg-brand-500/10 mb-2`}
+              title={collapsed ? "Autopilot" : undefined}
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="animate-fade-in">{item.label}</span>}
+              <Bot className="w-5 h-5 flex-shrink-0 text-brand-400" />
+              {!collapsed && <span className="animate-fade-in text-brand-300 font-medium">Autopilot</span>}
             </Link>
-          );
-        })}
+
+            {/* Readiness bar */}
+            <ReadinessBar collapsed={collapsed} />
+
+            {/* Token balance */}
+            {!collapsed && <SidebarTokenBalance />}
+
+            {/* Settings / Billing */}
+            {bottomItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`nav-item ${isActive ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""}`}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && <span className="animate-fade-in">{item.label}</span>}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </div>
     </aside>
   );

@@ -10,23 +10,29 @@ import { prisma } from "../db";
 export const projectsRouter = router({
   /** List all projects for current user (owned + member of) */
   list: protectedProcedure.query(async ({ ctx }) => {
-    // Get projects the user is a member of
+    // Get projects the user is a member of (with their role)
     const memberships = await prisma.projectMember.findMany({
       where: { email: ctx.user.email, status: "ACTIVE" },
-      select: { projectId: true },
+      select: { projectId: true, role: true },
     });
-    const memberProjectIds = memberships.map(m => m.projectId);
+    const memberMap = new Map(memberships.map(m => [m.projectId, m.role]));
 
-    return await prisma.project.findMany({
+    const projects = await prisma.project.findMany({
       where: {
         OR: [
           { userId: ctx.user.id },
-          { id: { in: memberProjectIds } },
+          { id: { in: [...memberMap.keys()] } },
         ],
       },
       include: { companyProfile: true },
       orderBy: { createdAt: "desc" },
     });
+
+    // Attach memberRole (null for owned projects, role string for member projects)
+    return projects.map(p => ({
+      ...p,
+      memberRole: p.userId === ctx.user.id ? null : (memberMap.get(p.id) ?? null),
+    }));
   }),
 
   /** Get a single project by ID (owned or member) */
