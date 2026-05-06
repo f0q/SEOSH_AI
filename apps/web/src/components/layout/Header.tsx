@@ -49,7 +49,7 @@ const MOCK_NOTIFICATIONS = [
 
 export default function Header() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionLoading } = useSession();
 
   const [searchFocused, setSearchFocused] = useState(false);
   const [lang, setLang] = useState("EN");
@@ -79,7 +79,7 @@ export default function Header() {
     router.refresh();
   };
 
-  const userName = session?.user?.name || "Guest";
+  const userName = sessionLoading ? "" : (session?.user?.name || "Guest");
   const userEmail = session?.user?.email || "";
 
   return (

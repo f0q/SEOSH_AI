@@ -230,12 +230,14 @@ function SidebarTokenBalance() {
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const { isTeamMember } = useProject();
+  const { isTeamMember, isLoading } = useProject();
 
-  // Team members only see Content Planner
-  const visibleNavItems = isTeamMember
-    ? navItems.filter(item => item.href === "/autopilot/content-planner")
-    : navItems;
+  // Team members only see Content Planner; hide all items while loading
+  const visibleNavItems = isLoading
+    ? []
+    : isTeamMember
+      ? navItems.filter(item => item.href === "/autopilot/content-planner")
+      : navItems;
 
   return (
     <aside
@@ -289,7 +291,7 @@ export default function Sidebar() {
 
       {/* ── Bottom Section ── */}
       <div className="px-3 pb-4 space-y-1 flex-shrink-0">
-        {!isTeamMember && (
+        {!isLoading && !isTeamMember && (
           <>
             {/* Autopilot — highlighted */}
             <Link

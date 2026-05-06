@@ -6,6 +6,18 @@
 import { router, protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { prisma } from "../db";
+import { TRPCError } from "@trpc/server";
+
+/** Verify the user is the project owner (not just a team member) */
+async function ensureProjectOwner(projectId: string, userId: string) {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId },
+  });
+  if (!project) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Only the project owner can perform this action." });
+  }
+  return project;
+}
 
 export const projectsRouter = router({
   /** List all projects for current user (owned + member of) */
