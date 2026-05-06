@@ -31,7 +31,8 @@ export const auth = betterAuth({
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/sign-up") && ctx.path !== "/sign-up/admin") {
+      // Block public sign-up but allow admin-created users
+      if (ctx.path.startsWith("/sign-up") && !ctx.path.includes("admin")) {
         throw new APIError("BAD_REQUEST", { message: "Registration is closed. Access is invitation only." });
       }
     })

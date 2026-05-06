@@ -10,6 +10,7 @@ import { TRPCError } from "@trpc/server";
 import { prisma } from "@/server/db";
 import crypto from "crypto";
 import { sendEmail } from "@/lib/email";
+import { auth } from "@/lib/auth";
 
 // ─── Billing Tier Gate ──────────────────────────────────────────────────────
 // In the future, this will check the user's billing plan.
@@ -131,36 +132,28 @@ export const teamRouter = router({
         where: { email: input.email },
       });
 
-      const bcrypt = await import("bcryptjs");
-      const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
       if (!existingUser) {
-        // Create user account directly in DB (bypassing the sign-up hook)
-        const userId = crypto.randomUUID();
-
-        await prisma.user.create({
-          data: {
-            id: userId,
-            name: input.email.split("@")[0],
+        // Create user via better-auth admin API (uses correct password hashing)
+        await auth.api.createUser({
+          body: {
             email: input.email,
-            emailVerified: true,
-            role: "USER",
+            password: tempPassword,
+            name: input.email.split("@")[0],
+            role: "user",
           },
         });
-
-        await prisma.account.create({
-          data: {
-            accountId: userId,
-            providerId: "credential",
-            userId: userId,
-            password: hashedPassword,
-          },
+        // Mark email as verified since admin is inviting
+        await prisma.user.update({
+          where: { email: input.email },
+          data: { emailVerified: true },
         });
       } else {
-        // User exists — update their password to the new temp password
-        await prisma.account.updateMany({
-          where: { userId: existingUser.id, providerId: "credential" },
-          data: { password: hashedPassword },
+        // User exists — update their password via better-auth
+        await auth.api.setPassword({
+          body: {
+            userId: existingUser.id,
+            newPassword: tempPassword,
+          },
         });
       }
 
