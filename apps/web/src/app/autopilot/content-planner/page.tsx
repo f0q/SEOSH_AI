@@ -552,7 +552,7 @@ function KeywordStatsBar({ projectId }: { projectId: string }) {
 
 export default function ContentPlannerPage() {
   const router = useRouter();
-  const { activeProject } = useProject();
+  const { activeProject, isLoading: projectLoading } = useProject();
   const [showInvite, setShowInvite] = useState(false);
   const [showIdeation, setShowIdeation] = useState<"manual" | "batch" | null>(null);
   const [addingRow, setAddingRow] = useState(false);
@@ -854,11 +854,15 @@ export default function ContentPlannerPage() {
 
   const activeShares = shares.filter((s) => s.status !== "REVOKED");
 
-  if (!activeProject) {
+  if (projectLoading || !activeProject) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64 text-surface-500 text-sm">
-          Please select a project first.
+        <div className="flex items-center justify-center h-64">
+          {projectLoading ? (
+            <div className="w-6 h-6 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
+          ) : (
+            <span className="text-surface-500 text-sm">Please select a project first.</span>
+          )}
         </div>
       </DashboardLayout>
     );
