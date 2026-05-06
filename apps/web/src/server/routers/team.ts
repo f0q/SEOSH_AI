@@ -137,24 +137,29 @@ export const teamRouter = router({
         await prisma.user.delete({ where: { id: existingUser.id } });
       }
 
-      // Create user via better-auth native sign-up (correct scrypt hashing)
-      try {
-        await auth.api.signUpEmail({
-          body: {
-            email: input.email,
-            password: tempPassword,
-            name: input.email.split("@")[0],
-          },
-        });
-      } catch (e: any) {
-        console.error("Failed to create user via auth.api.signUpEmail:", e?.message || e);
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user account." });
-      }
+      // Hash password using scrypt — same format as better-auth (salt:hash = 161 chars)
+      const salt = crypto.randomBytes(16);
+      const hash = crypto.scryptSync(tempPassword, salt, 64, { N: 16384, r: 8, p: 1 });
+      const hashedPassword = salt.toString("hex") + ":" + hash.toString("hex");
 
-      // Mark email as verified since admin is inviting
-      await prisma.user.update({
-        where: { email: input.email },
-        data: { emailVerified: true },
+      const userId = crypto.randomUUID();
+      await prisma.user.create({
+        data: {
+          id: userId,
+          name: input.email.split("@")[0],
+          email: input.email,
+          emailVerified: true,
+          role: "USER",
+        },
+      });
+
+      await prisma.account.create({
+        data: {
+          accountId: userId,
+          providerId: "credential",
+          userId: userId,
+          password: hashedPassword,
+        },
       });
 
       const member = await prisma.projectMember.create({
