@@ -20,4 +20,6 @@ export const {
   signUp,
   useSession,
   getSession,
+  forgetPassword,
+  resetPassword,
 } = authClient;

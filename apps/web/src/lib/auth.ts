@@ -28,6 +28,22 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // Disabled since registration is closed and admin creates users
+    sendResetPassword: async ({ user, url }) => {
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your password - SEOSH.AI",
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2>Password Reset Request</h2>
+            <p>Click the button below to reset your password. This link expires in 1 hour.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${url}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Reset Password</a>
+            </div>
+            <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
+          </div>
+        `,
+      });
+    },
   },
   // Note: Registration page is removed from UI. No sign-up blocking hook needed.
   emailVerification: {
