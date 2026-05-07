@@ -4,7 +4,7 @@ import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, Lock, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
-import { resetPassword } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -32,7 +32,7 @@ function ResetPasswordForm() {
     setErrorMsg("");
 
     try {
-      const res = await resetPassword({
+      const res = await authClient.resetPassword({
         newPassword: password,
         token,
       });

@@ -1,20 +1,4 @@
-/**
- * @module auth
- * @description Better Auth configuration for SEOSH.AI.
- * 
- * Features:
- *   - Email/password authentication
- *   - Session management (database-backed)
- *   - Role-based access: USER, ADMIN, SUPERADMIN
- */
-
-import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
-import { admin } from "better-auth/plugins";
-import { PrismaClient } from "@prisma/client";
-import { APIError, createAuthMiddleware } from "better-auth/api";
-
-import { sendEmail } from "./email";
+/** * @module auth * @description Better Auth configuration for SEOSH.AI. * * Features: *   - Email/password authentication *   - Session management (database-backed) *   - Role-based access: USER, ADMIN, SUPERADMIN */ import { betterAuth } from "better-auth"; import { prismaAdapter } from "better-auth/adapters/prisma"; import { admin } from "better-auth/plugins"; import { PrismaClient } from "@prisma/client"; import { APIError, createAuthMiddleware } from "better-auth/api"; import { sendEmail } from "./email";
 
 const prisma = new PrismaClient();
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Sparkles, ArrowLeft, Mail, CheckCircle2, Loader2 } from "lucide-react";
-import { forgetPassword } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -16,12 +16,12 @@ export default function ForgotPasswordPage() {
 
     setStatus("loading");
     try {
-      await forgetPassword({
+      await authClient.forgetPassword({
         email,
         redirectTo: "/reset-password",
       });
       setStatus("success");
-    } catch (err: any) {
+    } catch {
       // Don't reveal if email exists — always show success for security
       setStatus("success");
     }
