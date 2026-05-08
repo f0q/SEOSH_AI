@@ -22,8 +22,8 @@ export default function LoginPage() {
       if (result.error) {
         setError(result.error.message || "Invalid email or password");
       } else {
-        router.push("/");
-        router.refresh();
+        // Full page reload to ensure all queries (projects, session) refetch fresh
+        window.location.href = "/";
       }
     } catch {
       setError("Something went wrong. Please try again.");
