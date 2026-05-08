@@ -13,7 +13,9 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false, // Disabled since registration is closed and admin creates users
     sendResetPassword: async ({ user, url }) => {
-      await sendEmail({
+      console.log("🔑 sendResetPassword called for:", user.email);
+      console.log("🔗 Reset URL:", url);
+      const result = await sendEmail({
         to: user.email,
         subject: "Reset your password - SEOSH.AI",
         html: `
@@ -27,6 +29,7 @@ export const auth = betterAuth({
           </div>
         `,
       });
+      console.log("📧 Email send result:", result);
     },
   },
   // Note: Registration page is removed from UI. No sign-up blocking hook needed.
