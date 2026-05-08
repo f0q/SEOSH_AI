@@ -4,7 +4,6 @@ import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, Lock, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
-import { authClient } from "@/lib/auth-client";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -32,12 +31,17 @@ function ResetPasswordForm() {
     setErrorMsg("");
 
     try {
-      const res = await authClient.resetPassword({
-        newPassword: password,
-        token,
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newPassword: password,
+          token,
+        }),
       });
-      if (res.error) {
-        setErrorMsg(res.error.message || "Failed to reset password. The link may have expired.");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data?.message || "Failed to reset password. The link may have expired.");
         setStatus("error");
       } else {
         setStatus("success");
