@@ -14,6 +14,7 @@ export default function ForgotPasswordPage() {
     if (!email) return;
 
     setStatus("loading");
+    setErrorMsg("");
     try {
       const res = await fetch("/api/auth/forget-password", {
         method: "POST",
@@ -23,10 +24,18 @@ export default function ForgotPasswordPage() {
           redirectTo: "/reset-password",
         }),
       });
-      // Always show success for security (don't reveal if email exists)
-      setStatus("success");
-    } catch {
-      setStatus("success");
+      const data = await res.json().catch(() => null);
+      console.log("Forgot password response:", res.status, data);
+      if (!res.ok) {
+        setErrorMsg(`Error ${res.status}: ${data?.message || JSON.stringify(data) || "Unknown error"}`);
+        setStatus("error");
+      } else {
+        setStatus("success");
+      }
+    } catch (err: any) {
+      console.error("Forgot password fetch error:", err);
+      setErrorMsg(err?.message || "Network error");
+      setStatus("error");
     }
   };
 
