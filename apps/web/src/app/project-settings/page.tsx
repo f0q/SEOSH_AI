@@ -402,7 +402,9 @@ export default function ProjectSettingsPage() {
             </div>
 
             {projectId && (
-              <ConnectorsSection projectId={projectId} />
+              <div className="lg:col-span-3">
+                <ConnectorsSection projectId={projectId} />
+              </div>
             )}
 
           </div>
