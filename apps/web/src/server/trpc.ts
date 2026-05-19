@@ -61,6 +61,21 @@ const enforceAuth = t.middleware(({ ctx, next }) => {
   });
 });
 
+/**
+ * Read-only guard for demo accounts. Any mutation issued by a user with
+ * isDemo=true is rejected. Queries pass through untouched. Applied on top
+ * of enforceAuth so it relies on session.user being present.
+ */
+const enforceNonDemoForMutations = t.middleware(({ ctx, next, type }) => {
+  if (type === "mutation" && (ctx.session?.user as { isDemo?: boolean } | undefined)?.isDemo) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Это демо-режим: изменения недоступны. Зарегистрируйтесь для полного доступа.",
+    });
+  }
+  return next();
+});
+
 /** Middleware: require ADMIN or SUPERADMIN role */
 const enforceAdmin = t.middleware(({ ctx, next }) => {
   const role = (ctx.session?.user as { role?: string })?.role;
@@ -84,8 +99,8 @@ const enforceSuperadmin = t.middleware(({ ctx, next }) => {
 /** Public procedure — no auth required */
 export const publicProcedure = t.procedure;
 
-/** Protected procedure — requires valid session */
-export const protectedProcedure = t.procedure.use(enforceAuth);
+/** Protected procedure — requires valid session; mutations are blocked for demo accounts. */
+export const protectedProcedure = t.procedure.use(enforceAuth).use(enforceNonDemoForMutations);
 
 /** Admin procedure — requires ADMIN or SUPERADMIN */
 export const adminProcedure = t.procedure.use(enforceAdmin);

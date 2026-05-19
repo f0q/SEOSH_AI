@@ -71,6 +71,11 @@ export const auth = betterAuth({
         defaultValue: "en",
         input: true,
       },
+      isDemo: {
+        type: "boolean",
+        defaultValue: false,
+        input: false,
+      },
     },
   },
   trustedOrigins: [

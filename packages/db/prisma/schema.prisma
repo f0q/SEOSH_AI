@@ -34,6 +34,7 @@ model User {
   image         String?
   role          UserRole @default(USER)
   locale        String   @default("en") // "en" | "ru"
+  isDemo        Boolean  @default(false) // true → read-only access, all mutations blocked
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -716,4 +717,33 @@ model AutopilotConfig {
   updatedAt        DateTime @updatedAt
 
   @@map("autopilot_configs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WAITLIST
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Public sign-ups while the product is in private beta.
+model WaitlistEntry {
+  id        String   @id @default(uuid())
+  email     String
+  name      String?
+  company   String?
+  message   String?   @db.Text
+  source    String?   // utm/landing slot — free-text
+  status    WaitlistStatus @default(NEW)
+  contacted Boolean   @default(false)
+  notes     String?   @db.Text  // admin notes
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@index([status])
+  @@map("waitlist_entries")
+}
+
+enum WaitlistStatus {
+  NEW
+  CONTACTED
+  ONBOARDED
+  REJECTED
 }

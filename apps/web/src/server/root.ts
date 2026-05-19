@@ -16,6 +16,7 @@ import { adminRouter } from "./routers/admin";
 import { teamRouter } from "./routers/team";
 import { billingRouter } from "./routers/billing";
 import { publisherRouter } from "./routers/publisher";
+import { waitlistRouter } from "./routers/waitlist";
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -30,6 +31,7 @@ export const appRouter = router({
   team: teamRouter,
   billing: billingRouter,
   publisher: publisherRouter,
+  waitlist: waitlistRouter,
 });
 
 export type AppRouter = typeof appRouter;

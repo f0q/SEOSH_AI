@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { ShieldCheck, Users, Building2, Package, CreditCard, Receipt } from "lucide-react";
+import { ShieldCheck, Users, Building2, Package, CreditCard, Receipt, Mail } from "lucide-react";
 import UsersSection from "./UsersSection";
 import CompanySection from "./CompanySection";
 import PackagesSection from "./PackagesSection";
 import ProvidersSection from "./ProvidersSection";
 import PaymentsSection from "./PaymentsSection";
+import WaitlistSection from "./WaitlistSection";
 
 const TABS = [
   { key: "users", label: "Пользователи", icon: Users },
+  { key: "waitlist", label: "Waitlist", icon: Mail },
   { key: "payments", label: "Платежи", icon: Receipt },
   { key: "packages", label: "Тарифы", icon: Package },
   { key: "providers", label: "Провайдеры", icon: CreditCard },
@@ -53,6 +55,7 @@ export default function AdminPage() {
         </div>
 
         {tab === "users" && <UsersSection />}
+        {tab === "waitlist" && <WaitlistSection />}
         {tab === "payments" && <PaymentsSection />}
         {tab === "packages" && <PackagesSection />}
         {tab === "providers" && <ProvidersSection />}
