@@ -318,6 +318,7 @@
   },
   "content": {
     "title": "Content Manager",
+    "subtitle": "View and manage all content for your project",
     "createNew": "Create Content",
     "editor": "Content Editor",
     "materials": "Materials",
@@ -327,7 +328,30 @@
     "publishNow": "Publish Now",
     "seoScore": "SEO Score",
     "uniqueness": "Uniqueness",
-    "preview": "Preview"
+    "preview": "Preview",
+    "openPlanner": "Content Planner",
+    "openPlannerCTA": "Open Content Planner",
+    "stats": {
+      "total": "Total Items",
+      "withContent": "With Content",
+      "published": "Published",
+      "avgScore": "Avg. SEO Score"
+    },
+    "searchPlaceholder": "Search content…",
+    "statusFilters": {
+      "ALL": "All",
+      "DRAFT": "Draft",
+      "IN_PROGRESS": "In Progress",
+      "GENERATED": "Generated",
+      "RECOMMENDATIONS": "Reviewed",
+      "OPTIMIZED": "Optimized",
+      "REVIEW": "Review",
+      "PUBLISHED": "Published"
+    },
+    "emptyTitleFiltered": "No content matches this filter",
+    "emptyTitle": "No content items yet",
+    "emptyBodyFiltered": "Try a different filter or clear the search.",
+    "emptyBody": "Go to the Content Planner to create ideas and generate content."
   },
   "dashboard": {
     "welcomeTo": "Welcome to",
@@ -403,6 +427,21 @@
   "billing": {
     "title": "Billing & tokens",
     "subtitle": "Manage balance and top-ups",
+    "successPageTitle": "Payment complete",
+    "loading": "Loading…",
+    "notFoundTitle": "Payment not found",
+    "notFoundBody": "URL doesn't contain a payment ID.",
+    "backToBilling": "Back to billing",
+    "loadingPayment": "Loading payment…",
+    "succeededTitle": "Payment received!",
+    "succeededBody": "{tokens} tokens have been added to your balance.",
+    "toBalance": "Go to balance",
+    "canceledTitle": "Payment canceled",
+    "failedTitle": "Payment failed",
+    "tryAgain": "You can try again.",
+    "back": "Back",
+    "pendingTitle": "Waiting for confirmation from the payment provider…",
+    "pendingBody": "This takes up to a minute. The page will refresh automatically.",
     "balanceLabel": "Current balance",
     "tokensSuffix": "tokens",
     "topUp": "Top up balance",

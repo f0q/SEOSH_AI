@@ -3,12 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import { trpc } from "@/trpc/client";
 import { CheckCircle2, Loader2, XCircle, AlertCircle } from "lucide-react";
 
 const TERMINAL = new Set(["SUCCEEDED", "FAILED", "CANCELED", "REFUNDED"]);
 
 export default function BillingSuccessClient() {
+  const t = useTranslations("billing");
+  const locale = useLocale();
+  const numLocale = locale === "ru" ? "ru-RU" : "en-US";
+
   const params = useSearchParams();
   const paymentId = params.get("paymentId");
   const [refreshed, setRefreshed] = useState(false);
@@ -26,8 +31,6 @@ export default function BillingSuccessClient() {
   );
   const refresh = trpc.billing.refreshPayment.useMutation();
 
-  // Ask the server to actively re-check the provider once on first arrival —
-  // covers the case where YooKassa's webhook hasn't reached us yet.
   useEffect(() => {
     if (!paymentId || refreshed) return;
     if (!query.data || TERMINAL.has(query.data.status)) return;
@@ -40,9 +43,9 @@ export default function BillingSuccessClient() {
     return (
       <div className="max-w-lg mx-auto glass-card p-8 text-center space-y-4">
         <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
-        <h1 className="text-xl font-bold text-surface-100">Платёж не найден</h1>
-        <p className="text-sm text-surface-500">URL не содержит идентификатора платежа.</p>
-        <Link href="/billing" className="btn-primary inline-block">Назад к биллингу</Link>
+        <h1 className="text-xl font-bold text-surface-100">{t("notFoundTitle")}</h1>
+        <p className="text-sm text-surface-500">{t("notFoundBody")}</p>
+        <Link href="/billing" className="btn-primary inline-block">{t("backToBilling")}</Link>
       </div>
     );
   }
@@ -51,7 +54,7 @@ export default function BillingSuccessClient() {
     return (
       <div className="max-w-lg mx-auto glass-card p-8 text-center space-y-4">
         <Loader2 className="w-10 h-10 animate-spin text-brand-400 mx-auto" />
-        <h1 className="text-xl font-bold text-surface-100">Загружаем платёж…</h1>
+        <h1 className="text-xl font-bold text-surface-100">{t("loadingPayment")}</h1>
       </div>
     );
   }
@@ -62,11 +65,11 @@ export default function BillingSuccessClient() {
     return (
       <div className="max-w-lg mx-auto glass-card p-8 text-center space-y-4">
         <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
-        <h1 className="text-2xl font-bold text-surface-100">Оплата прошла!</h1>
+        <h1 className="text-2xl font-bold text-surface-100">{t("succeededTitle")}</h1>
         <p className="text-sm text-surface-400">
-          {p.tokens.toLocaleString("ru-RU")} токенов добавлены на ваш баланс.
+          {t("succeededBody", { tokens: p.tokens.toLocaleString(numLocale) })}
         </p>
-        <Link href="/billing" className="btn-primary inline-block">К балансу</Link>
+        <Link href="/billing" className="btn-primary inline-block">{t("toBalance")}</Link>
       </div>
     );
   }
@@ -76,10 +79,10 @@ export default function BillingSuccessClient() {
       <div className="max-w-lg mx-auto glass-card p-8 text-center space-y-4">
         <XCircle className="w-12 h-12 text-red-400 mx-auto" />
         <h1 className="text-2xl font-bold text-surface-100">
-          {p.status === "CANCELED" ? "Платёж отменён" : "Не удалось оплатить"}
+          {p.status === "CANCELED" ? t("canceledTitle") : t("failedTitle")}
         </h1>
-        <p className="text-sm text-surface-400">Можно попробовать ещё раз.</p>
-        <Link href="/billing" className="btn-primary inline-block">Назад</Link>
+        <p className="text-sm text-surface-400">{t("tryAgain")}</p>
+        <Link href="/billing" className="btn-primary inline-block">{t("back")}</Link>
       </div>
     );
   }
@@ -88,10 +91,8 @@ export default function BillingSuccessClient() {
   return (
     <div className="max-w-lg mx-auto glass-card p-8 text-center space-y-4">
       <Loader2 className="w-10 h-10 animate-spin text-brand-400 mx-auto" />
-      <h1 className="text-xl font-bold text-surface-100">Ожидаем подтверждение от платёжной системы…</h1>
-      <p className="text-sm text-surface-500">
-        Это занимает до минуты. Страница обновится автоматически.
-      </p>
+      <h1 className="text-xl font-bold text-surface-100">{t("pendingTitle")}</h1>
+      <p className="text-sm text-surface-500">{t("pendingBody")}</p>
     </div>
   );
 }

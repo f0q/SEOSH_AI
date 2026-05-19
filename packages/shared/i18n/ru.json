@@ -318,6 +318,7 @@
   },
   "content": {
     "title": "Управление контентом",
+    "subtitle": "Просмотр и управление всем контентом проекта",
     "createNew": "Создать контент",
     "editor": "Редактор",
     "materials": "Материалы",
@@ -327,7 +328,30 @@
     "publishNow": "Опубликовать",
     "seoScore": "SEO-оценка",
     "uniqueness": "Уникальность",
-    "preview": "Просмотр"
+    "preview": "Просмотр",
+    "openPlanner": "Контент-план",
+    "openPlannerCTA": "Открыть контент-план",
+    "stats": {
+      "total": "Всего материалов",
+      "withContent": "С контентом",
+      "published": "Опубликовано",
+      "avgScore": "Средний SEO-балл"
+    },
+    "searchPlaceholder": "Поиск по контенту…",
+    "statusFilters": {
+      "ALL": "Все",
+      "DRAFT": "Черновик",
+      "IN_PROGRESS": "В работе",
+      "GENERATED": "Сгенерирован",
+      "RECOMMENDATIONS": "Проверен",
+      "OPTIMIZED": "Оптимизирован",
+      "REVIEW": "На ревью",
+      "PUBLISHED": "Опубликован"
+    },
+    "emptyTitleFiltered": "По фильтру ничего не найдено",
+    "emptyTitle": "Материалов пока нет",
+    "emptyBodyFiltered": "Попробуйте другой фильтр или очистите поиск.",
+    "emptyBody": "Перейдите в Контент-план, чтобы создать идеи и сгенерировать материалы."
   },
   "dashboard": {
     "welcomeTo": "Добро пожаловать в",
@@ -403,6 +427,21 @@
   "billing": {
     "title": "Биллинг и токены",
     "subtitle": "Управление балансом и пополнение",
+    "successPageTitle": "Платёж выполнен",
+    "loading": "Загрузка…",
+    "notFoundTitle": "Платёж не найден",
+    "notFoundBody": "URL не содержит идентификатора платежа.",
+    "backToBilling": "Назад к биллингу",
+    "loadingPayment": "Загружаем платёж…",
+    "succeededTitle": "Оплата прошла!",
+    "succeededBody": "{tokens} токенов добавлены на ваш баланс.",
+    "toBalance": "К балансу",
+    "canceledTitle": "Платёж отменён",
+    "failedTitle": "Не удалось оплатить",
+    "tryAgain": "Можно попробовать ещё раз.",
+    "back": "Назад",
+    "pendingTitle": "Ожидаем подтверждение от платёжной системы…",
+    "pendingBody": "Это занимает до минуты. Страница обновится автоматически.",
     "balanceLabel": "Текущий баланс",
     "tokensSuffix": "токенов",
     "topUp": "Пополнить баланс",

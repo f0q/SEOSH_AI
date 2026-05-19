@@ -4,46 +4,56 @@ import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
 import { useProject } from "@/lib/project-context";
+import { useTranslations, useLocale } from "next-intl";
 import {
-  FileText, Plus, LayoutList, ChevronRight, Loader2,
-  Eye, Pencil, Search, Filter, Clock, CheckCircle2,
+  FileText, LayoutList, ChevronRight, Loader2,
+  Search, Filter, Clock, CheckCircle2,
   Wand2, BarChart3, Globe, AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 
 const STATUS_FILTERS = [
-  { value: "", label: "All", color: "text-surface-300" },
-  { value: "DRAFT", label: "Draft", color: "text-surface-400" },
-  { value: "IN_PROGRESS", label: "In Progress", color: "text-amber-400" },
-  { value: "GENERATED", label: "Generated", color: "text-indigo-400" },
-  { value: "RECOMMENDATIONS", label: "Reviewed", color: "text-blue-400" },
-  { value: "OPTIMIZED", label: "Optimized", color: "text-teal-400" },
-  { value: "REVIEW", label: "Review", color: "text-purple-400" },
-  { value: "PUBLISHED", label: "Published", color: "text-emerald-400" },
-];
+  { value: "", key: "ALL", color: "text-surface-300" },
+  { value: "DRAFT", key: "DRAFT", color: "text-surface-400" },
+  { value: "IN_PROGRESS", key: "IN_PROGRESS", color: "text-amber-400" },
+  { value: "GENERATED", key: "GENERATED", color: "text-indigo-400" },
+  { value: "RECOMMENDATIONS", key: "RECOMMENDATIONS", color: "text-blue-400" },
+  { value: "OPTIMIZED", key: "OPTIMIZED", color: "text-teal-400" },
+  { value: "REVIEW", key: "REVIEW", color: "text-purple-400" },
+  { value: "PUBLISHED", key: "PUBLISHED", color: "text-emerald-400" },
+] as const;
+
+const STATUS_BG: Record<string, string> = {
+  DRAFT: "bg-surface-700/40 border-surface-600/30",
+  IN_PROGRESS: "bg-amber-500/10 border-amber-500/20",
+  GENERATED: "bg-indigo-500/10 border-indigo-500/20",
+  GENERATING: "bg-indigo-500/10 border-indigo-500/20",
+  ANALYZING: "bg-blue-500/10 border-blue-500/20",
+  RECOMMENDATIONS: "bg-blue-500/10 border-blue-500/20",
+  OPTIMIZING: "bg-teal-500/10 border-teal-500/20",
+  OPTIMIZED: "bg-teal-500/10 border-teal-500/20",
+  REVIEW: "bg-purple-500/10 border-purple-500/20",
+  PUBLISHED: "bg-emerald-500/10 border-emerald-500/20",
+};
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_FILTERS.find(s => s.value === status) || STATUS_FILTERS[0];
-  const bgMap: Record<string, string> = {
-    DRAFT: "bg-surface-700/40 border-surface-600/30",
-    IN_PROGRESS: "bg-amber-500/10 border-amber-500/20",
-    GENERATED: "bg-indigo-500/10 border-indigo-500/20",
-    GENERATING: "bg-indigo-500/10 border-indigo-500/20",
-    ANALYZING: "bg-blue-500/10 border-blue-500/20",
-    RECOMMENDATIONS: "bg-blue-500/10 border-blue-500/20",
-    OPTIMIZING: "bg-teal-500/10 border-teal-500/20",
-    OPTIMIZED: "bg-teal-500/10 border-teal-500/20",
-    REVIEW: "bg-purple-500/10 border-purple-500/20",
-    PUBLISHED: "bg-emerald-500/10 border-emerald-500/20",
-  };
+  const t = useTranslations("content.statusFilters");
+  const cfg = STATUS_FILTERS.find(s => s.value === status);
+  const label = cfg ? t(cfg.key as "DRAFT") : status;
+  const color = cfg?.color ?? "text-surface-300";
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border ${bgMap[status] || bgMap.DRAFT} ${cfg.color}`}>
-      {cfg.label || status}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border ${STATUS_BG[status] || STATUS_BG.DRAFT} ${color}`}>
+      {label}
     </span>
   );
 }
 
 export default function ContentPage() {
+  const t = useTranslations("content");
+  const tStatus = useTranslations("content.statusFilters");
+  const locale = useLocale();
+  const dateLocale = locale === "ru" ? "ru-RU" : "en-US";
+
   const { activeProject } = useProject();
   const projectId = activeProject?.id ?? "";
   const [statusFilter, setStatusFilter] = useState("");
@@ -62,11 +72,17 @@ export default function ContentPage() {
       )
     : items;
 
-  // Stats
   const totalItems = items.length;
   const withContent = items.filter((i: any) => i.markdownBody).length;
   const published = items.filter((i: any) => i.status === "PUBLISHED").length;
   const avgScore = items.filter((i: any) => i.seoScore != null).reduce((acc: number, i: any) => acc + (i.seoScore || 0), 0) / (items.filter((i: any) => i.seoScore != null).length || 1);
+
+  const stats = [
+    { labelKey: "total", value: totalItems, icon: FileText, color: "text-brand-400", bg: "bg-brand-500/10" },
+    { labelKey: "withContent", value: withContent, icon: Wand2, color: "text-indigo-400", bg: "bg-indigo-500/10" },
+    { labelKey: "published", value: published, icon: Globe, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+    { labelKey: "avgScore", value: avgScore > 0 ? Math.round(avgScore) : "—", icon: BarChart3, color: "text-cyan-400", bg: "bg-cyan-500/10" },
+  ] as const;
 
   return (
     <DashboardLayout>
@@ -74,31 +90,26 @@ export default function ContentPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-surface-50">Content Manager</h1>
-            <p className="text-surface-400 mt-1">View and manage all content for your project</p>
+            <h1 className="text-2xl font-bold text-surface-50">{t("title")}</h1>
+            <p className="text-surface-400 mt-1">{t("subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/autopilot/content-planner" className="btn-secondary gap-2 text-sm">
-              <LayoutList className="w-4 h-4" /> Content Planner
+              <LayoutList className="w-4 h-4" /> {t("openPlanner")}
             </Link>
           </div>
         </div>
 
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: "Total Items", value: totalItems, icon: FileText, color: "text-brand-400", bg: "bg-brand-500/10" },
-            { label: "With Content", value: withContent, icon: Wand2, color: "text-indigo-400", bg: "bg-indigo-500/10" },
-            { label: "Published", value: published, icon: Globe, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-            { label: "Avg. SEO Score", value: avgScore > 0 ? Math.round(avgScore) : "—", icon: BarChart3, color: "text-cyan-400", bg: "bg-cyan-500/10" },
-          ].map(stat => (
-            <div key={stat.label} className="glass-card p-4 flex items-center gap-3">
+          {stats.map(stat => (
+            <div key={stat.labelKey} className="glass-card p-4 flex items-center gap-3">
               <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
                 <stat.icon className={`w-4 h-4 ${stat.color}`} />
               </div>
               <div>
                 <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-[10px] text-surface-500 uppercase tracking-wider">{stat.label}</p>
+                <p className="text-[10px] text-surface-500 uppercase tracking-wider">{t(`stats.${stat.labelKey}`)}</p>
               </div>
             </div>
           ))}
@@ -112,7 +123,7 @@ export default function ContentPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search content..."
+              placeholder={t("searchPlaceholder")}
               className="input-field !pl-9 !py-2 !text-sm w-full"
             />
           </div>
@@ -128,7 +139,7 @@ export default function ContentPage() {
                     : "bg-surface-800/30 border-surface-700/30 text-surface-500 hover:text-surface-300"
                 }`}
               >
-                {sf.label}
+                {tStatus(sf.key as "DRAFT")}
               </button>
             ))}
           </div>
@@ -145,16 +156,13 @@ export default function ContentPage() {
               <FileText className="w-7 h-7 text-surface-500" />
             </div>
             <h2 className="text-lg font-semibold text-surface-200 mb-2">
-              {statusFilter ? "No content matches this filter" : "No content items yet"}
+              {statusFilter ? t("emptyTitleFiltered") : t("emptyTitle")}
             </h2>
             <p className="text-sm text-surface-500 mb-6 max-w-md">
-              {statusFilter
-                ? "Try a different filter or clear the search."
-                : "Go to the Content Planner to create ideas and generate content."
-              }
+              {statusFilter ? t("emptyBodyFiltered") : t("emptyBody")}
             </p>
             <Link href="/autopilot/content-planner" className="btn-primary gap-2">
-              <LayoutList className="w-4 h-4" /> Open Content Planner
+              <LayoutList className="w-4 h-4" /> {t("openPlannerCTA")}
             </Link>
           </div>
         ) : (
@@ -166,7 +174,6 @@ export default function ContentPage() {
                 className="glass-card p-4 block group hover:border-brand-500/30 transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-4">
-                  {/* Status indicator */}
                   <div className={`w-1 h-12 rounded-full flex-shrink-0 ${
                     item.status === "PUBLISHED" ? "bg-emerald-500" :
                     item.status === "OPTIMIZED" ? "bg-teal-500" :
@@ -176,7 +183,6 @@ export default function ContentPage() {
                     "bg-surface-600"
                   }`} />
 
-                  {/* Content info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-sm font-semibold text-surface-100 truncate group-hover:text-white transition-colors">
@@ -188,11 +194,10 @@ export default function ContentPage() {
                       {item.section && <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {item.section}</span>}
                       {item.pageType && <span>{item.pageType}</span>}
                       {item.url && <span className="text-brand-400/60">{item.url}</span>}
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(item.updatedAt).toLocaleDateString()}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(item.updatedAt).toLocaleDateString(dateLocale)}</span>
                     </div>
                   </div>
 
-                  {/* Right side info */}
                   <div className="flex items-center gap-3 flex-shrink-0">
                     {item.seoScore != null && (
                       <div className={`text-center ${
