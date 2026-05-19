@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
 import { useProject } from "@/lib/project-context";
@@ -20,12 +21,12 @@ import { AIModelSelector } from "@/components/ui/AIModelSelector";
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS = [
-  { value: "DRAFT",       label: "Not Started",  color: "text-surface-400",  bg: "bg-surface-700/40 border-surface-600/30" },
-  { value: "IN_PROGRESS", label: "In Progress",  color: "text-amber-400",    bg: "bg-amber-500/10 border-amber-500/20" },
-  { value: "REVIEW",      label: "Review",       color: "text-blue-400",     bg: "bg-blue-500/10 border-blue-500/20" },
-  { value: "GENERATED",   label: "Generated",    color: "text-indigo-400",   bg: "bg-indigo-500/10 border-indigo-500/20" },
-  { value: "OPTIMIZED",   label: "Optimized",    color: "text-teal-400",     bg: "bg-teal-500/10 border-teal-500/20" },
-  { value: "PUBLISHED",   label: "Published",    color: "text-emerald-400",  bg: "bg-emerald-500/10 border-emerald-500/20" },
+  { value: "DRAFT",       color: "text-surface-400",  bg: "bg-surface-700/40 border-surface-600/30" },
+  { value: "IN_PROGRESS", color: "text-amber-400",    bg: "bg-amber-500/10 border-amber-500/20" },
+  { value: "REVIEW",      color: "text-blue-400",     bg: "bg-blue-500/10 border-blue-500/20" },
+  { value: "GENERATED",   color: "text-indigo-400",   bg: "bg-indigo-500/10 border-indigo-500/20" },
+  { value: "OPTIMIZED",   color: "text-teal-400",     bg: "bg-teal-500/10 border-teal-500/20" },
+  { value: "PUBLISHED",   color: "text-emerald-400",  bg: "bg-emerald-500/10 border-emerald-500/20" },
 ] as const;
 
 type StatusValue = typeof STATUS_OPTIONS[number]["value"];
@@ -59,6 +60,7 @@ function EditableCell({
   list?: string;
   alignRight?: boolean;
 }) {
+  const t = useTranslations("contentPlanner.editable");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -84,7 +86,7 @@ function EditableCell({
       <div
         onClick={() => { setDraft(value); setEditing(true); }}
         className={`block cursor-text min-h-[20px] text-xs transition-colors hover:text-surface-100 ${value ? "text-surface-200" : "text-surface-600 italic"} ${className}`}
-        title="Click to edit"
+        title={t("clickToEdit")}
       >
         <div className="flex items-center gap-1 overflow-hidden max-w-full">
           <span className="truncate block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{value || placeholder}</span>
@@ -117,8 +119,8 @@ function EditableCell({
             placeholder={placeholder}
           />
           <div className="flex justify-end gap-2 px-3 pb-3 pt-1 border-t border-surface-700/50 mt-1">
-             <button onClick={() => { setDraft(value); setEditing(false); }} className="text-xs px-3 py-1.5 text-surface-400 hover:text-surface-200 hover:bg-surface-800 rounded-md transition-colors font-medium">Cancel</button>
-             <button onClick={commit} className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-md transition-colors font-medium shadow-lg shadow-indigo-500/20">Save</button>
+             <button onClick={() => { setDraft(value); setEditing(false); }} className="text-xs px-3 py-1.5 text-surface-400 hover:text-surface-200 hover:bg-surface-800 rounded-md transition-colors font-medium">{t("cancel")}</button>
+             <button onClick={commit} className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-md transition-colors font-medium shadow-lg shadow-indigo-500/20">{t("save")}</button>
           </div>
         </div>
       )}
@@ -135,6 +137,7 @@ function StatusSelector({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations("contentPlanner.status");
   const [open, setOpen] = useState(false);
   const cfg = STATUS_OPTIONS.find((s) => s.value === value) ?? STATUS_OPTIONS[0];
 
@@ -144,7 +147,7 @@ function StatusSelector({
         onClick={() => setOpen((o) => !o)}
         className={`px-2 py-1 rounded text-xs font-medium border whitespace-nowrap ${cfg.bg} ${cfg.color}`}
       >
-        {cfg.label}
+        {t(cfg.value)}
       </button>
       {open && (
         <div className="absolute z-50 top-full left-0 mt-1 bg-surface-800 border border-surface-700/40 rounded-xl shadow-xl min-w-[140px] overflow-hidden">
@@ -154,7 +157,7 @@ function StatusSelector({
               onClick={() => { onChange(opt.value); setOpen(false); }}
               className={`w-full text-left px-3 py-2 text-xs font-medium border-b border-surface-700/20 last:border-0 hover:bg-surface-700/30 transition-colors ${opt.color}`}
             >
-              {opt.label}
+              {t(opt.value)}
             </button>
           ))}
         </div>
@@ -172,6 +175,7 @@ function InviteModal({
   projectId: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("contentPlanner.invite");
   const [email, setEmail] = useState("");
   const [inviteUrl, setInviteUrl] = useState("");
   const [copied, setCopied] = useState(false);
@@ -196,16 +200,14 @@ function InviteModal({
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
               <Users className="w-4 h-4 text-white" />
             </div>
-            <h3 className="font-semibold text-surface-100">Invite Team Member</h3>
+            <h3 className="font-semibold text-surface-100">{t("title")}</h3>
           </div>
           <button onClick={onClose} className="btn-ghost p-1.5 rounded-lg">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <p className="text-xs text-surface-500">
-          Enter the email address. The invitee will receive a link and temporary password to access the content plan.
-        </p>
+        <p className="text-xs text-surface-500">{t("instruction")}</p>
 
         {!inviteUrl ? (
           <div className="space-y-3">
@@ -214,7 +216,7 @@ function InviteModal({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="colleague@company.com"
+                placeholder={t("emailPlaceholder")}
                 className="input-field text-sm flex-1"
                 onKeyDown={(e) => e.key === "Enter" && invite.mutate({ projectId, email })}
               />
@@ -224,7 +226,7 @@ function InviteModal({
                 className="btn-primary gap-2"
               >
                 {invite.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                Send
+                {t("send")}
               </button>
             </div>
             {invite.error && (
@@ -235,7 +237,9 @@ function InviteModal({
           <div className="space-y-3">
             <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <p className="text-xs text-emerald-400">Invite created! Share this link with <strong>{email}</strong>:</p>
+              <p className="text-xs text-emerald-400">
+                {t.rich("createdWith", { email, strong: (chunks) => <strong>{chunks}</strong> })}
+              </p>
             </div>
             <div className="flex gap-2">
               <input
@@ -247,9 +251,7 @@ function InviteModal({
                 {copied ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
-            <p className="text-xs text-surface-500">
-              In dev mode the temporary password is printed in the server console. In production, it will be emailed automatically.
-            </p>
+            <p className="text-xs text-surface-500">{t("devNote")}</p>
           </div>
         )}
       </div>
@@ -268,6 +270,7 @@ function CsvImportModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useTranslations("contentPlanner.csv");
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -282,7 +285,7 @@ function CsvImportModal({
 
   const handleFile = (file: File) => {
     if (!file.name.match(/\.(csv|tsv|txt)$/i)) {
-      alert("Please upload a .csv, .tsv, or .txt file.");
+      alert(t("fileTypeError"));
       return;
     }
     setFileName(file.name);
@@ -313,7 +316,7 @@ function CsvImportModal({
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
               <FileSpreadsheet className="w-4 h-4 text-white" />
             </div>
-            <h3 className="font-semibold text-surface-100">Import CSV</h3>
+            <h3 className="font-semibold text-surface-100">{t("title")}</h3>
           </div>
           <button onClick={onClose} className="btn-ghost p-1.5 rounded-lg">
             <X className="w-4 h-4" />
@@ -326,22 +329,21 @@ function CsvImportModal({
             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
               <div className="flex items-center gap-2 mb-2">
                 <Check className="w-5 h-5 text-emerald-400" />
-                <span className="text-sm font-medium text-emerald-300">Import Complete!</span>
+                <span className="text-sm font-medium text-emerald-300">{t("complete")}</span>
               </div>
               <div className="space-y-1 text-xs text-surface-400">
-                <p>✓ <strong className="text-surface-200">{result.created}</strong> rows imported</p>
-                {result.skipped > 0 && <p>⊘ {result.skipped} empty rows skipped</p>}
-                <p>Mapped columns: {result.mappedColumns.join(", ")}</p>
+                <p>✓ {t("rowsImported", { n: result.created })}</p>
+                {result.skipped > 0 && <p>⊘ {t("rowsSkipped", { n: result.skipped })}</p>}
+                <p>{t("mappedColumns", { cols: result.mappedColumns.join(", ") })}</p>
               </div>
             </div>
-            <button onClick={onClose} className="btn-primary w-full justify-center">Done</button>
+            <button onClick={onClose} className="btn-primary w-full justify-center">{t("done")}</button>
           </div>
         ) : (
           // ── Upload state ──
           <>
             <p className="text-xs text-surface-500">
-              Upload a CSV file with columns like: Title, URL, Section, Page Type, Keywords, H1, H2, etc.
-              Supports both <strong>English</strong> and <strong>Russian</strong> column headers.
+              {t.rich("instruction", { strong: (chunks) => <strong>{chunks}</strong> })}
             </p>
 
             {/* Drop zone */}
@@ -372,7 +374,7 @@ function CsvImportModal({
                   <FileSpreadsheet className="w-8 h-8 text-emerald-400" />
                   <div className="text-left">
                     <p className="text-sm font-medium text-surface-200">{fileName}</p>
-                    <p className="text-xs text-surface-500">{headerCols} columns · {totalDataRows} data rows</p>
+                    <p className="text-xs text-surface-500">{t("columnsCount", { cols: headerCols, rows: totalDataRows })}</p>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); setCsvText(""); setFileName(""); }}
@@ -384,8 +386,8 @@ function CsvImportModal({
               ) : (
                 <>
                   <Upload className="w-10 h-10 text-surface-600 mx-auto mb-3" />
-                  <p className="text-sm text-surface-400 mb-1">Drop CSV file here or click to browse</p>
-                  <p className="text-xs text-surface-600">Supports .csv, .tsv, .txt</p>
+                  <p className="text-sm text-surface-400 mb-1">{t("dropHere")}</p>
+                  <p className="text-xs text-surface-600">{t("supports")}</p>
                 </>
               )}
             </div>
@@ -393,7 +395,7 @@ function CsvImportModal({
             {/* Preview */}
             {previewLines.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-surface-400">Preview (first {Math.min(5, dataRows)} rows):</p>
+                <p className="text-xs font-medium text-surface-400">{t("previewLabel", { n: Math.min(5, dataRows) })}</p>
                 <div className="overflow-x-auto rounded-lg border border-surface-700/30 bg-surface-800/20">
                   <table className="text-[10px] w-full">
                     <thead>
@@ -419,7 +421,7 @@ function CsvImportModal({
                   </table>
                 </div>
                 {totalDataRows > 5 && (
-                  <p className="text-[10px] text-surface-600 text-center">...and {totalDataRows - 5} more rows</p>
+                  <p className="text-[10px] text-surface-600 text-center">{t("moreRows", { n: totalDataRows - 5 })}</p>
                 )}
               </div>
             )}
@@ -433,16 +435,16 @@ function CsvImportModal({
 
             {/* Actions */}
             <div className="flex gap-2 justify-end">
-              <button onClick={onClose} className="btn-ghost">Cancel</button>
+              <button onClick={onClose} className="btn-ghost">{t("cancel")}</button>
               <button
                 onClick={() => importCsv.mutate({ projectId, csvText })}
                 disabled={!csvText || importCsv.isPending}
                 className="btn-primary gap-2"
               >
                 {importCsv.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Importing...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {t("importing")}</>
                 ) : (
-                  <><Upload className="w-4 h-4" /> Import {totalDataRows} rows</>
+                  <><Upload className="w-4 h-4" /> {t("importN", { n: totalDataRows })}</>
                 )}
               </button>
             </div>
@@ -456,6 +458,7 @@ function CsvImportModal({
 // ─── Keyword Coverage Stats Bar ───────────────────────────────────────────────
 
 function KeywordStatsBar({ projectId }: { projectId: string }) {
+  const t = useTranslations("contentPlanner.keywordStats");
   const utils = trpc.useUtils();
   const { data: stats, refetch: refetchStats } = trpc.contentPlan.getKeywordUsageStats.useQuery(
     { projectId },
@@ -483,28 +486,28 @@ function KeywordStatsBar({ projectId }: { projectId: string }) {
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <Tag className="w-4 h-4 text-brand-400 flex-shrink-0" />
-          <span className="text-sm font-medium text-brand-300">Keyword Coverage</span>
+          <span className="text-sm font-medium text-brand-300">{t("label")}</span>
           <div className="group relative flex items-center">
             <HelpCircle className="w-3.5 h-3.5 text-surface-500 hover:text-surface-300 cursor-help transition-colors" />
             <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 bg-surface-900 border border-surface-700 rounded-lg shadow-xl text-xs text-surface-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-              <p className="font-semibold text-surface-100 mb-1">How is this calculated?</p>
-              <p>Coverage is determined by partial phrase matching. A semantic core key phrase is counted as "covered" if it appears anywhere within the combined text of your Content Plan's Target Keywords, Titles, or H1s.</p>
+              <p className="font-semibold text-surface-100 mb-1">{t("helpTitle")}</p>
+              <p>{t("helpBody")}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-surface-400">
-            <span className="font-bold text-surface-200">{stats.total}</span> total
+            <span className="font-bold text-surface-200">{stats.total}</span> {t("total")}
           </span>
           <span className="text-emerald-400">
-            <span className="font-bold">{stats.used}</span> covered
+            <span className="font-bold">{stats.used}</span> {t("covered")}
           </span>
           <span className="text-surface-400">
-            <span className="font-bold text-surface-200">{stats.unused}</span> available
+            <span className="font-bold text-surface-200">{stats.unused}</span> {t("available")}
           </span>
           {stats.overUsed > 0 && (
             <span className="text-amber-400">
-              <span className="font-bold">{stats.overUsed}</span> over-used
+              <span className="font-bold">{stats.overUsed}</span> {t("overUsed")}
             </span>
           )}
         </div>
@@ -527,21 +530,21 @@ function KeywordStatsBar({ projectId }: { projectId: string }) {
               onClick={() => syncMut.mutate({ semanticCoreId: latestCore.id })}
               disabled={syncMut.isPending}
               className="btn-ghost gap-1.5 text-xs px-2.5 py-1 flex-shrink-0 ml-2 border border-surface-700/50 hover:border-brand-500/50"
-              title="Scan content plan and update keyword usage counts"
+              title={t("syncTooltip")}
             >
               {syncMut.isPending ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <Search className="w-3.5 h-3.5" />
               )}
-              {syncMut.isPending ? "Syncing…" : "Sync"}
+              {syncMut.isPending ? t("syncing") : t("sync")}
             </button>
           )}
         </div>
       </div>
       {syncMut.isSuccess && (
         <p className="text-xs text-emerald-400 mt-2 border-t border-brand-500/20 pt-2">
-          ✓ Scanned {syncMut.data.synced} keywords — {syncMut.data.matched} matched to content items
+          {t("syncResult", { synced: syncMut.data.synced, matched: syncMut.data.matched })}
         </p>
       )}
     </div>
@@ -551,6 +554,17 @@ function KeywordStatsBar({ projectId }: { projectId: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ContentPlannerPage() {
+  const t = useTranslations("contentPlanner");
+  const tStatus = useTranslations("contentPlanner.status");
+  const tHeader = useTranslations("contentPlanner.header");
+  const tBulk = useTranslations("contentPlanner.bulk");
+  const tShares = useTranslations("contentPlanner.shares");
+  const tToolbar = useTranslations("contentPlanner.toolbar");
+  const tTable = useTranslations("contentPlanner.table");
+  const tMetrics = useTranslations("contentPlanner.table.metricsLabels");
+  const tDraft = useTranslations("contentPlanner.draftRow");
+  const tFooter = useTranslations("contentPlanner.footer");
+  const tErrors = useTranslations("contentPlanner.errors");
   const router = useRouter();
   const { activeProject, isLoading: projectLoading } = useProject();
   const [showInvite, setShowInvite] = useState(false);
@@ -761,13 +775,13 @@ export default function ContentPlannerPage() {
     const invalidItems = itemsToRegen.filter(item => !item.markdownBody?.trim() || !item.seoAnalysis);
 
     if (validItems.length === 0) {
-      setPageError("No valid content to regenerate. Generate and analyze first.");
+      setPageError(tErrors("noValidToRegen"));
       setTimeout(() => setPageError(null), 5000);
       return;
     }
 
     if (invalidItems.length > 0) {
-      setPageError("Some rows are missing content or analysis. Optimizing only valid rows.");
+      setPageError(tErrors("someInvalidRegen"));
       setTimeout(() => setPageError(null), 5000);
     }
 
@@ -778,7 +792,7 @@ export default function ContentPlannerPage() {
       }
     } catch (e: any) {
       console.error("Bulk regenerate error", e);
-      setPageError(e.message || "Failed to regenerate content");
+      setPageError(e.message || tErrors("failedRegen"));
       setTimeout(() => setPageError(null), 5000);
     } finally {
       setBulkRegenerating(false);
@@ -787,8 +801,8 @@ export default function ContentPlannerPage() {
 
   const handleBulkDelete = async () => {
     if (selectedRows.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedRows.size} content items?`)) return;
-    
+    if (!confirm(t("confirmDelete", { n: selectedRows.size }))) return;
+
     setBulkDeleting(true);
     try {
       for (const id of Array.from(selectedRows)) {
@@ -797,7 +811,7 @@ export default function ContentPlannerPage() {
       setSelectedRows(new Set());
     } catch (e: any) {
       console.error("Bulk delete error", e);
-      setPageError(e.message || "Failed to delete items");
+      setPageError(e.message || tErrors("failedDelete"));
       setTimeout(() => setPageError(null), 5000);
     } finally {
       setBulkDeleting(false);
@@ -815,13 +829,13 @@ export default function ContentPlannerPage() {
     const emptyItems = itemsToAnalyze.filter(item => !item.markdownBody?.trim());
     
     if (validItems.length === 0) {
-      setPageError("No content to analyze. Generate content first.");
+      setPageError(tErrors("noContentToAnalyze"));
       setTimeout(() => setPageError(null), 5000);
       return;
     }
 
     if (emptyItems.length > 0) {
-      setPageError("Some content rows do not have content. Create content first and then analyze.");
+      setPageError(tErrors("someEmpty"));
       setTimeout(() => setPageError(null), 5000);
       // We do not return here; we proceed to analyze the valid items!
     }
@@ -833,7 +847,7 @@ export default function ContentPlannerPage() {
       }
     } catch (e: any) {
       console.error("Bulk analyze error", e);
-      setPageError(e.message || "Failed to analyze");
+      setPageError(e.message || tErrors("failedAnalyze"));
       setTimeout(() => setPageError(null), 5000);
     } finally {
       setBulkAnalyzing(false);
@@ -861,7 +875,7 @@ export default function ContentPlannerPage() {
           {projectLoading ? (
             <div className="w-6 h-6 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
           ) : (
-            <span className="text-surface-500 text-sm">Please select a project first.</span>
+            <span className="text-surface-500 text-sm">{t("selectProject")}</span>
           )}
         </div>
       </DashboardLayout>
@@ -885,7 +899,7 @@ export default function ContentPlannerPage() {
               <LayoutList className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-surface-50">Content Planner</h1>
+              <h1 className="text-xl font-bold text-surface-50">{t("title")}</h1>
               <p className="text-xs text-surface-500 mt-0.5">{activeProject.name}</p>
             </div>
           </div>
@@ -894,10 +908,10 @@ export default function ContentPlannerPage() {
             <button
               onClick={() => setShowCsvImport(true)}
               className="btn-ghost gap-2 text-sm"
-              title="Import content rows from CSV file"
+              title={tHeader("importCsvHint")}
             >
               <Upload className="w-4 h-4 text-emerald-400" />
-              Import CSV
+              {tHeader("importCsv")}
             </button>
 
             <div className="w-px h-6 bg-surface-700/50 mx-2" />
@@ -908,7 +922,7 @@ export default function ContentPlannerPage() {
               className="btn-primary gap-2 text-sm"
             >
               <Wand2 className="w-4 h-4" />
-              Start Planning Content
+              {tHeader("startPlanning")}
             </button>
 
             <button
@@ -916,7 +930,7 @@ export default function ContentPlannerPage() {
               className="btn-secondary gap-2 text-sm"
             >
               <Users className="w-4 h-4" />
-              Team
+              {tHeader("team")}
             </button>
           </div>
         </div>
@@ -939,7 +953,7 @@ export default function ContentPlannerPage() {
           <div className="glass-card px-4 py-3 flex items-center gap-4 animate-fade-in border-emerald-500/20 bg-emerald-500/5 w-fit h-fit">
             <div className="flex items-center gap-2">
               <Wand2 className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm font-medium text-emerald-300">Generation Model</span>
+              <span className="text-sm font-medium text-emerald-300">{t("model.label")}</span>
             </div>
             <div className="w-64">
               <AIModelSelector
@@ -957,41 +971,41 @@ export default function ContentPlannerPage() {
           {selectedRows.size > 0 && (
             <div className="fixed bottom-8 right-8 z-[60] shadow-[0_8px_32px_rgba(99,102,241,0.25)] glass-card px-4 py-3 flex items-center gap-3 animate-slide-in-right border-indigo-500/40 bg-surface-900/95 backdrop-blur-xl w-fit h-fit">
               <span className="text-sm font-medium text-indigo-300">
-                {selectedRows.size} selected
+                {tBulk("selected", { n: selectedRows.size })}
               </span>
               <div className="w-px h-4 bg-indigo-500/30 mx-1" />
               <button
                 onClick={handleBulkGenerateSeoData}
                 disabled={generateSeoDataBulkMut.isPending || !selectedModelId}
                 className="gap-2 text-xs py-1.5 px-3 min-h-0 h-8 rounded-lg font-medium text-blue-400/80 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/50 hover:border-blue-400 transition-colors flex items-center disabled:opacity-50"
-                title="Generate SEO Data for selected rows"
+                title={tBulk("seoDataTitle")}
               >
                 {generateSeoDataBulkMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                SEO Data
+                {tBulk("seoData")}
               </button>
               <button
                 onClick={handleBulkGenerate}
                 disabled={bulkGenerating || !selectedModelId}
                 className="gap-2 text-xs py-1.5 px-3 min-h-0 h-8 rounded-lg font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors flex items-center disabled:opacity-50"
-                title="Generate content for selected rows"
+                title={tBulk("generateTitle")}
               >
                 {bulkGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                Generate Content
+                {tBulk("generate")}
               </button>
               <button
                 onClick={handleBulkAnalyze}
                 disabled={bulkAnalyzing || !selectedModelId}
                 className="gap-2 text-xs py-1.5 px-3 min-h-0 h-8 rounded-lg font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors flex items-center disabled:opacity-50"
-                title="Analyze content for selected rows"
+                title={tBulk("analyzeTitle")}
               >
                 {bulkAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
-                Analyze
+                {tBulk("analyze")}
               </button>
               <button
                 onClick={handleBulkRegenerate}
                 disabled={bulkRegenerating || !selectedModelId}
                 className="gap-2 text-xs py-1.5 px-3 min-h-0 h-8 rounded-lg font-medium text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/50 hover:border-amber-400 transition-colors flex items-center disabled:opacity-50"
-                title="Regenerate based on analysis for selected rows"
+                title={tBulk("optimizeTitle")}
               >
                 {bulkRegenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : (
                   <>
@@ -999,14 +1013,14 @@ export default function ContentPlannerPage() {
                     <RefreshCw className="w-3.5 h-3.5" />
                   </>
                 )}
-                Optimize
+                {tBulk("optimize")}
               </button>
               <div className="w-px h-4 bg-indigo-500/30 mx-1" />
               <button
                 onClick={handleBulkDelete}
                 disabled={bulkDeleting}
                 className="gap-2 text-xs p-1.5 min-h-0 h-8 rounded-lg font-medium text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/80 border border-red-500/30 hover:border-red-500 transition-colors flex items-center justify-center disabled:opacity-50"
-                title="Delete selected rows"
+                title={tBulk("delete")}
               >
                 {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               </button>
@@ -1019,7 +1033,7 @@ export default function ContentPlannerPage() {
           <div className="glass-card px-4 py-3 flex items-center gap-3 flex-wrap mb-4">
             <span className="text-xs text-surface-500 flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5" />
-              Shared with:
+              {tShares("sharedWith")}
             </span>
             {activeShares.map((share) => (
               <div key={share.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs ${
@@ -1028,11 +1042,11 @@ export default function ContentPlannerPage() {
                   : "bg-amber-500/10 border-amber-500/20 text-amber-400"
               }`}>
                 <span>{share.email}</span>
-                <span className="opacity-60">({share.status === "ACTIVE" ? "active" : "pending"})</span>
+                <span className="opacity-60">({share.status === "ACTIVE" ? tShares("active") : tShares("pending")})</span>
                 <button
                   onClick={() => revokeShare.mutate({ shareId: share.id })}
                   className="ml-1 hover:text-red-400 transition-colors"
-                  title="Revoke access"
+                  title={tShares("revoke")}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1044,13 +1058,13 @@ export default function ContentPlannerPage() {
         {/* ── Table Toolbar ───────────────────────────────────────────── */}
         <div className="flex items-center gap-4 mb-3 flex-wrap bg-surface-900/30 px-3 py-1.5 rounded-lg border border-surface-800/50 w-fit">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-surface-500 uppercase tracking-widest font-semibold mr-1">Filter</span>
+            <span className="text-[10px] text-surface-500 uppercase tracking-widest font-semibold mr-1">{tToolbar("filter")}</span>
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
               className="bg-surface-800/50 border border-surface-700/50 rounded px-2 py-1 text-xs text-surface-200 outline-none hover:bg-surface-800 transition-colors focus:border-brand-500/50"
             >
-              <option value="">All Website Categories</option>
+              <option value="">{tToolbar("allWebsiteCategories")}</option>
               {sectionOptions.map((s: any) => (
                 <option key={s.label} value={s.label}>{s.label}</option>
               ))}
@@ -1061,9 +1075,9 @@ export default function ContentPlannerPage() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="bg-surface-800/50 border border-surface-700/50 rounded px-2 py-1 text-xs text-surface-200 outline-none hover:bg-surface-800 transition-colors focus:border-brand-500/50"
             >
-              <option value="">All Statuses</option>
+              <option value="">{tToolbar("allStatuses")}</option>
               {STATUS_OPTIONS.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>{tStatus(s.value)}</option>
               ))}
             </select>
           </div>
@@ -1071,23 +1085,23 @@ export default function ContentPlannerPage() {
           <div className="w-px h-4 bg-surface-700/50 hidden sm:block"></div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-surface-500 uppercase tracking-widest font-semibold mr-1">Sort</span>
+            <span className="text-[10px] text-surface-500 uppercase tracking-widest font-semibold mr-1">{tToolbar("sort")}</span>
             <select
               value={sortField}
               onChange={(e) => setSortField(e.target.value)}
               className="bg-surface-800/50 border border-surface-700/50 rounded px-2 py-1 text-xs text-surface-200 outline-none hover:bg-surface-800 transition-colors focus:border-brand-500/50"
             >
-              <option value="">Default Order</option>
-              <option value="priority">Priority</option>
-              <option value="seoScore">SEO Score</option>
+              <option value="">{tToolbar("defaultOrder")}</option>
+              <option value="priority">{tToolbar("priority")}</option>
+              <option value="seoScore">{tToolbar("seoScore")}</option>
             </select>
             {sortField && (
               <button
                 onClick={() => setSortDirection(d => d === "asc" ? "desc" : "asc")}
                 className="bg-surface-800/50 border border-surface-700/50 rounded px-2 py-1 text-xs text-surface-200 outline-none hover:bg-surface-700 transition-colors"
-                title="Toggle sort direction"
+                title={tToolbar("toggleSort")}
               >
-                {sortDirection === "asc" ? "↑ Asc" : "↓ Desc"}
+                {sortDirection === "asc" ? tToolbar("asc") : tToolbar("desc")}
               </button>
             )}
           </div>
@@ -1099,12 +1113,12 @@ export default function ContentPlannerPage() {
           {isLoading ? (
             <div className="flex items-center justify-center h-40 gap-2 text-surface-500 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Loading content plan...
+              {t("loadingPlan")}
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-3">
               <LayoutList className="w-8 h-8 text-surface-600" />
-              <p className="text-surface-500 text-sm">No pages yet. Click "Add Row" to start.</p>
+              <p className="text-surface-500 text-sm">{tTable("noPages")}</p>
             </div>
           ) : (
             <table className="w-full text-left border-collapse" style={{ minWidth: "1400px" }}>
@@ -1117,32 +1131,32 @@ export default function ContentPlannerPage() {
                         checked={allSelected}
                         onChange={toggleSelectAll}
                         className="rounded border-surface-600 bg-surface-800 accent-indigo-500"
-                        title="Select all filtered rows"
+                        title={tTable("selectAll")}
                       />
                     ), w: "w-8" },
                     { label: "#", w: "w-8" },
-                    { label: "Actions", w: "w-36" },
-                    { label: "View", w: "w-24" },
-                    { label: "Metrics", w: "w-48" },
-                    { label: "Title", w: "w-56" },
-                    { label: "Len", w: "w-12" },
-                    { label: "URL", w: "w-52" },
-                    { label: "Website Category", w: "w-32" },
-                    { label: "Blog Category", w: "w-32" },
-                    { label: "Page Type", w: "w-36" },
-                    { label: "Pri", w: "w-12" },
-                    { label: "Status", w: "w-32" },
-                    { label: "Meta Desc", w: "w-56" },
-                    { label: "Len", w: "w-12" },
-                    { label: "H1", w: "w-48" },
-                    { label: "Target Words", w: "w-24" },
-                    { label: "H2 Headings (1–4)", w: "w-52" },
-                    { label: "Keywords", w: "w-48" },
-                    { label: "Tags", w: "w-40" },
-                    { label: "Schema", w: "w-32" },
-                    { label: "Internal Links", w: "w-48" },
-                    { label: "Images", w: "w-40" },
-                    { label: "Notes", w: "w-40" },
+                    { label: tTable("actions"), w: "w-36" },
+                    { label: tTable("view"), w: "w-24" },
+                    { label: tTable("metrics"), w: "w-48" },
+                    { label: tTable("title"), w: "w-56" },
+                    { label: tTable("len"), w: "w-12" },
+                    { label: tTable("url"), w: "w-52" },
+                    { label: tTable("websiteCategory"), w: "w-32" },
+                    { label: tTable("blogCategory"), w: "w-32" },
+                    { label: tTable("pageType"), w: "w-36" },
+                    { label: tTable("pri"), w: "w-12" },
+                    { label: tTable("status"), w: "w-32" },
+                    { label: tTable("metaDesc"), w: "w-56" },
+                    { label: tTable("len"), w: "w-12" },
+                    { label: tTable("h1"), w: "w-48" },
+                    { label: tTable("targetWords"), w: "w-24" },
+                    { label: tTable("h2Headings"), w: "w-52" },
+                    { label: tTable("keywords"), w: "w-48" },
+                    { label: tTable("tags"), w: "w-40" },
+                    { label: tTable("schema"), w: "w-32" },
+                    { label: tTable("internalLinks"), w: "w-48" },
+                    { label: tTable("images"), w: "w-40" },
+                    { label: tTable("notes"), w: "w-40" },
                     { label: "", w: "w-8" },
                   ].map((col, i) => (
                     <th
@@ -1183,13 +1197,13 @@ export default function ContentPlannerPage() {
                           onClick={() => generateSeoDataBulkMut.mutate({ contentItemIds: [item.id], modelId: selectedModelId })}
                           disabled={generateSeoDataBulkMut.isPending}
                           className="flex items-center gap-1 px-1.5 py-1 rounded-lg border border-blue-500/50 hover:border-blue-400 bg-blue-500/5 hover:bg-blue-500/10 transition-colors"
-                          title="Generate SEO Data"
+                          title={tTable("actionSeoTitle")}
                         >
                           {generateSeoDataBulkMut.isPending && generateSeoDataBulkMut.variables?.contentItemIds.includes(item.id)
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
                             : <Wand2 className="w-3.5 h-3.5 text-emerald-400" />
                           }
-                          <span className="text-[10px] font-medium tracking-wider uppercase text-blue-400">SEO</span>
+                          <span className="text-[10px] font-medium tracking-wider uppercase text-blue-400">{tTable("actionSeo")}</span>
                         </button>
                         {/* Generate Content */}
                         {(() => {
@@ -1210,13 +1224,13 @@ export default function ContentPlannerPage() {
                                   ? "text-emerald-400/70 hover:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/50 hover:border-emerald-400"
                                   : "text-surface-600 cursor-not-allowed border-surface-700 bg-surface-800/50"
                               }`}
-                              title={isSeoReady ? "Generate content" : "Generate SEO data first (Title, Meta, H1, H2, Keywords)"}
+                              title={isSeoReady ? tTable("actionGenTitle") : tTable("actionGenLocked")}
                             >
                               {(generateContentMut.isPending && generateContentMut.variables?.contentItemId === item.id) || item.status === "GENERATING"
                                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                 : <Wand2 className="w-3.5 h-3.5" />
                               }
-                              <span className="text-[10px] font-medium tracking-wider uppercase">Gen</span>
+                              <span className="text-[10px] font-medium tracking-wider uppercase">{tTable("actionGen")}</span>
                             </button>
                           );
                         })()}
@@ -1229,13 +1243,13 @@ export default function ContentPlannerPage() {
                               ? "text-blue-400/70 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/50 hover:border-blue-400"
                               : "text-surface-600 cursor-not-allowed border-surface-700 bg-surface-800/50"
                           }`}
-                          title={item.markdownBody ? "Expert Analysis (уникальность, правописание, спам, вода)" : "Generate content first"}
+                          title={item.markdownBody ? tTable("actionExpTitle") : tTable("actionExpLocked")}
                         >
                           {analyzeContentMut.isPending && analyzeContentMut.variables?.contentItemId === item.id && analyzeContentMut.variables?.phase === "expert"
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             : <BarChart3 className="w-3.5 h-3.5" />
                           }
-                          <span className="text-[10px] font-medium tracking-wider uppercase">Exp</span>
+                          <span className="text-[10px] font-medium tracking-wider uppercase">{tTable("actionExp")}</span>
                         </button>
                         {/* AI Analysis */}
                         <button
@@ -1246,13 +1260,13 @@ export default function ContentPlannerPage() {
                               ? "text-blue-400/70 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/50 hover:border-blue-400"
                               : "text-surface-600 cursor-not-allowed border-surface-700 bg-surface-800/50"
                           }`}
-                          title={item.markdownBody ? "AI Analysis (EEAT, естественность, читабельность)" : "Generate content first"}
+                          title={item.markdownBody ? tTable("actionAiTitle") : tTable("actionExpLocked")}
                         >
                           {analyzeContentMut.isPending && analyzeContentMut.variables?.contentItemId === item.id && analyzeContentMut.variables?.phase === "ai"
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             : <BarChart3 className="w-3.5 h-3.5" />
                           }
-                          <span className="text-[10px] font-medium tracking-wider uppercase">AI</span>
+                          <span className="text-[10px] font-medium tracking-wider uppercase">{tTable("actionAi")}</span>
                         </button>
                         {/* Regenerate */}
                         {item.seoAnalysis && (
@@ -1260,7 +1274,7 @@ export default function ContentPlannerPage() {
                             onClick={() => regenerateContentMut.mutate({ contentItemId: item.id })}
                             disabled={regenerateContentMut.isPending}
                             className="flex items-center gap-1 p-1 rounded-lg border border-amber-500/50 hover:border-amber-400 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
-                            title="Regenerate based on analysis"
+                            title={tTable("actionRegen")}
                           >
                             {regenerateContentMut.isPending && regenerateContentMut.variables?.contentItemId === item.id
                               ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400 mx-auto" />
@@ -1285,10 +1299,10 @@ export default function ContentPlannerPage() {
                             ? "border-indigo-500/50 text-indigo-400 hover:border-indigo-400 hover:bg-indigo-500/10"
                             : "border-surface-700 text-surface-600 hover:border-surface-600 hover:text-surface-400"
                         }`}
-                        title={item.markdownBody?.trim() ? "View and edit content" : "View content (empty)"}
+                        title={item.markdownBody?.trim() ? tTable("viewEdit") : tTable("viewEmpty")}
                       >
                         <FileTextIcon className="w-3.5 h-3.5" />
-                        View
+                        {tTable("view")}
                       </button>
                     </td>
 
@@ -1301,31 +1315,31 @@ export default function ContentPlannerPage() {
                             {/* Expert Metrics */}
                             <div className="flex items-center gap-1.5 border-r border-surface-700/50 pr-3">
                               {analysis.isTextRuPending ? (
-                                <div className="flex flex-col items-center gap-0.5 group relative" title="Expert Analysis processing...">
+                                <div className="flex flex-col items-center gap-0.5 group relative" title={tMetrics("expertProcessing")}>
                                   <Loader2 className="w-4 h-4 text-violet-400 animate-spin" />
-                                  <span className="text-[8px] text-violet-400/70 animate-pulse">Expert</span>
+                                  <span className="text-[8px] text-violet-400/70 animate-pulse">{tMetrics("expert")}</span>
                                 </div>
                               ) : analysis.textRuError ? (
-                                <div className="flex flex-col items-center gap-0.5 group relative" title={`Expert Analysis error: ${analysis.textRuError}`}>
+                                <div className="flex flex-col items-center gap-0.5 group relative" title={tMetrics("expertErrorTitle", { msg: analysis.textRuError })}>
                                   <AlertCircle className="w-4 h-4 text-red-400" />
-                                  <span className="text-[8px] text-red-400/70">Ошибка</span>
+                                  <span className="text-[8px] text-red-400/70">{tMetrics("expertError")}</span>
                                 </div>
                               ) : (
                                 <>
                                   {/* Uniqueness */}
-                                  <div className="flex flex-col items-center gap-0.5 group relative" title="Уникальность (Expert)">
+                                  <div className="flex flex-col items-center gap-0.5 group relative" title={tMetrics("uniqueness")}>
                                     <Fingerprint className="w-3 h-3 text-emerald-400 opacity-70 group-hover:opacity-100" />
                                     <span className={`text-[9px] font-medium ${analysis.uniqueness >= 80 ? 'text-emerald-400' : analysis.uniqueness >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.uniqueness)}%</span>
                                   </div>
 
                                   {/* Spam */}
-                                  <div className="flex flex-col items-center gap-0.5 group relative" title="Заспамленность (Expert)">
+                                  <div className="flex flex-col items-center gap-0.5 group relative" title={tMetrics("spamScore")}>
                                     <AlertTriangle className="w-3 h-3 text-red-400 opacity-70 group-hover:opacity-100" />
                                     <span className={`text-[9px] font-medium ${analysis.spamScore <= 30 ? 'text-emerald-400' : analysis.spamScore <= 60 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.spamScore)}%</span>
                                   </div>
 
                                   {/* Water */}
-                                  <div className="flex flex-col items-center gap-0.5 group relative" title="Вода (Expert)">
+                                  <div className="flex flex-col items-center gap-0.5 group relative" title={tMetrics("waterScore")}>
                                     <Droplet className="w-3 h-3 text-blue-400 opacity-70 group-hover:opacity-100" />
                                     <span className={`text-[9px] font-medium ${analysis.waterScore <= 15 ? 'text-emerald-400' : analysis.waterScore <= 25 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.waterScore)}%</span>
                                   </div>
@@ -1336,19 +1350,19 @@ export default function ContentPlannerPage() {
                             {/* AI Metrics */}
                             <div className="flex items-center gap-1.5">
                               {/* Naturalness */}
-                              <div className="flex flex-col items-center gap-0.5 group relative" title="Естественность (AI)">
+                              <div className="flex flex-col items-center gap-0.5 group relative" title={tMetrics("naturalness")}>
                                 <Leaf className="w-3 h-3 text-teal-400 opacity-70 group-hover:opacity-100" />
                                 <span className={`text-[9px] font-medium ${analysis.naturalness >= 80 ? 'text-emerald-400' : analysis.naturalness >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.naturalness)}%</span>
                               </div>
 
                               {/* E-E-A-T */}
-                              <div className="flex flex-col items-center gap-0.5 group relative" title="E-E-A-T (AI)">
+                              <div className="flex flex-col items-center gap-0.5 group relative" title={tMetrics("eeat")}>
                                 <ShieldCheck className="w-3 h-3 text-indigo-400 opacity-70 group-hover:opacity-100" />
                                 <span className={`text-[9px] font-medium ${analysis.eeat >= 80 ? 'text-emerald-400' : analysis.eeat >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.eeat)}%</span>
                               </div>
 
                               {/* Readability */}
-                              <div className="flex flex-col items-center gap-0.5 group relative" title="Читабельность (AI)">
+                              <div className="flex flex-col items-center gap-0.5 group relative" title={tMetrics("readability")}>
                                 <BookOpen className="w-3 h-3 text-cyan-400 opacity-70 group-hover:opacity-100" />
                                 <span className={`text-[9px] font-medium ${analysis.readability >= 80 ? 'text-emerald-400' : analysis.readability >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{Math.round(analysis.readability)}%</span>
                               </div>
@@ -1356,7 +1370,7 @@ export default function ContentPlannerPage() {
 
                             {/* Overall SEO Score */}
                             {item.seoScore != null && (
-                              <div className="ml-1" title="Overall SEO Score">
+                              <div className="ml-1" title={tMetrics("overall")}>
                                 <span className={`text-sm font-black px-2 py-1 rounded ${
                                   item.seoScore >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
                                   item.seoScore >= 50 ? 'text-amber-400 bg-amber-500/10' :
@@ -1376,9 +1390,9 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={item.metaTitle ?? ""}
                         onChange={(v) => handleUpdate(item.id, "metaTitle", v)}
-                        placeholder="Page title..."
+                        placeholder={tTable("titlePlaceholder")}
                         warning={item.metaTitle ? duplicateTitles.has(item.metaTitle.toLowerCase()) : false}
-                        warningText="A similar title already exists in your plan"
+                        warningText={tTable("duplicateTitle")}
                       />
                     </td>
 
@@ -1405,7 +1419,7 @@ export default function ContentPlannerPage() {
                         <EditableCell
                           value={item.url ?? ""}
                           onChange={(v) => handleUpdate(item.id, "url", v)}
-                          placeholder="slug-or-url"
+                          placeholder={tTable("slugPlaceholder")}
                           className={`flex-1 ${getSectionUrlPrefix(item.section) ? "rounded-l-none" : ""}`}
                         />
                         {item.url && (
@@ -1424,7 +1438,7 @@ export default function ContentPlannerPage() {
                         onChange={(e) => handleUpdate(item.id, "section", e.target.value)}
                         className="bg-transparent text-xs text-surface-300 border-0 outline-none cursor-pointer hover:text-surface-100 w-full"
                       >
-                        <option value="">— Uncategorized —</option>
+                        <option value="">{tTable("uncategorized")}</option>
                         {sectionOptions.map((so: any) => (
                           <option key={so.label} value={so.label} className="bg-surface-800">
                             {so.label}
@@ -1438,7 +1452,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={(item as any).blogCategory ?? ""}
                         onChange={(v) => handleUpdate(item.id, "blogCategory", v)}
-                        placeholder="blog-category"
+                        placeholder={tTable("blogCatPlaceholder")}
                       />
                     </td>
 
@@ -1487,7 +1501,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={item.metaDesc ?? ""}
                         onChange={(v) => handleUpdate(item.id, "metaDesc", v)}
-                        placeholder="Meta description..."
+                        placeholder={tTable("metaDescPlaceholder")}
                         multiline
                       />
                     </td>
@@ -1509,7 +1523,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={item.h1 ?? ""}
                         onChange={(v) => handleUpdate(item.id, "h1", v)}
-                        placeholder="H1 heading..."
+                        placeholder={tTable("h1Placeholder")}
                       />
                     </td>
 
@@ -1531,7 +1545,7 @@ export default function ContentPlannerPage() {
                             v.split("|").map((s) => s.trim()).filter(Boolean)
                           )
                         }
-                        placeholder="H2-1 | H2-2 | H2-3 | H2-4"
+                        placeholder={tTable("h2Placeholder")}
                         multiline
                       />
                     </td>
@@ -1545,7 +1559,7 @@ export default function ContentPlannerPage() {
                             v.split(",").map((s) => s.trim()).filter(Boolean)
                           )
                         }
-                        placeholder="keyword 1, keyword 2"
+                        placeholder={tTable("keywordsPlaceholder")}
                         multiline
                       />
                     </td>
@@ -1559,7 +1573,7 @@ export default function ContentPlannerPage() {
                             v.split(",").map((s) => s.trim()).filter(Boolean)
                           )
                         }
-                        placeholder="tag 1, tag 2"
+                        placeholder={tTable("tagsPlaceholder")}
                         multiline
                         alignRight
                       />
@@ -1584,7 +1598,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={item.internalLinks ?? ""}
                         onChange={(v) => handleUpdate(item.id, "internalLinks", v)}
-                        placeholder="/page1/, /page2/"
+                        placeholder={tTable("linksPlaceholder")}
                         multiline
                         alignRight
                       />
@@ -1614,7 +1628,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={item.notes ?? ""}
                         onChange={(v) => handleUpdate(item.id, "notes", v)}
-                        placeholder="Notes..."
+                        placeholder={tTable("notesPlaceholder")}
                         multiline
                         alignRight
                       />
@@ -1629,7 +1643,7 @@ export default function ContentPlannerPage() {
                       <button
                         onClick={() => deleteItem.mutate({ id: item.id })}
                         className="opacity-0 group-hover:opacity-100 btn-ghost p-1 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded transition-all"
-                        title="Delete row"
+                        title={tTable("deleteRow")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1639,7 +1653,7 @@ export default function ContentPlannerPage() {
                 {addingRow && (
                   <tr className="bg-indigo-500/10 border-t border-indigo-500/30 shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]">
                     <td className="px-3 py-2"></td>
-                    <td className="px-3 py-2 text-xs text-surface-500">New</td>
+                    <td className="px-3 py-2 text-xs text-surface-500">{tDraft("label")}</td>
                     <td className="px-3 py-2"></td>
                     <td className="px-3 py-2"></td>
                     {/* TITLE */}
@@ -1647,7 +1661,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={draftRow.title || ""}
                         onChange={(v) => setDraftRow({ ...draftRow, title: v })}
-                        placeholder="Title (Required)"
+                        placeholder={tDraft("titleRequired")}
                         className="font-medium text-surface-200 min-w-[200px]"
                       />
                     </td>
@@ -1657,7 +1671,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={draftRow.url || ""}
                         onChange={(v) => setDraftRow({ ...draftRow, url: v })}
-                        placeholder="URL (Required)"
+                        placeholder={tDraft("urlRequired")}
                         className="text-surface-300 min-w-[150px]"
                       />
                     </td>
@@ -1666,7 +1680,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={draftRow.section || ""}
                         onChange={(v) => setDraftRow({ ...draftRow, section: v })}
-                        placeholder="Section"
+                        placeholder={tDraft("section")}
                         className="text-surface-400 min-w-[100px]"
                       />
                     </td>
@@ -1675,7 +1689,7 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={(draftRow as any).blogCategory || ""}
                         onChange={(v) => setDraftRow({ ...draftRow, blogCategory: v } as any)}
-                        placeholder="Blog Cat"
+                        placeholder={tDraft("blogCat")}
                         className="text-surface-400 min-w-[100px]"
                       />
                     </td>
@@ -1684,17 +1698,17 @@ export default function ContentPlannerPage() {
                       <EditableCell
                         value={draftRow.pageType || ""}
                         onChange={(v) => setDraftRow({ ...draftRow, pageType: v })}
-                        placeholder="Page Type (Req)"
+                        placeholder={tDraft("pageTypeReq")}
                         className="text-surface-400 uppercase tracking-wider text-[10px] min-w-[100px]"
                       />
                     </td>
                     {/* 13 columns left */}
                     <td colSpan={13} className="px-3 py-2 text-xs text-indigo-300/70 text-right pr-6 italic">
-                      Fill mandatory fields to save row
+                      {tDraft("fillMandatory")}
                     </td>
                     <td colSpan={2} className="px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => {
                             createItem.mutate({ projectId, data: draftRow as any }, {
                               onSuccess: () => {
@@ -1707,9 +1721,9 @@ export default function ContentPlannerPage() {
                           disabled={createItem.isPending || !draftRow.title || !draftRow.url || !draftRow.pageType}
                           className="btn-primary py-1 px-2 text-xs bg-emerald-600 hover:bg-emerald-500 border-none disabled:opacity-50 min-w-[50px] flex justify-center"
                         >
-                          {createItem.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+                          {createItem.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tDraft("save")}
                         </button>
-                        <button onClick={() => setAddingRow(false)} className="text-red-400 hover:text-red-300 text-xs font-medium px-2">Cancel</button>
+                        <button onClick={() => setAddingRow(false)} className="text-red-400 hover:text-red-300 text-xs font-medium px-2">{tDraft("cancel")}</button>
                       </div>
                     </td>
                   </tr>
@@ -1731,18 +1745,18 @@ export default function ContentPlannerPage() {
             className="btn-ghost gap-2 text-xs py-1.5 px-4 border border-surface-700/50 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-surface-400 hover:text-indigo-300 transition-colors rounded-lg flex items-center"
           >
             <Plus className="w-4 h-4" />
-            Add empty row
+            {t("addEmpty")}
           </button>
         </div>
 
         {/* ── Footer info ────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between text-xs text-surface-600 px-1">
-          <span>{items.length} page{items.length !== 1 ? "s" : ""} planned</span>
+          <span>{tFooter("pagesPlanned", { n: items.length })}</span>
           <span>
             {selectedRows.size > 0 && (
-              <span className="text-indigo-400">{selectedRows.size} selected · </span>
+              <span className="text-indigo-400">{tFooter("selectedPrefix", { n: selectedRows.size })}</span>
             )}
-            Click any cell to edit · H2 headings separated by <code className="bg-surface-800 px-1 rounded">|</code> · Keywords separated by <code className="bg-surface-800 px-1 rounded">,</code>
+            {tFooter("hintPrefix")}<code className="bg-surface-800 px-1 rounded">{tFooter("hintH2")}</code>{tFooter("hintBetween")}<code className="bg-surface-800 px-1 rounded">{tFooter("hintComma")}</code>
           </span>
         </div>
 
