@@ -513,6 +513,85 @@
     "seoScore": "SEO Score",
     "uniqueness": "Uniqueness",
     "preview": "Preview",
+    "editorPage": {
+      "title": "Content Editor",
+      "subtitle": "AI-generated SEO content",
+      "publish": "Publish",
+      "publishNow": "Publish Now",
+      "schedule": "Schedule",
+      "saveDraft": "Save Draft",
+      "setupTitle": "Content Setup",
+      "topicLabel": "Topic / H1",
+      "topicPlaceholder": "e.g. How to choose running shoes",
+      "keywordsLabel": "Target Keywords",
+      "keywordsPlaceholder": "running shoes, buy sneakers",
+      "pageTypeLabel": "Page Type",
+      "pageType": {
+        "article": "Article / Blog post",
+        "category": "Category page",
+        "product": "Product description",
+        "landing": "Landing page",
+        "faq": "FAQ page"
+      },
+      "targetLengthLabel": "Target Word Count",
+      "length": {
+        "short": "~800 words (short)",
+        "standard": "~1500 words (standard)",
+        "longform": "~2500 words (long-form)",
+        "pillar": "~4000 words (pillar)"
+      },
+      "materialsTitle": "Source Materials",
+      "materialsBody": "Add context so AI writes accurately",
+      "notesLabel": "Notes / Thesis",
+      "notesPlaceholder": "Key points, facts, specs…",
+      "addNote": "+ Add note",
+      "videoLabel": "Video URL",
+      "videoPlaceholder": "https://youtube.com/…",
+      "filesLabel": "Files / Photos",
+      "uploadFiles": "Upload Files",
+      "modelLabel": "Model",
+      "generate": "Generate Content",
+      "generating": "Generating…",
+      "regenerate": "Regenerate",
+      "tabs": {
+        "write": "Write",
+        "seo": "SEO Analysis",
+        "preview": "Preview"
+      },
+      "wordCount": "{n} words",
+      "generatedBadge": "Generated",
+      "analyzeSEO": "Analyze SEO",
+      "writePlaceholder": "Your content will appear here after generation, or write manually…",
+      "seo": {
+        "analyzing": "Analyzing with Text.ru + AI…",
+        "scoreTitle": "SEO Score",
+        "scoreExcellent": "Excellent",
+        "scoreGood": "Good — minor improvements needed",
+        "scoreNeeds": "Needs optimization",
+        "wordCount": "{n} words",
+        "metrics": {
+          "uniqueness": "Uniqueness",
+          "wateriness": "Wateriness",
+          "spaminess": "Spaminess",
+          "density": "Keyword Density"
+        },
+        "recommendationsTitle": "Recommendations",
+        "recommendations": {
+          "reduceWatery": "Reduce wateriness: remove filler words and vague statements",
+          "improveUniqueness": "Improve uniqueness: rewrite some passages to be more original",
+          "addKeywords": "Add more keyword mentions naturally throughout the text",
+          "addInternals": "Add more internal links and relevant examples"
+        },
+        "optimizationModel": "Optimization Model",
+        "applyAll": "Apply All Recommendations",
+        "emptyTitle": "No analysis yet",
+        "emptyBody": "Generate content first, then click \"Analyze SEO\""
+      },
+      "preview": {
+        "header": "HTML Preview",
+        "empty": "Generate content to see preview"
+      }
+    },
     "openPlanner": "Content Planner",
     "openPlannerCTA": "Open Content Planner",
     "stats": {

@@ -513,6 +513,85 @@
     "seoScore": "SEO-оценка",
     "uniqueness": "Уникальность",
     "preview": "Просмотр",
+    "editorPage": {
+      "title": "Редактор контента",
+      "subtitle": "Контент с AI под SEO",
+      "publish": "Опубликовать",
+      "publishNow": "Опубликовать сейчас",
+      "schedule": "Запланировать",
+      "saveDraft": "Сохранить черновик",
+      "setupTitle": "Настройки контента",
+      "topicLabel": "Тема / H1",
+      "topicPlaceholder": "Например: Как выбрать кроссовки для бега",
+      "keywordsLabel": "Целевые ключи",
+      "keywordsPlaceholder": "кроссовки для бега, купить кроссовки",
+      "pageTypeLabel": "Тип страницы",
+      "pageType": {
+        "article": "Статья / Блог-пост",
+        "category": "Страница категории",
+        "product": "Описание товара",
+        "landing": "Лендинг",
+        "faq": "FAQ-страница"
+      },
+      "targetLengthLabel": "Целевой объём",
+      "length": {
+        "short": "~800 слов (короткая)",
+        "standard": "~1500 слов (стандарт)",
+        "longform": "~2500 слов (длинная)",
+        "pillar": "~4000 слов (pillar)"
+      },
+      "materialsTitle": "Исходные материалы",
+      "materialsBody": "Добавьте контекст — AI напишет точнее",
+      "notesLabel": "Заметки / тезисы",
+      "notesPlaceholder": "Ключевые пункты, факты, характеристики…",
+      "addNote": "+ Добавить заметку",
+      "videoLabel": "Ссылка на видео",
+      "videoPlaceholder": "https://youtube.com/…",
+      "filesLabel": "Файлы / фото",
+      "uploadFiles": "Загрузить файлы",
+      "modelLabel": "Модель",
+      "generate": "Сгенерировать контент",
+      "generating": "Генерируем…",
+      "regenerate": "Сгенерировать заново",
+      "tabs": {
+        "write": "Текст",
+        "seo": "SEO-анализ",
+        "preview": "Просмотр"
+      },
+      "wordCount": "{n} слов",
+      "generatedBadge": "Сгенерировано",
+      "analyzeSEO": "Анализ SEO",
+      "writePlaceholder": "Текст появится здесь после генерации или впишите вручную…",
+      "seo": {
+        "analyzing": "Анализируем через Text.ru + AI…",
+        "scoreTitle": "SEO-оценка",
+        "scoreExcellent": "Отлично",
+        "scoreGood": "Хорошо — нужны небольшие правки",
+        "scoreNeeds": "Нужна оптимизация",
+        "wordCount": "{n} слов",
+        "metrics": {
+          "uniqueness": "Уникальность",
+          "wateriness": "Водность",
+          "spaminess": "Заспамленность",
+          "density": "Плотность ключей"
+        },
+        "recommendationsTitle": "Рекомендации",
+        "recommendations": {
+          "reduceWatery": "Снизить водность: убрать филлеры и общие фразы",
+          "improveUniqueness": "Повысить уникальность: переписать часть пассажей оригинальнее",
+          "addKeywords": "Чаще упоминать ключевые слова естественно по тексту",
+          "addInternals": "Добавить больше внутренних ссылок и релевантных примеров"
+        },
+        "optimizationModel": "Модель оптимизации",
+        "applyAll": "Применить все рекомендации",
+        "emptyTitle": "Анализа пока нет",
+        "emptyBody": "Сначала сгенерируйте контент, затем нажмите «Анализ SEO»"
+      },
+      "preview": {
+        "header": "HTML-превью",
+        "empty": "Сгенерируйте контент, чтобы увидеть превью"
+      }
+    },
     "openPlanner": "Контент-план",
     "openPlannerCTA": "Открыть контент-план",
     "stats": {
