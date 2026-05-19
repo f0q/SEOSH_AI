@@ -1,4 +1,7 @@
+"use client";
+
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { X, Sparkles, Rss, BrainCircuit, Search, Loader2, AlertCircle, Plus, Trash2, Tag, Shuffle, Info, FileText } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { AIModelSelector } from "../ui/AIModelSelector";
@@ -14,6 +17,7 @@ export function IdeationModal({
   onAddItems: () => void; // Called when new items are added to plan
   initialMode?: "manual" | "rss" | "chat" | "batch";
 }) {
+  const t = useTranslations("contentPlanner.modals.ideation");
   const [topic, setTopic] = useState("");
   const [topicUsage, setTopicUsage] = useState<number | null>(null);
   const [mode, setMode] = useState<"manual" | "rss" | "chat" | "batch">(initialMode || "manual");
@@ -56,18 +60,18 @@ export function IdeationModal({
     onError: (err) => setIdeaError(err.message),
   });
 
+  const thinkingMsg = t("chat.thinking");
   const chatMut = trpc.contentPlan.chat.useMutation({
     onSuccess: (data) => {
       setChatLog((prev) => {
-        // Remove the "Thinking..." message
-        const newLog = prev.filter(m => m.content !== "Thinking... (Simulated Response)");
+        const newLog = prev.filter(m => m.content !== thinkingMsg);
         return [...newLog, { role: "ai", content: data.message }];
       });
     },
     onError: (err) => {
       setChatLog((prev) => {
-        const newLog = prev.filter(m => m.content !== "Thinking... (Simulated Response)");
-        return [...newLog, { role: "ai", content: `Error: ${err.message}` }];
+        const newLog = prev.filter(m => m.content !== thinkingMsg);
+        return [...newLog, { role: "ai", content: t("chat.errorPrefix", { msg: err.message }) }];
       });
     }
   });
@@ -112,7 +116,7 @@ export function IdeationModal({
 
   const handleBatchPropose = () => {
     const kws = batchKeywords.split("\n").map(k => k.trim()).filter(Boolean);
-    if (!kws.length) { setIdeaError("Please paste at least one keyword."); return; }
+    if (!kws.length) { setIdeaError(t("manual.noKeywords")); return; }
     setIdeaError(null);
     batchMut.mutate({ keywords: kws, modelId: selectedModelId || undefined });
   };
@@ -123,7 +127,7 @@ export function IdeationModal({
   const [highlightGenerate, setHighlightGenerate] = useState(false);
 
   const handleProposeIdeas = () => {
-    if (!topic.trim()) { setIdeaError("Please enter a topic first."); return; }
+    if (!topic.trim()) { setIdeaError(t("manual.enterTopic")); return; }
     setIdeaError(null);
     proposeIdeasMut.mutate({
       topic,
@@ -139,7 +143,7 @@ export function IdeationModal({
 
     const missingSeo = ideasToSave.some(idea => !idea.metaDesc || !idea.h1);
     if (missingSeo) {
-      if (!window.confirm("Some selected ideas are missing deep SEO data (like Meta Descriptions or H1s).\n\nIf you add them now, you'll need to manually fill them in later.\n\nDo you want to continue without generating SEO data?")) {
+      if (!window.confirm(t("confirmAddWithoutSeo"))) {
         setHighlightGenerate(true);
         setTimeout(() => setHighlightGenerate(false), 2000);
         return;
@@ -174,7 +178,7 @@ export function IdeationModal({
       onClose();
     } catch (err) {
       console.error(err);
-      alert("Error saving items to plan.");
+      alert(t("saveError"));
     }
   };
 
@@ -188,8 +192,8 @@ export function IdeationModal({
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-surface-50">Content Ideation & Planning</h2>
-              <p className="text-xs text-surface-400">Generate structured content plans using AI</p>
+              <h2 className="text-xl font-bold text-surface-50">{t("title")}</h2>
+              <p className="text-xs text-surface-400">{t("subtitle")}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg text-surface-500 hover:text-surface-200 bg-surface-800/50 hover:bg-surface-700/50 transition-colors">
@@ -205,28 +209,28 @@ export function IdeationModal({
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${mode === "manual" ? "bg-brand-500/15 text-brand-400 border border-brand-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
                 }`}
             >
-              <Search className="w-4 h-4" /> Topic Analysis
+              <Search className="w-4 h-4" /> {t("tabs.manual")}
             </button>
             <button
               onClick={() => setMode("rss")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${mode === "rss" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
                 }`}
             >
-              <Rss className="w-4 h-4" /> Competitor RSS
+              <Rss className="w-4 h-4" /> {t("tabs.rss")}
             </button>
             <button
               onClick={() => setMode("chat")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${mode === "chat" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
                 }`}
             >
-              <BrainCircuit className="w-4 h-4" /> Neural Network
+              <BrainCircuit className="w-4 h-4" /> {t("tabs.chat")}
             </button>
             <button
               onClick={() => setMode("batch")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${mode === "batch" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-surface-400 hover:bg-surface-800 hover:text-surface-200"
                 }`}
             >
-              <FileText className="w-4 h-4" /> Batch Keywords
+              <FileText className="w-4 h-4" /> {t("tabs.batch")}
             </button>
           </div>
 
@@ -239,10 +243,10 @@ export function IdeationModal({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Tag className="w-3.5 h-3.5 text-surface-500" />
-                      <span className="text-xs font-medium text-surface-400 uppercase tracking-wider">Pick categories</span>
+                      <span className="text-xs font-medium text-surface-400 uppercase tracking-wider">{t("categories.label")}</span>
                       {selectedCategories.length > 0 && (
                         <button onClick={() => setSelectedCategories([])} className="text-[10px] text-brand-400 hover:text-brand-300 ml-auto">
-                          Clear all
+                          {t("categories.clear")}
                         </button>
                       )}
                     </div>
@@ -273,7 +277,7 @@ export function IdeationModal({
                 {/* Target Topic and Actions */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-surface-300">Target Topic</label>
+                    <label className="block text-sm font-medium text-surface-300">{t("manual.topicLabel")}</label>
                     <button
                       onClick={async () => {
                         const res = await randomTopicQuery.refetch();
@@ -284,10 +288,10 @@ export function IdeationModal({
                       }}
                       disabled={randomTopicQuery.isFetching}
                       className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1.5 transition-colors font-medium"
-                      title="This action does not consume AI tokens"
+                      title={t("manual.pickRandomHint")}
                     >
                       {randomTopicQuery.isFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5" />}
-                      Pick Random from Core (uses filter above)
+                      {t("manual.pickRandom")}
                     </button>
                   </div>
                   <div>
@@ -298,15 +302,15 @@ export function IdeationModal({
                         setTopic(e.target.value);
                         setTopicUsage(null);
                       }}
-                      placeholder="e.g., Running shoes for flat feet"
+                      placeholder={t("manual.topicPlaceholder")}
                       className="input-field w-full"
                       onKeyDown={(e) => e.key === "Enter" && handleProposeIdeas()}
                     />
                     {topicUsage !== null && (
                       <p className="text-[10px] text-brand-300 mt-1.5 flex items-center gap-1 bg-brand-500/10 w-fit px-2 py-0.5 rounded border border-brand-500/20">
                         <Info className="w-3 h-3" />
-                        Usage count in plan: {topicUsage} {topicUsage === 0 ? "(Unused!)" : ""}
-                        <span className="text-surface-500 ml-1 italic">(Popularity data coming soon)</span>
+                        {t("manual.usageCount", { n: topicUsage })} {topicUsage === 0 ? t("manual.unusedSuffix") : ""}
+                        <span className="text-surface-500 ml-1 italic">{t("manual.popularitySoon")}</span>
                       </p>
                     )}
                   </div>
@@ -327,7 +331,7 @@ export function IdeationModal({
                         className="btn-primary h-[42px] px-5 gap-2 text-sm"
                       >
                         {proposeIdeasMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        Propose Ideas
+                        {t("manual.propose")}
                       </button>
                     </div>
                   </div>
@@ -353,10 +357,10 @@ export function IdeationModal({
                       <div className="space-y-1">
                         <h4 className="text-sm font-medium text-surface-200 flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-brand-400" />
-                          Deep SEO Generation
+                          {t("deepSeo.title")}
                         </h4>
                         <p className="text-xs text-surface-500">
-                          Generate URLs, Meta Descriptions, H1s, H2s, and Tags for selected ideas.
+                          {t("deepSeo.body")}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -385,13 +389,13 @@ export function IdeationModal({
                           }`}
                         >
                           {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
-                          Flesh out SEO
+                          {t("deepSeo.fleshOut")}
                         </button>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between border-b border-surface-800 pb-2">
-                      <h3 className="font-semibold text-surface-100">Content Strategy Ideas</h3>
+                      <h3 className="font-semibold text-surface-100">{t("results.ideasTitle")}</h3>
                       <button 
                         onClick={() => {
                           if (selectedIdeas.size === proposedIdeas.length) {
@@ -402,7 +406,7 @@ export function IdeationModal({
                         }}
                         className="text-xs text-brand-400 hover:text-brand-300 transition-colors font-medium"
                       >
-                        {selectedIdeas.size === proposedIdeas.length ? "Deselect All" : "Select All"}
+                        {selectedIdeas.size === proposedIdeas.length ? t("results.deselectAll") : t("results.selectAll")}
                       </button>
                     </div>
                     <div className="grid gap-3">
@@ -432,25 +436,25 @@ export function IdeationModal({
                                   setSelectedIdeas(newSet);
                                 }}>{idea.title}</p>
                                 {isDuplicate && (
-                                  <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase" title="A similar title already exists in your plan">
-                                    <AlertCircle className="w-3 h-3" /> Duplicate
+                                  <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase" title={t("results.duplicateTooltip")}>
+                                    <AlertCircle className="w-3 h-3" /> {t("results.duplicateBadge")}
                                   </div>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-[9px] font-medium uppercase tracking-wider text-surface-400 bg-surface-800/50 px-1.5 py-0.5 rounded border border-surface-700/50">{idea.type || idea.pageType || "blog_post"}</span>
-                                <p className="text-[10px] text-surface-500">Intent: {idea.intent}</p>
+                                <p className="text-[10px] text-surface-500">{t("results.intent", { value: idea.intent })}</p>
                               </div>
                               {idea.metaDesc && (
                                 <div className="mt-2 p-2 bg-surface-900/50 rounded flex flex-col gap-1 border border-surface-700/30 text-[10px] text-surface-300">
-                                  <p><strong className="text-surface-100">URL:</strong> /{idea.url}</p>
-                                  <p><strong className="text-surface-100">H1:</strong> {idea.h1}</p>
-                                  <p><strong className="text-surface-100">Meta:</strong> {idea.metaDesc}</p>
+                                  <p><strong className="text-surface-100">{t("results.url")}</strong> /{idea.url}</p>
+                                  <p><strong className="text-surface-100">{t("results.h1")}</strong> {idea.h1}</p>
+                                  <p><strong className="text-surface-100">{t("results.meta")}</strong> {idea.metaDesc}</p>
                                   {idea.targetKeywords?.length > 0 && (
-                                    <p><strong className="text-surface-100">Keywords:</strong> {idea.targetKeywords.join(', ')}</p>
+                                    <p><strong className="text-surface-100">{t("results.keywords")}</strong> {idea.targetKeywords.join(', ')}</p>
                                   )}
                                   {idea.tags?.length > 0 && (
-                                    <p><strong className="text-surface-100">Tags:</strong> {idea.tags.join(', ')}</p>
+                                    <p><strong className="text-surface-100">{t("results.tags")}</strong> {idea.tags.join(', ')}</p>
                                   )}
                                 </div>
                               )}
@@ -464,11 +468,11 @@ export function IdeationModal({
                     <div className="pt-4 border-t border-surface-800 flex items-center justify-between">
                       <p className="text-xs text-surface-500 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500/50"></span>
-                        Adding data to plan without generation does not consume tokens.
+                        {t("results.freeAddNote")}
                       </p>
                       <button onClick={handleSaveToPlan} disabled={createItemMut.isPending || selectedIdeas.size === 0 || fleshOutMut.isPending} className="btn-primary gap-2">
                         {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                        Add {selectedIdeas.size} items to Plan
+                        {t("results.addToPlan", { n: selectedIdeas.size })}
                       </button>
                     </div>
                   </div>
@@ -479,12 +483,12 @@ export function IdeationModal({
             {mode === "batch" && (
               <div className="space-y-6 animate-fade-in flex flex-col h-[calc(100vh-200px)]">
                 <div className="space-y-3 flex flex-col h-1/2">
-                  <label className="block text-sm font-medium text-surface-300">Paste Keywords</label>
-                  <p className="text-xs text-surface-500">Paste your keywords below, one per line. We will generate exactly one optimized article title for each keyword.</p>
+                  <label className="block text-sm font-medium text-surface-300">{t("batch.label")}</label>
+                  <p className="text-xs text-surface-500">{t("batch.hint")}</p>
                   <textarea
                     value={batchKeywords}
                     onChange={(e) => setBatchKeywords(e.target.value)}
-                    placeholder="keyword 1&#10;keyword 2&#10;keyword 3"
+                    placeholder={t("batch.placeholder")}
                     className="flex-1 w-full bg-surface-900 border border-surface-700/50 rounded-xl px-4 py-3 text-surface-100 placeholder:text-surface-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 resize-none"
                   />
                   {ideaError && <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">{ideaError}</div>}
@@ -501,7 +505,7 @@ export function IdeationModal({
                       className="btn-primary px-6 py-2.5 gap-2 text-sm bg-purple-600 hover:bg-purple-500 border-none"
                     >
                       {batchMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                      Propose {batchKeywords.split("\n").map(k => k.trim()).filter(Boolean).length} Ideas
+                      {t("batch.propose", { n: batchKeywords.split("\n").map(k => k.trim()).filter(Boolean).length })}
                     </button>
                   </div>
                 </div>
@@ -513,10 +517,10 @@ export function IdeationModal({
                       <div className="space-y-1">
                         <h4 className="text-sm font-medium text-surface-200 flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-brand-400" />
-                          Deep SEO Generation
+                          {t("deepSeo.title")}
                         </h4>
                         <p className="text-xs text-surface-500">
-                          Generate URLs, Meta Descriptions, H1s, H2s, and Tags for selected ideas.
+                          {t("deepSeo.body")}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -545,13 +549,13 @@ export function IdeationModal({
                           }`}
                         >
                           {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
-                          Flesh out SEO
+                          {t("deepSeo.fleshOut")}
                         </button>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between border-b border-surface-800 pb-2">
-                      <h3 className="font-semibold text-surface-100">Generated Titles</h3>
+                      <h3 className="font-semibold text-surface-100">{t("batch.generated")}</h3>
                       <button 
                         onClick={() => {
                           if (selectedIdeas.size === proposedIdeas.length) {
@@ -562,7 +566,7 @@ export function IdeationModal({
                         }}
                         className="text-xs text-brand-400 hover:text-brand-300 transition-colors font-medium"
                       >
-                        {selectedIdeas.size === proposedIdeas.length ? "Deselect All" : "Select All"}
+                        {selectedIdeas.size === proposedIdeas.length ? t("results.deselectAll") : t("results.selectAll")}
                       </button>
                     </div>
                     <div className="space-y-2">
@@ -584,13 +588,13 @@ export function IdeationModal({
                               <h4 className="text-sm font-medium text-surface-200">{idea.title}</h4>
                               <div className="flex items-center gap-2 mt-1.5">
                                 <span className="text-[9px] font-medium uppercase tracking-wider text-surface-400 bg-surface-800/50 px-1.5 py-0.5 rounded border border-surface-700/50">{idea.type || idea.pageType || "blog_post"}</span>
-                                <p className="text-[10px] text-surface-500">Intent: {idea.intent}</p>
+                                <p className="text-[10px] text-surface-500">{t("results.intent", { value: idea.intent })}</p>
                               </div>
                               {idea.metaDesc && (
                                 <div className="mt-2 p-2 bg-surface-900/50 rounded flex flex-col gap-1 border border-surface-700/30 text-[10px] text-surface-300">
-                                  <p><strong className="text-surface-100">URL:</strong> /{idea.url}</p>
-                                  <p><strong className="text-surface-100">H1:</strong> {idea.h1}</p>
-                                  <p><strong className="text-surface-100">Meta:</strong> {idea.metaDesc}</p>
+                                  <p><strong className="text-surface-100">{t("results.url")}</strong> /{idea.url}</p>
+                                  <p><strong className="text-surface-100">{t("results.h1")}</strong> {idea.h1}</p>
+                                  <p><strong className="text-surface-100">{t("results.meta")}</strong> {idea.metaDesc}</p>
                                 </div>
                               )}
                             </div>
@@ -601,7 +605,7 @@ export function IdeationModal({
                     <div className="pt-4 border-t border-surface-800 flex items-center justify-between">
                       <button onClick={handleSaveToPlan} disabled={createItemMut.isPending || selectedIdeas.size === 0 || fleshOutMut.isPending} className="btn-primary gap-2 ml-auto">
                         {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                        Add {selectedIdeas.size} items to Plan
+                        {t("results.addToPlan", { n: selectedIdeas.size })}
                       </button>
                     </div>
                   </div>
@@ -613,15 +617,15 @@ export function IdeationModal({
               <div className="space-y-6 animate-fade-in">
                 <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
                   <h3 className="text-sm font-medium text-amber-400 mb-1 flex items-center gap-2">
-                    <Rss className="w-4 h-4" /> RSS Feed Analysis
+                    <Rss className="w-4 h-4" /> {t("rss.title")}
                   </h3>
-                  <p className="text-xs text-amber-400/80">Analyze competitor RSS feeds to extract their latest topics and generate counter-strategies.</p>
+                  <p className="text-xs text-amber-400/80">{t("rss.body")}</p>
                 </div>
 
                 {/* Saved feeds from project settings */}
                 {savedRssFeeds.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs text-surface-500 uppercase tracking-wider">Saved Feeds</p>
+                    <p className="text-xs text-surface-500 uppercase tracking-wider">{t("rss.savedFeeds")}</p>
                     <div className="flex flex-wrap gap-2">
                       {savedRssFeeds.map((feed, i) => (
                         <button
@@ -645,7 +649,7 @@ export function IdeationModal({
                     type="url"
                     value={rssUrl}
                     onChange={(e) => setRssUrl(e.target.value)}
-                    placeholder="https://competitor.com/feed.xml"
+                    placeholder={t("rss.feedPlaceholder")}
                     className="input-field flex-1"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && rssUrl) {
@@ -660,7 +664,7 @@ export function IdeationModal({
                     onClick={() => { setRssError(null); analyzeRssMut.mutate({ url: rssUrl, modelId: selectedModelId || undefined }); }}
                   >
                     {analyzeRssMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
-                    Analyze Feed
+                    {t("rss.analyze")}
                   </button>
                 </div>
 
@@ -674,13 +678,13 @@ export function IdeationModal({
 
                 {proposedIdeas.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-surface-100 border-b border-surface-800 pb-2">Proposed Counter-Strategies</h3>
+                    <h3 className="font-semibold text-surface-100 border-b border-surface-800 pb-2">{t("rss.counterStrategies")}</h3>
                     <div className="grid gap-3">
                       {proposedIdeas.map((idea, idx) => (
                         <div key={idx} className="p-4 rounded-xl border border-surface-700/50 bg-surface-800/30 flex items-center justify-between">
                           <div>
                             <p className="font-medium text-surface-200">{idea.title}</p>
-                            <p className="text-xs text-surface-500 mt-1">Intent: {idea.intent}</p>
+                            <p className="text-xs text-surface-500 mt-1">{t("results.intent", { value: idea.intent })}</p>
                           </div>
                           <span className="badge text-xs">{idea.type}</span>
                         </div>
@@ -689,7 +693,7 @@ export function IdeationModal({
                     <div className="flex justify-end pt-4">
                       <button onClick={handleSaveToPlan} disabled={createItemMut.isPending} className="btn-primary gap-2">
                         {createItemMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                        Add {proposedIdeas.length} items to Plan
+                        {t("results.addToPlan", { n: proposedIdeas.length })}
                       </button>
                     </div>
                   </div>
@@ -701,15 +705,15 @@ export function IdeationModal({
               <div className="space-y-6 flex flex-col h-full animate-fade-in">
                 <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
                   <h3 className="text-sm font-medium text-purple-400 mb-1 flex items-center gap-2">
-                    <BrainCircuit className="w-4 h-4" /> Neural Network Brainstorming
+                    <BrainCircuit className="w-4 h-4" /> {t("chat.title")}
                   </h3>
-                  <p className="text-xs text-purple-400/80">Chat with the SEO AI to brainstorm silos and content architectures.</p>
+                  <p className="text-xs text-purple-400/80">{t("chat.body")}</p>
                 </div>
 
                 <div className="flex-1 min-h-[200px] border border-surface-800 rounded-xl p-4 bg-surface-900/50 overflow-y-auto space-y-4">
                   {chatLog.length === 0 && (
                     <div className="h-full flex items-center justify-center text-surface-500 text-sm italic">
-                      Start typing to interact with the AI...
+                      {t("chat.empty")}
                     </div>
                   )}
                   {chatLog.map((msg, i) => (
@@ -724,12 +728,12 @@ export function IdeationModal({
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="e.g. 'Give me 5 article ideas for beginner runners...'"
+                    placeholder={t("chat.placeholder")}
                     className="input-field flex-1"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && chatInput && !chatMut.isPending) {
                         const newMsg = { role: "user" as const, content: chatInput };
-                        setChatLog([...chatLog, newMsg, { role: "ai", content: "Thinking... (Simulated Response)" }]);
+                        setChatLog([...chatLog, newMsg, { role: "ai", content: thinkingMsg }]);
                         setChatInput("");
                         chatMut.mutate({ messages: [...chatLog, newMsg], modelId: selectedModelId || undefined });
                       }
@@ -743,12 +747,12 @@ export function IdeationModal({
                     <button className="btn-primary w-full" disabled={chatMut.isPending || !chatInput} onClick={() => {
                       if (chatInput && !chatMut.isPending) {
                         const newMsg = { role: "user" as const, content: chatInput };
-                        setChatLog([...chatLog, newMsg, { role: "ai", content: "Thinking... (Simulated Response)" }]);
+                        setChatLog([...chatLog, newMsg, { role: "ai", content: thinkingMsg }]);
                         setChatInput("");
                         chatMut.mutate({ messages: [...chatLog, newMsg], modelId: selectedModelId || undefined });
                       }
                     }}>
-                      {chatMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask AI"}
+                      {chatMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("chat.ask")}
                     </button>
                   </div>
                 </div>

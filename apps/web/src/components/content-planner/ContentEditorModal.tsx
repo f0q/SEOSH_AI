@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { trpc } from "@/trpc/client";
 import {
   X, Save, Loader2, Wand2, BarChart3, RefreshCw,
@@ -17,6 +18,9 @@ interface ContentEditorModalProps {
 }
 
 export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps) {
+  const t = useTranslations("contentPlanner.modals.editor");
+  const tMeta = useTranslations("contentPlanner.modals.editor.metadata");
+  const tMetrics = useTranslations("contentPlanner.modals.editor.metrics");
   const utils = trpc.useUtils();
 
   // Content state
@@ -73,7 +77,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
   );
   const publishMut = trpc.publisher.publishItem.useMutation({
     onSuccess: (res) => {
-      setSavedMessage(`Опубликовано: ${res.url}`);
+      setSavedMessage(t("publishedAt", { url: res.url }));
       setErrorMessage("");
       utils.contentPlan.getContentItem.invalidate({ id: itemId });
       setPublishOpen(false);
@@ -118,7 +122,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
 
   const handleClose = () => {
     if (isDirty) {
-      if (!window.confirm("You have unsaved changes. Are you sure you want to close without saving?")) {
+      if (!window.confirm(t("confirmClose"))) {
         return;
       }
     }
@@ -242,10 +246,10 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
       utils.contentPlan.getByProject.invalidate();
       utils.contentPlan.getContentItem.invalidate({ id: itemId });
 
-      setSavedMessage("All changes saved successfully!");
+      setSavedMessage(t("saved"));
       setTimeout(() => setSavedMessage(""), 6000);
     } catch (err) {
-      setSavedMessage("Failed to save changes.");
+      setSavedMessage(t("saveFailed"));
       setTimeout(() => setSavedMessage(""), 6000);
     }
   };
@@ -302,7 +306,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
           <div className="flex flex-col min-w-0">
             <h2 className="text-lg font-bold text-surface-50 flex items-center gap-2 min-w-0">
               <FileText className="w-5 h-5 text-brand-400 shrink-0" />
-              <span className="truncate">Edit Content: {contentItem.title}</span>
+              <span className="truncate">{t("editContent", { title: contentItem.title })}</span>
             </h2>
             <div className="h-0 relative">
               <div className={`absolute top-1 left-7 flex items-center gap-1.5 text-emerald-400 text-xs transition-opacity duration-300 ${savedMessage ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
@@ -345,7 +349,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                   className="flex items-center justify-center w-[150px] whitespace-nowrap gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/50 hover:border-emerald-400"
                 >
                   {generateMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                  Generate Content
+                  {t("generateContent")}
                 </button>
 
                 <button
@@ -357,10 +361,10 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                   }}
                   disabled={analyzeMut.isPending || saveDraftMut.isPending || !markdown}
                   className="flex items-center justify-center whitespace-nowrap gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/50 hover:border-blue-400 disabled:opacity-50 disabled:hover:bg-blue-500/10 disabled:hover:border-blue-500/50"
-                  title="Expert Analysis (уникальность, правописание, спам, вода)"
+                  title={t("expertTooltip")}
                 >
                   {(analyzeMut.isPending && analyzeMut.variables?.phase === "expert") ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
-                  Expert Analysis
+                  {t("expertAnalysis")}
                 </button>
 
                 <button
@@ -372,10 +376,10 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                   }}
                   disabled={analyzeMut.isPending || saveDraftMut.isPending || !markdown}
                   className="flex items-center justify-center whitespace-nowrap gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/50 hover:border-blue-400 disabled:opacity-50 disabled:hover:bg-blue-500/10 disabled:hover:border-blue-500/50"
-                  title="AI Analysis (EEAT, естественность, читабельность, рекомендации)"
+                  title={t("aiTooltip")}
                 >
                   {(analyzeMut.isPending && analyzeMut.variables?.phase === "ai") ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart3 className="w-3.5 h-3.5" />}
-                  AI Analysis
+                  {t("aiAnalysis")}
                 </button>
 
                 {analysis && (
@@ -390,7 +394,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                         <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
                       </>
                     )}
-                    Optimize
+                    {t("optimize")}
                   </button>
                 )}
               </div>
@@ -404,20 +408,20 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                     onClick={() => setViewMode("preview")}
                     className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${viewMode === "preview" ? "bg-brand-500/15 text-brand-400" : "text-surface-500 hover:text-surface-300"}`}
                   >
-                    <Eye className="w-3 h-3 inline mr-1" /> Preview
+                    <Eye className="w-3 h-3 inline mr-1" /> {t("tabs.preview")}
                   </button>
                   <button
                     onClick={() => setViewMode("edit")}
                     className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${viewMode === "edit" ? "bg-brand-500/15 text-brand-400" : "text-surface-500 hover:text-surface-300"}`}
                   >
-                    <Pencil className="w-3 h-3 inline mr-1" /> Edit
+                    <Pencil className="w-3 h-3 inline mr-1" /> {t("tabs.edit")}
                   </button>
                   <button
                     onClick={() => setViewMode("issues")}
                     className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${viewMode === "issues" ? "bg-red-500/15 text-red-400" : "text-surface-500 hover:text-surface-300"}`}
-                    title="Spelling & SEO issues from Expert Analysis"
+                    title={t("tabs.issuesTooltip")}
                   >
-                    <AlertTriangle className="w-3 h-3 inline mr-1" /> Issues
+                    <AlertTriangle className="w-3 h-3 inline mr-1" /> {t("tabs.issues")}
                     {analysis && (analysis as any).spellDetail?.length > 0 && (
                       <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[9px] font-bold">{(analysis as any).spellDetail.length}</span>
                     )}
@@ -425,9 +429,9 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 </div>
                 {markdown && (
                   <div className="text-[10px] text-surface-500 flex items-center gap-2 bg-surface-800/50 px-2 py-1 rounded-md">
-                    <span title="Character count">{markdown.length} chars</span>
+                    <span title={t("stats.charsTitle")}>{t("stats.chars", { n: markdown.length })}</span>
                     <span className="text-surface-600">|</span>
-                    <span title="Word count">{markdown.split(/\s+/).filter(w => w.length > 0).length} words</span>
+                    <span title={t("stats.wordsTitle")}>{t("stats.words", { n: markdown.split(/\s+/).filter(w => w.length > 0).length })}</span>
                   </div>
                 )}
               </div>
@@ -436,14 +440,14 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 {!markdown ? (
                   <div className="flex flex-col items-center justify-center text-center py-20">
                     <FileText className="w-12 h-12 text-surface-600 mb-3" />
-                    <p className="text-surface-400 mb-4">No content generated yet</p>
+                    <p className="text-surface-400 mb-4">{t("noContent")}</p>
                     <button
                       onClick={() => generateMut.mutate({ contentItemId: itemId, modelId: selectedModelId || undefined })}
                       disabled={generateMut.isPending}
                       className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/50"
                     >
                       {generateMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                      Generate Content
+                      {t("generateContent")}
                     </button>
                   </div>
                 ) : viewMode === "edit" ? (
@@ -451,7 +455,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                     value={markdown}
                     onChange={(e) => setMarkdown(e.target.value)}
                     className="w-full h-[600px] bg-transparent text-surface-200 text-sm font-mono leading-relaxed resize-none focus:outline-none custom-scrollbar"
-                    placeholder="Write your content in markdown..."
+                    placeholder={t("writePlaceholder")}
                   />
                 ) : viewMode === "issues" ? (
                   <div className="h-[600px] overflow-y-auto custom-scrollbar pr-2 space-y-6">
@@ -493,7 +497,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                         return (
                           <div className="flex flex-col items-center justify-center text-center py-20">
                             <AlertTriangle className="w-12 h-12 text-surface-600 mb-3" />
-                            <p className="text-surface-400">Run Expert Analysis first to see issues</p>
+                            <p className="text-surface-400">{t("issues.runFirst")}</p>
                           </div>
                         );
                       }
@@ -501,7 +505,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                         return (
                           <div className="flex flex-col items-center justify-center text-center py-20">
                             <CheckCircle2 className="w-12 h-12 text-emerald-500/50 mb-3" />
-                            <p className="text-surface-400">No issues found! Content looks good.</p>
+                            <p className="text-surface-400">{t("issues.noIssues")}</p>
                           </div>
                         );
                       }
@@ -512,8 +516,8 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                             <div>
                               <div className="flex items-center gap-2 mb-3">
                                 <Type className="w-4 h-4 text-red-400" />
-                                <h3 className="text-sm font-semibold text-surface-200">Spelling & Grammar</h3>
-                                <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[10px] font-bold">{spellErrors.length} issues</span>
+                                <h3 className="text-sm font-semibold text-surface-200">{t("issues.spelling")}</h3>
+                                <span className="px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[10px] font-bold">{t("issues.spellingCount", { n: spellErrors.length })}</span>
                               </div>
                               <div className="space-y-2">
                                 {spellErrors.map((err: any, idx: number) => (
@@ -521,7 +525,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-500/15 text-red-400">{err.error_type || 'Ошибка'}</span>
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-500/15 text-red-400">{err.error_type || t("issues.errorType")}</span>
                                         </div>
                                         <p className="text-xs text-surface-300 mb-1.5">
                                           <span className="text-red-400 bg-red-500/10 px-1 rounded font-medium">{err.error_text}</span>
@@ -549,7 +553,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                             <div>
                               <div className="flex items-center gap-2 mb-3">
                                 <BarChart3 className="w-4 h-4 text-blue-400" />
-                                <h3 className="text-sm font-semibold text-surface-200">Keywords Density</h3>
+                                <h3 className="text-sm font-semibold text-surface-200">{t("issues.keywordDensity")}</h3>
                               </div>
                               <div className="space-y-1">
                                 {seoInfo.listKeys.slice(0, 20).map((kw: any, idx: number) => {
@@ -577,10 +581,10 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                             <div>
                               <div className="flex items-center gap-2 mb-2">
                                 <AlertCircle className="w-4 h-4 text-amber-400" />
-                                <h3 className="text-sm font-semibold text-surface-200">Mixed Alphabet Words</h3>
+                                <h3 className="text-sm font-semibold text-surface-200">{t("issues.mixed")}</h3>
                                 <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-bold">{seoInfo.mixedWords.length}</span>
                               </div>
-                              <p className="text-[11px] text-surface-500 mb-2">Words with characters from different alphabets (e.g. Latin in Cyrillic text)</p>
+                              <p className="text-[11px] text-surface-500 mb-2">{t("issues.mixedBody")}</p>
                             </div>
                           )}
                         </>
@@ -619,7 +623,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 className="btn-primary w-full justify-center gap-2 py-2"
               >
                 {(updateItemMut.isPending || saveDraftMut.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save All Changes
+                {t("save")}
               </button>
 
               {/* Publish Actions */}
@@ -630,13 +634,13 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                   className="flex w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-brand-500/10 border border-brand-500/30 hover:border-brand-500 hover:bg-brand-500/20 text-brand-400 transition-colors disabled:opacity-50"
                 >
                   {publishMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  {(contentItem as any)?.publishedUrl ? "Re-publish" : "Publish"}
+                  {(contentItem as any)?.publishedUrl ? t("republish") : t("publish")}
                   <ChevronDown className="w-4 h-4 ml-auto" />
                 </button>
                 {publishOpen && (
                   <div className="absolute right-0 left-0 top-full mt-2 dropdown-panel overflow-hidden z-50">
                     <div className="p-2 text-[10px] text-surface-400 font-medium uppercase tracking-wider border-b border-surface-700/50">
-                      Connectors
+                      {t("publishConnectors")}
                     </div>
                     {connectors && connectors.length > 0 ? (
                       connectors.filter((c) => c.isActive).map((c) => (
@@ -652,7 +656,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                         </button>
                       ))
                     ) : (
-                      <p className="px-3 py-3 text-xs text-surface-500">Нет коннекторов. Добавьте в Project Settings.</p>
+                      <p className="px-3 py-3 text-xs text-surface-500">{t("noConnectors")}</p>
                     )}
                     {(contentItem as any)?.publishedUrl && (
                       <a
@@ -661,7 +665,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                         rel="noopener noreferrer"
                         className="block px-3 py-2 text-xs text-emerald-400 hover:bg-surface-700 border-t border-surface-700/50"
                       >
-                        ↗ Открыть {(contentItem as any).publishedUrl}
+                        {t("openPublished", { url: (contentItem as any).publishedUrl })}
                       </a>
                     )}
                   </div>
@@ -673,18 +677,18 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 <button
                   onClick={handleExportJSON}
                   className="flex-1 flex justify-center items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-surface-700 hover:border-surface-500 bg-surface-800 hover:bg-surface-700 text-surface-200 transition-colors"
-                  title="Export as JSON"
+                  title={t("exportJSONTooltip")}
                 >
                   <Download className="w-3.5 h-3.5" />
-                  JSON
+                  {t("exportJSON")}
                 </button>
                 <button
                   onClick={handleExportLLMS}
                   className="flex-1 flex justify-center items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-surface-700 hover:border-surface-500 bg-surface-800 hover:bg-surface-700 text-surface-200 transition-colors"
-                  title="Export as llms.txt"
+                  title={t("exportLLMSTooltip")}
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  llms.txt
+                  {t("exportLLMS")}
                 </button>
               </div>
             </div>
@@ -693,11 +697,11 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
             {analysis && (
               <div className="glass-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold text-surface-400 uppercase tracking-wider">SEO Analysis</h3>
+                  <h3 className="text-xs font-semibold text-surface-400 uppercase tracking-wider">{t("seoAnalysis")}</h3>
                   <div className="flex items-center gap-2">
                     {isAnalysisOutdated && (
                       <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> Outdated
+                        <AlertCircle className="w-3 h-3" /> {t("outdated")}
                       </span>
                     )}
                     {contentItem.seoScore != null && (
@@ -705,7 +709,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                         contentItem.seoScore >= 80 ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' :
                         contentItem.seoScore >= 50 ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20' :
                         'text-red-400 bg-red-500/10 border border-red-500/20'
-                      }`} title="Overall SEO Score">
+                      }`} title={t("overallScore")}>
                         {contentItem.seoScore}
                       </span>
                     )}
@@ -713,26 +717,26 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 </div>
                 {isAnalysisOutdated && (
                   <p className="text-[10px] text-amber-400/80 leading-tight">
-                    The data is outdated due to changes in existing content.
+                    {t("outdatedBody")}
                   </p>
                 )}
                 {/* Expert Analysis Metrics */}
                 <div className="space-y-2 mb-4 pb-4 border-b border-surface-700/50">
                   <div className="text-[10px] uppercase text-surface-500 font-semibold mb-2 flex items-center gap-1.5">
-                    <BarChart3 className="w-3 h-3"/> Expert Analysis
+                    <BarChart3 className="w-3 h-3"/> {t("expertAnalysis")}
                     {isExpertOutdated && (
                       <span className="text-[9px] text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5 normal-case font-medium">
-                        <AlertCircle className="w-2.5 h-2.5" /> outdated
+                        <AlertCircle className="w-2.5 h-2.5" /> {t("outdatedShort")}
                       </span>
                     )}
                     {analysis.isTextRuPending && <Loader2 className="w-3 h-3 animate-spin text-blue-400 ml-1" />}
-                    {analysis.isTextRuPending && <span className="text-blue-400 normal-case font-normal ml-1">processing...</span>}
-                    {analysis.textRuError && <span className="text-red-400 normal-case font-normal ml-1 text-[9px]">Error: {analysis.textRuError}</span>}
+                    {analysis.isTextRuPending && <span className="text-blue-400 normal-case font-normal ml-1">{t("processing")}</span>}
+                    {analysis.textRuError && <span className="text-red-400 normal-case font-normal ml-1 text-[9px]">{t("errorPrefix", { msg: analysis.textRuError })}</span>}
                   </div>
                   {[
-                    { label: "Уникальность", value: analysis.uniqueness, good: 80, ok: 50, invert: false, isPercentage: true },
-                    { label: "Заспамленность", value: analysis.spamScore, good: 30, ok: 60, invert: true, isPercentage: true },
-                    { label: "Вода", value: analysis.waterScore, good: 15, ok: 25, invert: true, isPercentage: true },
+                    { label: tMetrics("uniqueness"), value: analysis.uniqueness, good: 80, ok: 50, invert: false, isPercentage: true },
+                    { label: tMetrics("spam"), value: analysis.spamScore, good: 30, ok: 60, invert: true, isPercentage: true },
+                    { label: tMetrics("water"), value: analysis.waterScore, good: 15, ok: 25, invert: true, isPercentage: true },
                   ].map(metric => {
                     const isGood = metric.invert ? metric.value <= metric.good : metric.value >= metric.good;
                     const isOk = metric.invert ? metric.value <= metric.ok : metric.value >= metric.ok;
@@ -760,17 +764,17 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 {/* AI Metrics */}
                 <div className="space-y-2">
                   <div className="text-[10px] uppercase text-surface-500 font-semibold mb-2 flex items-center gap-1.5">
-                    <BarChart3 className="w-3 h-3"/> AI Analysis
+                    <BarChart3 className="w-3 h-3"/> {t("aiAnalysis")}
                     {isAiOutdated && (
                       <span className="text-[9px] text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded flex items-center gap-0.5 normal-case font-medium">
-                        <AlertCircle className="w-2.5 h-2.5" /> outdated
+                        <AlertCircle className="w-2.5 h-2.5" /> {t("outdatedShort")}
                       </span>
                     )}
                   </div>
                   {[
-                    { label: "Естественность", value: analysis.naturalness, good: 80, ok: 50, isPercentage: true },
-                    { label: "E-E-A-T", value: analysis.eeat, good: 80, ok: 50, isPercentage: true },
-                    { label: "Читабельность", value: analysis.readability, good: 80, ok: 50, isPercentage: true },
+                    { label: tMetrics("naturalness"), value: analysis.naturalness, good: 80, ok: 50, isPercentage: true },
+                    { label: tMetrics("eeat"), value: analysis.eeat, good: 80, ok: 50, isPercentage: true },
+                    { label: tMetrics("readability"), value: analysis.readability, good: 80, ok: 50, isPercentage: true },
                   ].map(metric => {
                     const isGood = metric.value >= metric.good;
                     const isOk = metric.value >= metric.ok;
@@ -798,7 +802,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 {/* Recommendations */}
                 {analysis.recommendations?.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-surface-700/30">
-                    <h4 className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider mb-2">AI Recommendations</h4>
+                    <h4 className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider mb-2">{t("aiRecommendations")}</h4>
                     <div className="space-y-1.5">
                       {analysis.recommendations.map((rec: string, i: number) => (
                         <div key={i} className="flex items-start gap-1.5 text-[11px] text-surface-400">
@@ -813,7 +817,7 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 {/* Debug: Raw Response */}
                 <details className="mt-3 pt-3 border-t border-surface-700/30">
                   <summary className="text-[10px] font-semibold text-surface-500 uppercase tracking-wider cursor-pointer hover:text-surface-300 select-none">
-                    🔍 Debug: Raw Server Response
+                    {t("debugRaw")}
                   </summary>
                   <pre className="mt-2 text-[9px] text-surface-500 bg-surface-900/80 p-3 rounded-lg overflow-x-auto max-h-[300px] overflow-y-auto custom-scrollbar leading-relaxed whitespace-pre-wrap break-all">
                     {JSON.stringify(analysis, null, 2)}
@@ -826,65 +830,65 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
             <div className="glass-card p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-surface-400 uppercase tracking-wider">
-                  SEO Metadata<br />
-                  <span className="text-[10px] text-surface-500 lowercase font-normal">(Editable)</span>
+                  {tMeta("title")}<br />
+                  <span className="text-[10px] text-surface-500 lowercase font-normal">{tMeta("editable")}</span>
                 </h3>
                 <button
                   onClick={() => generateSeoMut.mutate({ contentItemIds: [itemId], modelId: selectedModelId || undefined })}
                   disabled={generateSeoMut.isPending}
                   className="flex items-center justify-center whitespace-nowrap gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/50 hover:border-emerald-400 disabled:opacity-50"
-                  title="Generate missing SEO data (Slug, Category, Meta Description, H1, H2s, Keywords)"
+                  title={tMeta("generateTooltip")}
                 >
                   {generateSeoMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BrainCircuit className="w-3.5 h-3.5" />}
-                  Generate SEO Data
+                  {tMeta("generate")}
                 </button>
               </div>
 
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-surface-500 uppercase">H1 Heading</label>
+                  <label className="text-[10px] text-surface-500 uppercase">{tMeta("h1")}</label>
                   <input type="text" value={h1} onChange={e => setH1(e.target.value)} className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors" />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-surface-500 uppercase">URL Slug</label>
+                  <label className="text-[10px] text-surface-500 uppercase">{tMeta("url")}</label>
                   <input type="text" value={url} onChange={e => setUrl(e.target.value)} className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors" />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-surface-500 uppercase">Meta Title</label>
+                  <label className="text-[10px] text-surface-500 uppercase">{tMeta("metaTitle")}</label>
                   <input type="text" value={metaTitle} onChange={e => setMetaTitle(e.target.value)} className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors" />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-surface-500 uppercase">Meta Description</label>
+                  <label className="text-[10px] text-surface-500 uppercase">{tMeta("metaDesc")}</label>
                   <textarea value={metaDesc} onChange={e => setMetaDesc(e.target.value)} rows={3} className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors resize-none" />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-surface-500 uppercase">Target Keywords (comma separated)</label>
+                  <label className="text-[10px] text-surface-500 uppercase">{tMeta("keywords")}</label>
                   <input type="text" value={targetKeywords} onChange={e => setTargetKeywords(e.target.value)} className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors" />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-surface-500 uppercase">H2 Headings (one per line)</label>
+                  <label className="text-[10px] text-surface-500 uppercase">{tMeta("h2")}</label>
                   <textarea value={h2Headings} onChange={e => setH2Headings(e.target.value)} rows={4} className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors resize-none" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] text-surface-500 uppercase">Website Category</label>
+                    <label className="text-[10px] text-surface-500 uppercase">{tMeta("websiteCategory")}</label>
                     <select value={section} onChange={e => setSection(e.target.value)} className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors">
-                      <option value="">Select...</option>
+                      <option value="">{tMeta("select")}</option>
                       {siteStructureSections.map((so: string) => (
                         <option key={so} value={so}>{so}</option>
                       ))}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] text-surface-500 uppercase">Page Type</label>
+                    <label className="text-[10px] text-surface-500 uppercase">{tMeta("pageType")}</label>
                     <select value={pageType} onChange={e => setPageType(e.target.value)} className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors">
-                      <option value="">Select...</option>
+                      <option value="">{tMeta("select")}</option>
                       {PAGE_TYPES.map((pt) => (
                         <option key={pt.slug} value={pt.slug}>
                           {pt.slug} ({pt.labelRu})
@@ -895,13 +899,13 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-surface-500 uppercase">Blog Category</label>
+                  <label className="text-[10px] text-surface-500 uppercase">{tMeta("blogCategory")}</label>
                   <input
                     list="blog-categories"
                     value={blogCategory}
                     onChange={e => setBlogCategory(e.target.value)}
                     className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none transition-colors"
-                    placeholder="Type or select..."
+                    placeholder={tMeta("blogCatPlaceholder")}
                   />
                   <datalist id="blog-categories">
                     {semanticCategories.map((cat: string) => (

@@ -804,6 +804,161 @@
       "hintBetween": " · Keywords separated by ",
       "hintH2": "|",
       "hintComma": ","
+    },
+    "modals": {
+      "ideation": {
+        "title": "Content Ideation & Planning",
+        "subtitle": "Generate structured content plans using AI",
+        "tabs": {
+          "manual": "Topic Analysis",
+          "rss": "Competitor RSS",
+          "chat": "Neural Network",
+          "batch": "Batch Keywords"
+        },
+        "categories": {
+          "label": "Pick categories",
+          "clear": "Clear all"
+        },
+        "manual": {
+          "topicLabel": "Target Topic",
+          "topicPlaceholder": "e.g., Running shoes for flat feet",
+          "pickRandom": "Pick Random from Core (uses filter above)",
+          "pickRandomHint": "This action does not consume AI tokens",
+          "usageCount": "Usage count in plan: {n}",
+          "unusedSuffix": "(Unused!)",
+          "popularitySoon": "(Popularity data coming soon)",
+          "propose": "Propose Ideas",
+          "enterTopic": "Please enter a topic first.",
+          "noKeywords": "Please paste at least one keyword."
+        },
+        "deepSeo": {
+          "title": "Deep SEO Generation",
+          "body": "Generate URLs, Meta Descriptions, H1s, H2s, and Tags for selected ideas.",
+          "fleshOut": "Flesh out SEO"
+        },
+        "results": {
+          "ideasTitle": "Content Strategy Ideas",
+          "selectAll": "Select All",
+          "deselectAll": "Deselect All",
+          "duplicateBadge": "Duplicate",
+          "duplicateTooltip": "A similar title already exists in your plan",
+          "intent": "Intent: {value}",
+          "url": "URL:",
+          "h1": "H1:",
+          "meta": "Meta:",
+          "keywords": "Keywords:",
+          "tags": "Tags:",
+          "freeAddNote": "Adding data to plan without generation does not consume tokens.",
+          "addToPlan": "Add {n} items to Plan"
+        },
+        "batch": {
+          "label": "Paste Keywords",
+          "hint": "Paste your keywords below, one per line. We will generate exactly one optimized article title for each keyword.",
+          "placeholder": "keyword 1\nkeyword 2\nkeyword 3",
+          "propose": "Propose {n} Ideas",
+          "generated": "Generated Titles"
+        },
+        "rss": {
+          "title": "RSS Feed Analysis",
+          "body": "Analyze competitor RSS feeds to extract their latest topics and generate counter-strategies.",
+          "savedFeeds": "Saved Feeds",
+          "feedPlaceholder": "https://competitor.com/feed.xml",
+          "analyze": "Analyze Feed",
+          "counterStrategies": "Proposed Counter-Strategies"
+        },
+        "chat": {
+          "title": "Neural Network Brainstorming",
+          "body": "Chat with the SEO AI to brainstorm silos and content architectures.",
+          "empty": "Start typing to interact with the AI...",
+          "placeholder": "e.g. 'Give me 5 article ideas for beginner runners...'",
+          "ask": "Ask AI",
+          "thinking": "Thinking… (Simulated Response)",
+          "errorPrefix": "Error: {msg}"
+        },
+        "confirmAddWithoutSeo": "Some selected ideas are missing deep SEO data (like Meta Descriptions or H1s).\n\nIf you add them now, you'll need to manually fill them in later.\n\nDo you want to continue without generating SEO data?",
+        "saveError": "Error saving items to plan."
+      },
+      "editor": {
+        "editContent": "Edit Content: {title}",
+        "saved": "All changes saved successfully!",
+        "saveFailed": "Failed to save changes.",
+        "confirmClose": "You have unsaved changes. Are you sure you want to close without saving?",
+        "publishedAt": "Published: {url}",
+        "generateContent": "Generate Content",
+        "expertAnalysis": "Expert Analysis",
+        "expertTooltip": "Expert Analysis (uniqueness, spelling, spam, wateriness)",
+        "aiAnalysis": "AI Analysis",
+        "aiTooltip": "AI Analysis (EEAT, naturalness, readability, recommendations)",
+        "optimize": "Optimize",
+        "tabs": {
+          "preview": "Preview",
+          "edit": "Edit",
+          "issues": "Issues",
+          "issuesTooltip": "Spelling & SEO issues from Expert Analysis"
+        },
+        "stats": {
+          "chars": "{n} chars",
+          "words": "{n} words",
+          "charsTitle": "Character count",
+          "wordsTitle": "Word count"
+        },
+        "noContent": "No content generated yet",
+        "writePlaceholder": "Write your content in markdown...",
+        "issues": {
+          "runFirst": "Run Expert Analysis first to see issues",
+          "noIssues": "No issues found! Content looks good.",
+          "spelling": "Spelling & Grammar",
+          "spellingCount": "{n} issues",
+          "errorType": "Error",
+          "keywordDensity": "Keywords Density",
+          "mixed": "Mixed Alphabet Words",
+          "mixedBody": "Words with characters from different alphabets (e.g. Latin in Cyrillic text)"
+        },
+        "save": "Save All Changes",
+        "publish": "Publish",
+        "republish": "Re-publish",
+        "publishConnectors": "Connectors",
+        "noConnectors": "No connectors. Add them in Project Settings.",
+        "openPublished": "↗ Open {url}",
+        "exportJSON": "JSON",
+        "exportJSONTooltip": "Export as JSON",
+        "exportLLMS": "llms.txt",
+        "exportLLMSTooltip": "Export as llms.txt",
+        "seoAnalysis": "SEO Analysis",
+        "overallScore": "Overall SEO Score",
+        "outdated": "Outdated",
+        "outdatedBody": "The data is outdated due to changes in existing content.",
+        "outdatedShort": "outdated",
+        "processing": "processing…",
+        "errorPrefix": "Error: {msg}",
+        "aiRecommendations": "AI Recommendations",
+        "debugRaw": "🔍 Debug: Raw Server Response",
+        "metrics": {
+          "uniqueness": "Uniqueness",
+          "spam": "Spam score",
+          "water": "Wateriness",
+          "naturalness": "Naturalness",
+          "eeat": "E-E-A-T",
+          "readability": "Readability"
+        },
+        "metadata": {
+          "title": "SEO Metadata",
+          "editable": "(Editable)",
+          "h1": "H1 Heading",
+          "url": "URL Slug",
+          "metaTitle": "Meta Title",
+          "metaDesc": "Meta Description",
+          "keywords": "Target Keywords (comma separated)",
+          "h2": "H2 Headings (one per line)",
+          "websiteCategory": "Website Category",
+          "pageType": "Page Type",
+          "blogCategory": "Blog Category",
+          "select": "Select...",
+          "blogCatPlaceholder": "Type or select...",
+          "generate": "Generate SEO Data",
+          "generateTooltip": "Generate missing SEO data (Slug, Category, Meta Description, H1, H2s, Keywords)"
+        }
+      }
     }
   },
   "dashboard": {
