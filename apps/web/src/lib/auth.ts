@@ -1,17 +1,45 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin } from "better-auth/plugins";
+import { adminAc, defaultAc, userAc } from "better-auth/plugins/admin/access";
 import { sendEmail } from "./email";
 import { prisma } from "../server/db";
+
+// SUPERADMIN: full admin permissions + impersonate-admins.
+// Required so better-auth's adminRoles validation accepts "SUPERADMIN".
+const superadminAc = defaultAc.newRole({
+  user: [
+    "create",
+    "list",
+    "set-role",
+    "ban",
+    "impersonate",
+    "impersonate-admins",
+    "delete",
+    "set-password",
+    "get",
+    "update",
+  ],
+  session: ["list", "revoke", "delete"],
+});
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   plugins: [
-    // Match our Prisma UserRole enum (USER/ADMIN/SUPERADMIN), the plugin
-    // defaults to lowercase "user"/"admin" which fails validation.
-    admin({ defaultRole: "USER", adminRoles: ["ADMIN", "SUPERADMIN"] }),
+    // Match our Prisma UserRole enum (USER/ADMIN/SUPERADMIN). The plugin
+    // defaults to lowercase "user"/"admin"; we override roles + defaultRole
+    // so the enum values pass validation.
+    admin({
+      defaultRole: "USER",
+      adminRoles: ["ADMIN", "SUPERADMIN"],
+      roles: {
+        USER: userAc,
+        ADMIN: adminAc,
+        SUPERADMIN: superadminAc,
+      },
+    }),
   ],
   emailAndPassword: {
     enabled: true,
