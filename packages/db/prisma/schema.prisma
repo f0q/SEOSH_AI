@@ -42,6 +42,7 @@ model User {
   sessions      Session[]
   tokenBalance  TokenBalance?
   transactions  TokenTransaction[]
+  payments      Payment[]
   projects      Project[]
   semanticCores SemanticCore[]
   aiPreferences UserAIPreferences?
@@ -581,6 +582,105 @@ enum TransactionReason {
   PURCHASE
   SIGNUP_BONUS
   REFUND
+  ADMIN_GRANT
+  ADMIN_REVOKE
+}
+
+/// Token package available for purchase
+model TokenPackage {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String?
+  tokens      Int
+  priceRub    Int      // Price in kopecks (rubles * 100) to avoid float issues
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  highlighted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payments    Payment[]
+
+  @@map("token_packages")
+}
+
+/// A payment attempt — created when user clicks "Buy"
+model Payment {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId       String?
+  package         TokenPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+
+  // Provider info
+  providerSlug    String        // "yookassa", "manual_invoice", etc.
+  externalId      String?       // payment id at the provider side
+  status          PaymentStatus @default(PENDING)
+
+  // Money & tokens
+  amountRub       Int           // in kopecks
+  currency        String        @default("RUB")
+  tokens          Int           // tokens to grant on success
+
+  // Metadata
+  confirmationUrl String?       // redirect URL for hosted checkout
+  rawPayload      Json?         // last raw payload from provider (for debugging)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  completedAt     DateTime?
+
+  @@index([userId])
+  @@index([externalId])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING       // created, waiting for user to pay
+  WAITING       // user redirected to provider, awaiting webhook
+  SUCCEEDED     // tokens granted
+  FAILED        // provider reported failure
+  CANCELED      // user canceled or expired
+  REFUNDED
+}
+
+/// Company that issues invoices to users (singleton row, id="default")
+model CompanyDetails {
+  id                    String   @id @default("default")
+  legalName             String   @default("")    // ООО «Название»
+  shortName             String   @default("")    // Название
+  inn                   String   @default("")
+  kpp                   String   @default("")
+  ogrn                  String   @default("")
+  legalAddress          String   @default("")
+  postalAddress         String   @default("")
+  bankName              String   @default("")
+  accountNumber         String   @default("")
+  bik                   String   @default("")
+  correspondentAccount  String   @default("")
+  directorName          String   @default("")
+  directorTitle         String   @default("Генеральный директор")
+  contactEmail          String   @default("")
+  contactPhone          String   @default("")
+  updatedAt             DateTime @updatedAt
+
+  @@map("company_details")
+}
+
+/// Payment provider configuration (one row per provider, encrypted credentials)
+model PaymentProviderConfig {
+  id            String   @id @default(uuid())
+  slug          String   @unique  // "yookassa", "stripe", etc.
+  displayName   String
+  enabled       Boolean  @default(false)
+  testMode      Boolean  @default(true)
+  /// JSON blob with encrypted secrets — interpreted per provider
+  credentials   Json     @default("{}")
+  updatedAt     DateTime @updatedAt
+
+  @@map("payment_provider_configs")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

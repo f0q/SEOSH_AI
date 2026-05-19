@@ -8,7 +8,8 @@ import { z } from "zod";
 import { router, protectedProcedure } from "@/server/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "../db";
-import { topUp, setBalance, getHistory, getBalance, PRICING_TABLE } from "../services/tokenService";
+import { topUp, setBalance, getHistory, PRICING_TABLE } from "../services/tokenService";
+import { encrypt } from "../lib/encryption";
 
 /** Middleware: verify admin access via role or secret */
 function verifyAdmin(ctx: any) {
@@ -63,24 +64,19 @@ export const adminRouter = router({
 
       if (input.amount === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Amount cannot be 0" });
 
-      if (input.amount > 0) {
-        const result = await topUp(
-          input.userId,
-          input.amount,
-          "PURCHASE",
-          input.reason || `Admin top-up by ${ctx.user.email}`
-        );
-        return { success: true, newBalance: result.newBalance, action: "topup", amount: input.amount };
-      } else {
-        // Deduction
-        const result = await topUp(
-          input.userId,
-          input.amount, // negative
-          "REFUND",
-          input.reason || `Admin deduction by ${ctx.user.email}`
-        );
-        return { success: true, newBalance: result.newBalance, action: "deduct", amount: input.amount };
-      }
+      const reason = input.amount > 0 ? "ADMIN_GRANT" : "ADMIN_REVOKE";
+      const result = await topUp(
+        input.userId,
+        input.amount,
+        reason,
+        input.reason || `By ${ctx.user.email}`
+      );
+      return {
+        success: true,
+        newBalance: result.newBalance,
+        action: input.amount > 0 ? "topup" : "deduct",
+        amount: input.amount,
+      };
     }),
 
   /** Force-set a user's balance */
@@ -116,4 +112,179 @@ export const adminRouter = router({
   getPricing: protectedProcedure.query(async () => {
     return PRICING_TABLE;
   }),
+
+  // ─── Company details (singleton row id="default") ─────────────────────────
+  getCompanyDetails: protectedProcedure.query(async ({ ctx }) => {
+    verifyAdmin(ctx);
+    return prisma.companyDetails.upsert({
+      where: { id: "default" },
+      create: { id: "default" },
+      update: {},
+    });
+  }),
+
+  updateCompanyDetails: protectedProcedure
+    .input(
+      z.object({
+        legalName: z.string(),
+        shortName: z.string(),
+        inn: z.string(),
+        kpp: z.string(),
+        ogrn: z.string(),
+        legalAddress: z.string(),
+        postalAddress: z.string(),
+        bankName: z.string(),
+        accountNumber: z.string(),
+        bik: z.string(),
+        correspondentAccount: z.string(),
+        directorName: z.string(),
+        directorTitle: z.string(),
+        contactEmail: z.string(),
+        contactPhone: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      verifyAdmin(ctx);
+      return prisma.companyDetails.upsert({
+        where: { id: "default" },
+        create: { id: "default", ...input },
+        update: input,
+      });
+    }),
+
+  // ─── Token packages CRUD ──────────────────────────────────────────────────
+  listPackages: protectedProcedure.query(async ({ ctx }) => {
+    verifyAdmin(ctx);
+    return prisma.tokenPackage.findMany({ orderBy: { sortOrder: "asc" } });
+  }),
+
+  upsertPackage: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().optional(),
+        slug: z.string().regex(/^[a-z0-9_-]+$/, "lowercase letters, digits, _ -"),
+        name: z.string().min(1),
+        description: z.string().optional(),
+        tokens: z.number().int().positive(),
+        priceRub: z.number().int().nonnegative(), // in kopecks
+        sortOrder: z.number().int().default(0),
+        active: z.boolean().default(true),
+        highlighted: z.boolean().default(false),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      verifyAdmin(ctx);
+      const { id, ...data } = input;
+      if (id) {
+        return prisma.tokenPackage.update({ where: { id }, data });
+      }
+      return prisma.tokenPackage.create({ data });
+    }),
+
+  deletePackage: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      verifyAdmin(ctx);
+      // Soft delete — keep historical payments linkable, just hide it.
+      return prisma.tokenPackage.update({
+        where: { id: input.id },
+        data: { active: false },
+      });
+    }),
+
+  // ─── Payment providers ────────────────────────────────────────────────────
+  listProviders: protectedProcedure.query(async ({ ctx }) => {
+    verifyAdmin(ctx);
+    const rows = await prisma.paymentProviderConfig.findMany({ orderBy: { slug: "asc" } });
+    // Mask credentials — return only the keys, not the values.
+    return rows.map((row) => ({
+      ...row,
+      credentials: undefined as never,
+      credentialKeys: row.credentials && typeof row.credentials === "object"
+        ? Object.keys(row.credentials as Record<string, unknown>)
+        : [],
+    }));
+  }),
+
+  updateProvider: protectedProcedure
+    .input(
+      z.object({
+        slug: z.string(),
+        enabled: z.boolean(),
+        testMode: z.boolean(),
+        /** Plain credentials — will be encrypted before storage. Empty value = unchanged. */
+        credentials: z.record(z.string(), z.string()).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      verifyAdmin(ctx);
+      const existing = await prisma.paymentProviderConfig.findUnique({ where: { slug: input.slug } });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: `Provider ${input.slug} not found` });
+      }
+      const currentCreds =
+        existing.credentials && typeof existing.credentials === "object"
+          ? (existing.credentials as Record<string, string>)
+          : {};
+      const newCreds = { ...currentCreds };
+      if (input.credentials) {
+        for (const [k, v] of Object.entries(input.credentials)) {
+          if (v && v.length > 0) {
+            newCreds[k] = encrypt(v);
+          }
+        }
+      }
+      return prisma.paymentProviderConfig.update({
+        where: { slug: input.slug },
+        data: {
+          enabled: input.enabled,
+          testMode: input.testMode,
+          credentials: newCreds,
+        },
+      });
+    }),
+
+  // ─── Payment log ──────────────────────────────────────────────────────────
+  listPayments: protectedProcedure
+    .input(
+      z.object({
+        status: z
+          .enum(["PENDING", "WAITING", "SUCCEEDED", "FAILED", "CANCELED", "REFUNDED"])
+          .optional(),
+        limit: z.number().int().min(1).max(200).default(50),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      verifyAdmin(ctx);
+      return prisma.payment.findMany({
+        where: input.status ? { status: input.status } : undefined,
+        include: {
+          user: { select: { email: true, name: true } },
+          package: { select: { name: true, slug: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+      });
+    }),
+
+  markPaymentSucceeded: protectedProcedure
+    .input(z.object({ paymentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      verifyAdmin(ctx);
+      // For manual_invoice flow — admin confirms the bank transfer arrived.
+      const { applyProviderUpdate } = await import("../services/billing/paymentService");
+      const payment = await prisma.payment.findUnique({ where: { id: input.paymentId } });
+      if (!payment) throw new TRPCError({ code: "NOT_FOUND", message: "Payment not found" });
+      if (!payment.externalId) {
+        // manual payments may not have externalId yet — set a synthetic one
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { externalId: `manual-${payment.id}` },
+        });
+      }
+      return applyProviderUpdate({
+        externalId: payment.externalId ?? `manual-${payment.id}`,
+        status: "SUCCEEDED",
+      });
+    }),
 });

@@ -103,6 +103,7 @@ Each module is independently developed and documented:
 - **Publisher** — CMS connectors (WordPress first)
 - **Analytics** — Yandex.Metrika, Google Search Console, etc.
 - **Autopilot** — Automated content pipeline + Telegram approval
+- **Billing** — Pluggable payment providers (YooKassa + manual invoice). See [docs/BILLING.md](docs/BILLING.md)
 
 ## 🌍 Localization
 

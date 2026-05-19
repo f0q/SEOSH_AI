@@ -198,7 +198,7 @@ function ReadinessBar({ collapsed }: { collapsed: boolean }) {
 
 // ── Sidebar Token Balance ────────────────────────────────────────────────────
 function SidebarTokenBalance() {
-  const { data } = trpc.settings.getTokenBalance.useQuery(undefined, {
+  const { data } = trpc.billing.getBalance.useQuery(undefined, {
     refetchInterval: 30000, // refresh every 30s
   });
   const tokens = data?.tokens ?? 0;

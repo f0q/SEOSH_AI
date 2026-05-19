@@ -14,6 +14,7 @@ import { dashboardRouter } from "./routers/dashboard";
 import { settingsRouter } from "./routers/settings";
 import { adminRouter } from "./routers/admin";
 import { teamRouter } from "./routers/team";
+import { billingRouter } from "./routers/billing";
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -26,6 +27,7 @@ export const appRouter = router({
   settings: settingsRouter,
   admin: adminRouter,
   team: teamRouter,
+  billing: billingRouter,
 });
 
 export type AppRouter = typeof appRouter;
