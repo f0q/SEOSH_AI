@@ -280,7 +280,81 @@
     "back": "Back",
     "finish": "Complete Setup",
     "creating": "Creating project…",
-    "aiSuggestion": "AI Suggestion"
+    "aiSuggestion": "AI Suggestion",
+    "company": {
+      "aiAutoFillTitle": "AI Auto-Fill",
+      "aiAutoFillBody": "Let AI fill this out using your domain.",
+      "aiAutoFillBtn": "Fill with AI",
+      "yourProjectUrl": "Your Project URL",
+      "yourProjectUrlNote": "(Since you analyzed a competitor)",
+      "yourProjectUrlPlaceholder": "https://your-own-website.com",
+      "noProjectYet": "I don't have my own project yet (I want to create my own website)",
+      "namePlaceholder": "e.g., Acme Corp",
+      "industryPlaceholder": "e.g., E-commerce, SaaS, Local Services",
+      "descriptionPlaceholder": "Tell us about your business — what you do, what makes you unique, your key offerings…",
+      "geographyPlaceholder": "e.g., United States, New York, Global",
+      "aiTipLabel": "AI Tip:",
+      "aiTipBody": "The more detail you provide, the better our AI can generate relevant keywords and content for your business."
+    },
+    "products": {
+      "intro": "List your main products or services. This helps AI generate relevant keywords.",
+      "header": "Product / Service #{n}",
+      "namePlaceholder": "Product or service name",
+      "descriptionPlaceholder": "Brief description — what is it, who is it for?",
+      "priceRangePlaceholder": "Price range (optional) — e.g., $50-200, Premium, Budget",
+      "add": "Add Product / Service"
+    },
+    "audience": {
+      "aiBannerTitle": "AI can help",
+      "aiBannerBody": "Based on your business description, AI can suggest audience segments and pain points.",
+      "aiBannerBtn": "Suggest with AI",
+      "segmentsLabel": "Who are your customers?",
+      "segmentPlaceholder": "Audience segment {n} — e.g., \"Small business owners aged 30-50\"",
+      "addSegment": "Add segment",
+      "painPointsLabel": "What problems do your customers face?",
+      "painPointPlaceholder": "Pain point {n} — e.g., \"Can't find affordable printing services\"",
+      "addPainPoint": "Add pain point"
+    },
+    "dataSources": {
+      "ownDomainLabel": "My Own Domain",
+      "ownDomainHint": "I have a website, analyze it.",
+      "competitorDomainLabel": "Competitor Domain",
+      "competitorDomainHint": "Analyze a competitor's site instead.",
+      "urlLabelOwn": "Your Website URL",
+      "urlLabelCompetitor": "Competitor Website URL",
+      "urlHintOwn": "Enter your website URL. We'll analyze its structure, sitemap, and auto-fill your company details.",
+      "urlHintCompetitor": "Enter a competitor URL. We'll extract its sitemap and keyword structure.",
+      "urlPlaceholder": "your-website.com",
+      "verify": "Verify URL",
+      "verifying": "Verifying…",
+      "verified": "Verified",
+      "verifiedSuccessLabel": "URL Verified.",
+      "verifiedSuccessBody": "We will parse your sitemap in the next steps.",
+      "verifyError": "Could not analyze this website. Please check the URL and try again.",
+      "socialLabel": "Social Media",
+      "socialComingSoon": "Coming Soon",
+      "socialConnect": "Connect to parse data from {network}"
+    },
+    "competitors": {
+      "intro": "Add your competitors' websites. We'll analyze their structure, keywords, and content strategy to find opportunities for your SEO growth.",
+      "header": "Competitor #{n}",
+      "urlPlaceholder": "https://competitor.com",
+      "namePlaceholder": "Competitor name",
+      "notesPlaceholder": "Notes — what do they do well? Where are they weak?",
+      "add": "Add Competitor"
+    },
+    "structure": {
+      "aiTitle": "AI Structure Generation",
+      "aiBody": "We'll parse your website ({url}) and your competitors to propose the optimal URL structure and page types.",
+      "urlPlaceholder": "not provided",
+      "analysisModelLabel": "Analysis Model",
+      "generate": "Generate Structure",
+      "analyzing": "Analyzing Sitemap…",
+      "needUrl": "Please provide a website URL in Step 1.",
+      "genericError": "Failed to generate structure.",
+      "proposedTitle": "Proposed Structure",
+      "sectionsCount": "{n, plural, one {# top-level section} other {# top-level sections}}"
+    }
   },
   "semanticCore": {
     "title": "Semantic Core",

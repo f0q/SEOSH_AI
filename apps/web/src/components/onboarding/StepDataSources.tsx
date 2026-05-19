@@ -1,10 +1,5 @@
 "use client";
 
-/**
- * @component StepDataSources
- * @description Step 4: Data sources — website URL and future social media connections.
- */
-
 import type { OnboardingData } from "./OnboardingWizard";
 import {
   Globe,
@@ -16,6 +11,7 @@ import {
   Send,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface Props {
   data: OnboardingData;
@@ -23,29 +19,21 @@ interface Props {
 }
 
 export default function StepDataSources({ data, updateData }: Props) {
+  const t = useTranslations("onboarding.dataSources");
   const [parseStatus, setParseStatus] = useState<"idle" | "parsing" | "done" | "error">("idle");
   const [parseResult, setParseResult] = useState<{ pages: number } | null>(null);
 
-  const normalizeUrl = (raw: string) => {
-    const stripped = raw.replace(/^https?:\/\//i, "").trim();
-    return stripped ? `https://${stripped}` : "";
-  };
-
   const handleUrlChange = (raw: string) => {
-    // Strip any pasted protocol for clean display
     const stripped = raw.replace(/^https?:\/\//i, "");
-    // Store as full URL internally so Zod is happy
     const full = stripped ? `https://${stripped}` : "";
     updateData({ websiteUrl: full });
   };
 
-  // Display value strips protocol so users see only the domain
   const displayUrl = data.websiteUrl.replace(/^https?:\/\//i, "");
 
   const handleParseWebsite = async () => {
     if (!data.websiteUrl.trim()) return;
     setParseStatus("parsing");
-    // TODO: Real API validation if needed. For now, just simulate a quick check.
     setTimeout(() => {
       setParseStatus("done");
       setParseResult({ success: true } as any);
@@ -61,13 +49,13 @@ export default function StepDataSources({ data, updateData }: Props) {
             {!data.isCompetitorDomain && <div className="w-2.5 h-2.5 rounded-full bg-brand-400" />}
           </div>
           <div>
-            <div className={`font-medium ${!data.isCompetitorDomain ? 'text-brand-300' : 'text-surface-300'}`}>My Own Domain</div>
-            <div className="text-xs text-surface-500 mt-0.5">I have a website, analyze it.</div>
+            <div className={`font-medium ${!data.isCompetitorDomain ? 'text-brand-300' : 'text-surface-300'}`}>{t("ownDomainLabel")}</div>
+            <div className="text-xs text-surface-500 mt-0.5">{t("ownDomainHint")}</div>
           </div>
-          <input 
-            type="radio" 
-            className="hidden" 
-            checked={!data.isCompetitorDomain} 
+          <input
+            type="radio"
+            className="hidden"
+            checked={!data.isCompetitorDomain}
             onChange={() => updateData({ isCompetitorDomain: false })}
           />
         </label>
@@ -77,13 +65,13 @@ export default function StepDataSources({ data, updateData }: Props) {
             {data.isCompetitorDomain && <div className="w-2.5 h-2.5 rounded-full bg-orange-400" />}
           </div>
           <div>
-            <div className={`font-medium ${data.isCompetitorDomain ? 'text-orange-300' : 'text-surface-300'}`}>Competitor Domain</div>
-            <div className="text-xs text-surface-500 mt-0.5">Analyze a competitor's site instead.</div>
+            <div className={`font-medium ${data.isCompetitorDomain ? 'text-orange-300' : 'text-surface-300'}`}>{t("competitorDomainLabel")}</div>
+            <div className="text-xs text-surface-500 mt-0.5">{t("competitorDomainHint")}</div>
           </div>
-          <input 
-            type="radio" 
-            className="hidden" 
-            checked={data.isCompetitorDomain} 
+          <input
+            type="radio"
+            className="hidden"
+            checked={data.isCompetitorDomain}
             onChange={() => updateData({ isCompetitorDomain: true })}
           />
         </label>
@@ -92,12 +80,10 @@ export default function StepDataSources({ data, updateData }: Props) {
       {/* Website URL — Primary */}
       <div>
         <label className="block text-sm font-medium text-surface-200 mb-2">
-          {data.isCompetitorDomain ? "Competitor Website URL" : "Your Website URL"}
+          {data.isCompetitorDomain ? t("urlLabelCompetitor") : t("urlLabelOwn")}
         </label>
         <p className="text-xs text-surface-500 mb-3">
-          {data.isCompetitorDomain 
-            ? "Enter a competitor URL. We'll extract its sitemap and keyword structure." 
-            : "Enter your website URL. We'll analyze its structure, sitemap, and auto-fill your company details."}
+          {data.isCompetitorDomain ? t("urlHintCompetitor") : t("urlHintOwn")}
         </p>
         <div className="flex gap-3">
           <div className="relative flex-1">
@@ -109,7 +95,7 @@ export default function StepDataSources({ data, updateData }: Props) {
               type="text"
               value={displayUrl}
               onChange={(e) => handleUrlChange(e.target.value)}
-              placeholder="your-website.com"
+              placeholder={t("urlPlaceholder")}
               className="input-field !pl-[88px]"
               autoComplete="url"
               spellCheck={false}
@@ -125,25 +111,24 @@ export default function StepDataSources({ data, updateData }: Props) {
             {parseStatus === "parsing" ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Verifying...
+                {t("verifying")}
               </>
             ) : parseStatus === "done" ? (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                Verified
+                {t("verified")}
               </>
             ) : (
-              "Verify URL"
+              t("verify")
             )}
           </button>
         </div>
 
-        {/* Parse result */}
         {parseStatus === "done" && parseResult && (
           <div className="mt-3 p-3 rounded-lg bg-emerald-500/8 border border-emerald-500/15 flex items-center gap-2 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             <span className="text-sm text-emerald-300">
-              <strong>URL Verified.</strong> We will parse your sitemap in the next steps.
+              <strong>{t("verifiedSuccessLabel")}</strong> {t("verifiedSuccessBody")}
             </span>
           </div>
         )}
@@ -152,7 +137,7 @@ export default function StepDataSources({ data, updateData }: Props) {
           <div className="mt-3 p-3 rounded-lg bg-error-500/8 border border-error-500/15 flex items-center gap-2 animate-fade-in">
             <AlertCircle className="w-4 h-4 text-error-500" />
             <span className="text-sm text-red-300">
-              Could not analyze this website. Please check the URL and try again.
+              {t("verifyError")}
             </span>
           </div>
         )}
@@ -161,7 +146,7 @@ export default function StepDataSources({ data, updateData }: Props) {
       {/* Future: Social Media (disabled cards) */}
       <div>
         <label className="block text-sm font-medium text-surface-200 mb-3 mt-8">
-          Social Media <span className="badge badge-brand text-xs ml-2">Coming Soon</span>
+          {t("socialLabel")} <span className="badge badge-brand text-xs ml-2">{t("socialComingSoon")}</span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
@@ -177,7 +162,7 @@ export default function StepDataSources({ data, updateData }: Props) {
                 <social.icon className={`w-4.5 h-4.5 ${social.color}`} />
                 <span className="text-sm font-medium text-surface-300">{social.name}</span>
               </div>
-              <p className="text-xs text-surface-500">Connect to parse data from {social.name}</p>
+              <p className="text-xs text-surface-500">{t("socialConnect", { network: social.name })}</p>
             </div>
           ))}
         </div>

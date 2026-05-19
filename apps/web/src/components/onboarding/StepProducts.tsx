@@ -1,11 +1,7 @@
 "use client";
 
-/**
- * @component StepProducts
- * @description Step 2: Products and services — dynamic list of offerings.
- */
-
 import type { OnboardingData } from "./OnboardingWizard";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
 
 interface Props {
@@ -14,6 +10,8 @@ interface Props {
 }
 
 export default function StepProducts({ data, updateData }: Props) {
+  const t = useTranslations("onboarding.products");
+
   const addProduct = () => {
     updateData({
       products: [...data.products, { name: "", description: "", priceRange: "" }],
@@ -37,7 +35,7 @@ export default function StepProducts({ data, updateData }: Props) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-surface-400 mb-2">
-        List your main products or services. This helps AI generate relevant keywords.
+        {t("intro")}
       </p>
 
       {data.products.map((product, index) => (
@@ -47,7 +45,7 @@ export default function StepProducts({ data, updateData }: Props) {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-surface-500">
-              Product / Service #{index + 1}
+              {t("header", { n: index + 1 })}
             </span>
             {data.products.length > 1 && (
               <button
@@ -63,14 +61,14 @@ export default function StepProducts({ data, updateData }: Props) {
             type="text"
             value={product.name}
             onChange={(e) => updateProduct(index, "name", e.target.value)}
-            placeholder="Product or service name"
+            placeholder={t("namePlaceholder")}
             className="input-field"
           />
 
           <textarea
             value={product.description}
             onChange={(e) => updateProduct(index, "description", e.target.value)}
-            placeholder="Brief description — what is it, who is it for?"
+            placeholder={t("descriptionPlaceholder")}
             className="input-field min-h-[72px] resize-y"
             rows={2}
           />
@@ -79,7 +77,7 @@ export default function StepProducts({ data, updateData }: Props) {
             type="text"
             value={product.priceRange}
             onChange={(e) => updateProduct(index, "priceRange", e.target.value)}
-            placeholder="Price range (optional) — e.g., $50-200, Premium, Budget"
+            placeholder={t("priceRangePlaceholder")}
             className="input-field"
           />
         </div>
@@ -87,7 +85,7 @@ export default function StepProducts({ data, updateData }: Props) {
 
       <button onClick={addProduct} className="btn-secondary w-full justify-center">
         <Plus className="w-4 h-4" />
-        Add Product / Service
+        {t("add")}
       </button>
     </div>
   );

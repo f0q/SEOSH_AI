@@ -1,11 +1,7 @@
 "use client";
 
-/**
- * @component StepCompetitors
- * @description Step 5: Competitors — URLs, names, and notes about competitor sites.
- */
-
 import type { OnboardingData } from "./OnboardingWizard";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2, ExternalLink } from "lucide-react";
 
 interface Props {
@@ -14,6 +10,8 @@ interface Props {
 }
 
 export default function StepCompetitors({ data, updateData }: Props) {
+  const t = useTranslations("onboarding.competitors");
+
   const addCompetitor = () => {
     updateData({
       competitors: [...data.competitors, { url: "", name: "", notes: "" }],
@@ -37,8 +35,7 @@ export default function StepCompetitors({ data, updateData }: Props) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-surface-400 mb-2">
-        Add your competitors&apos; websites. We&apos;ll analyze their structure, keywords, and content strategy
-        to find opportunities for your SEO growth.
+        {t("intro")}
       </p>
 
       {data.competitors.map((competitor, index) => (
@@ -48,7 +45,7 @@ export default function StepCompetitors({ data, updateData }: Props) {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-surface-500">
-              Competitor #{index + 1}
+              {t("header", { n: index + 1 })}
             </span>
             <div className="flex items-center gap-1">
               {competitor.url && (
@@ -77,14 +74,14 @@ export default function StepCompetitors({ data, updateData }: Props) {
               type="url"
               value={competitor.url}
               onChange={(e) => updateCompetitor(index, "url", e.target.value)}
-              placeholder="https://competitor.com"
+              placeholder={t("urlPlaceholder")}
               className="input-field"
             />
             <input
               type="text"
               value={competitor.name}
               onChange={(e) => updateCompetitor(index, "name", e.target.value)}
-              placeholder="Competitor name"
+              placeholder={t("namePlaceholder")}
               className="input-field"
             />
           </div>
@@ -92,7 +89,7 @@ export default function StepCompetitors({ data, updateData }: Props) {
           <textarea
             value={competitor.notes}
             onChange={(e) => updateCompetitor(index, "notes", e.target.value)}
-            placeholder="Notes — what do they do well? Where are they weak?"
+            placeholder={t("notesPlaceholder")}
             className="input-field min-h-[60px] resize-y"
             rows={2}
           />
@@ -101,7 +98,7 @@ export default function StepCompetitors({ data, updateData }: Props) {
 
       <button onClick={addCompetitor} className="btn-secondary w-full justify-center">
         <Plus className="w-4 h-4" />
-        Add Competitor
+        {t("add")}
       </button>
     </div>
   );

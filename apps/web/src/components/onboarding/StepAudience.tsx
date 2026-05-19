@@ -1,13 +1,9 @@
 "use client";
 
-/**
- * @component StepAudience
- * @description Step 3: Target audience — segments and pain points.
- */
-
 import type { OnboardingData } from "./OnboardingWizard";
 import { Plus, X, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AIModelSelector } from "../ui/AIModelSelector";
 
 interface Props {
@@ -16,6 +12,7 @@ interface Props {
 }
 
 export default function StepAudience({ data, updateData }: Props) {
+  const t = useTranslations("onboarding.audience");
   const [selectedModelId, setSelectedModelId] = useState<string>("");
 
   const addSegment = () => {
@@ -58,9 +55,9 @@ export default function StepAudience({ data, updateData }: Props) {
           <Sparkles className="w-4.5 h-4.5 text-brand-400" />
         </div>
         <div>
-          <p className="text-sm font-medium text-surface-200">AI can help</p>
+          <p className="text-sm font-medium text-surface-200">{t("aiBannerTitle")}</p>
           <p className="text-xs text-surface-400">
-            Based on your business description, AI can suggest audience segments and pain points.
+            {t("aiBannerBody")}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3 flex-shrink-0">
@@ -68,12 +65,12 @@ export default function StepAudience({ data, updateData }: Props) {
             <AIModelSelector
               onModelSelect={setSelectedModelId}
               selectedModelId={selectedModelId}
-              estimatedPromptTokens={150} // Rough context prompt length
+              estimatedPromptTokens={150}
               expectedOutputTokens={200}
             />
           </div>
           <button className="btn-secondary text-xs">
-            Suggest with AI
+            {t("aiBannerBtn")}
           </button>
         </div>
       </div>
@@ -81,7 +78,7 @@ export default function StepAudience({ data, updateData }: Props) {
       {/* Audience Segments */}
       <div>
         <label className="block text-sm font-medium text-surface-200 mb-3">
-          Who are your customers?
+          {t("segmentsLabel")}
         </label>
         <div className="space-y-2">
           {data.audienceSegments.map((segment, index) => (
@@ -90,7 +87,7 @@ export default function StepAudience({ data, updateData }: Props) {
                 type="text"
                 value={segment}
                 onChange={(e) => updateSegment(index, e.target.value)}
-                placeholder={`Audience segment ${index + 1} — e.g., "Small business owners aged 30-50"`}
+                placeholder={t("segmentPlaceholder", { n: index + 1 })}
                 className="input-field flex-1"
               />
               {data.audienceSegments.length > 1 && (
@@ -106,14 +103,14 @@ export default function StepAudience({ data, updateData }: Props) {
         </div>
         <button onClick={addSegment} className="btn-ghost mt-2 text-sm">
           <Plus className="w-3.5 h-3.5" />
-          Add segment
+          {t("addSegment")}
         </button>
       </div>
 
       {/* Pain Points */}
       <div>
         <label className="block text-sm font-medium text-surface-200 mb-3">
-          What problems do your customers face?
+          {t("painPointsLabel")}
         </label>
         <div className="space-y-2">
           {data.painPoints.map((point, index) => (
@@ -122,7 +119,7 @@ export default function StepAudience({ data, updateData }: Props) {
                 type="text"
                 value={point}
                 onChange={(e) => updatePainPoint(index, e.target.value)}
-                placeholder={`Pain point ${index + 1} — e.g., "Can't find affordable printing services"`}
+                placeholder={t("painPointPlaceholder", { n: index + 1 })}
                 className="input-field flex-1"
               />
               {data.painPoints.length > 1 && (
@@ -138,7 +135,7 @@ export default function StepAudience({ data, updateData }: Props) {
         </div>
         <button onClick={addPainPoint} className="btn-ghost mt-2 text-sm">
           <Plus className="w-3.5 h-3.5" />
-          Add pain point
+          {t("addPainPoint")}
         </button>
       </div>
     </div>

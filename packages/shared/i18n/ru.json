@@ -280,7 +280,81 @@
     "back": "Назад",
     "finish": "Завершить настройку",
     "creating": "Создаём проект…",
-    "aiSuggestion": "AI-подсказка"
+    "aiSuggestion": "AI-подсказка",
+    "company": {
+      "aiAutoFillTitle": "AI-автозаполнение",
+      "aiAutoFillBody": "Пусть AI заполнит за вас по вашему домену.",
+      "aiAutoFillBtn": "Заполнить с AI",
+      "yourProjectUrl": "Адрес вашего проекта",
+      "yourProjectUrlNote": "(Поскольку вы анализировали конкурента)",
+      "yourProjectUrlPlaceholder": "https://ваш-сайт.com",
+      "noProjectYet": "У меня ещё нет своего проекта (хочу создать сайт)",
+      "namePlaceholder": "Например, Acme Corp",
+      "industryPlaceholder": "Например: E-commerce, SaaS, локальные услуги",
+      "descriptionPlaceholder": "Расскажите о бизнесе — чем занимаетесь, чем выделяетесь, что предлагаете…",
+      "geographyPlaceholder": "Например: Россия, Москва, Глобально",
+      "aiTipLabel": "AI-подсказка:",
+      "aiTipBody": "Чем больше деталей, тем точнее AI сгенерирует ключи и контент для вашего бизнеса."
+    },
+    "products": {
+      "intro": "Перечислите основные продукты или услуги. Это поможет AI подобрать релевантные ключи.",
+      "header": "Продукт / услуга #{n}",
+      "namePlaceholder": "Название продукта или услуги",
+      "descriptionPlaceholder": "Краткое описание — что это и для кого?",
+      "priceRangePlaceholder": "Ценовой диапазон (опционально) — например: 5000–20000 ₽, Премиум, Бюджет",
+      "add": "Добавить продукт / услугу"
+    },
+    "audience": {
+      "aiBannerTitle": "AI может помочь",
+      "aiBannerBody": "На основе описания бизнеса AI предложит сегменты аудитории и боли клиентов.",
+      "aiBannerBtn": "Подсказать с AI",
+      "segmentsLabel": "Кто ваши клиенты?",
+      "segmentPlaceholder": "Сегмент аудитории {n} — например, «Владельцы малого бизнеса 30–50 лет»",
+      "addSegment": "Добавить сегмент",
+      "painPointsLabel": "Какие проблемы испытывают ваши клиенты?",
+      "painPointPlaceholder": "Боль {n} — например, «Не могут найти доступную типографию»",
+      "addPainPoint": "Добавить боль"
+    },
+    "dataSources": {
+      "ownDomainLabel": "Мой домен",
+      "ownDomainHint": "У меня есть сайт, проанализируйте его.",
+      "competitorDomainLabel": "Домен конкурента",
+      "competitorDomainHint": "Проанализировать сайт конкурента вместо своего.",
+      "urlLabelOwn": "Адрес вашего сайта",
+      "urlLabelCompetitor": "Адрес сайта конкурента",
+      "urlHintOwn": "Введите адрес сайта — мы проанализируем структуру, sitemap и автоматически заполним данные о компании.",
+      "urlHintCompetitor": "Введите адрес сайта конкурента — мы извлечём sitemap и структуру ключей.",
+      "urlPlaceholder": "ваш-сайт.com",
+      "verify": "Проверить URL",
+      "verifying": "Проверка…",
+      "verified": "Проверено",
+      "verifiedSuccessLabel": "URL проверен.",
+      "verifiedSuccessBody": "Мы разберём sitemap на следующих шагах.",
+      "verifyError": "Не удалось проанализировать сайт. Проверьте URL и попробуйте снова.",
+      "socialLabel": "Соцсети",
+      "socialComingSoon": "Скоро",
+      "socialConnect": "Подключите, чтобы парсить данные из {network}"
+    },
+    "competitors": {
+      "intro": "Добавьте сайты конкурентов. Мы проанализируем их структуру, ключи и контент-стратегию, чтобы найти возможности для роста.",
+      "header": "Конкурент #{n}",
+      "urlPlaceholder": "https://competitor.com",
+      "namePlaceholder": "Название конкурента",
+      "notesPlaceholder": "Заметки — что они делают хорошо? Где слабые места?",
+      "add": "Добавить конкурента"
+    },
+    "structure": {
+      "aiTitle": "AI-генерация структуры",
+      "aiBody": "Мы разберём ваш сайт ({url}) и сайты конкурентов, чтобы предложить оптимальную URL-структуру и типы страниц.",
+      "urlPlaceholder": "не указан",
+      "analysisModelLabel": "Модель для анализа",
+      "generate": "Сгенерировать структуру",
+      "analyzing": "Анализируем sitemap…",
+      "needUrl": "Укажите URL сайта на Шаге 1.",
+      "genericError": "Не удалось сгенерировать структуру.",
+      "proposedTitle": "Предложенная структура",
+      "sectionsCount": "{n, plural, one {# раздел верхнего уровня} few {# раздела верхнего уровня} many {# разделов верхнего уровня} other {# раздела верхнего уровня}}"
+    }
   },
   "semanticCore": {
     "title": "Семантическое ядро",
