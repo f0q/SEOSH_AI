@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Star, ChevronDown, ChevronRight, Loader2, Pencil, Check, X, Upload, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { trpc } from "@/trpc/client";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords, setPendingKeywords }: Props) {
+  const t = useTranslations("semanticCore.keywords");
   const [status, setStatus] = useState<"idle" | "grouping" | "done">("idle");
   const [showInput, setShowInput] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -38,9 +40,9 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
       await refetchGroups();
       setStatus("done");
       setShowInput(false);
-      setPendingKeywords(""); // Clear text for next append
+      setPendingKeywords("");
       if (res.addedQueries !== undefined) {
-        setSuccessMessage(`Successfully added ${res.addedQueries} new keywords (${queries.length - res.addedQueries} duplicates skipped).`);
+        setSuccessMessage(t("appendSuccess", { added: res.addedQueries, skipped: queries.length - res.addedQueries }));
         setTimeout(() => setSuccessMessage(null), 5000);
       }
     } catch (e) {
@@ -87,16 +89,16 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-surface-100 mb-1">Keyword Grouping</h2>
+        <h2 className="text-lg font-semibold text-surface-100 mb-1">{t("title")}</h2>
         <p className="text-sm text-surface-400">
-          Paste your keywords (one per line) and we&apos;ll cluster them with N-gram lexical analysis.
+          {t("subtitle")}
         </p>
         <div className="flex items-center gap-2 mt-2">
           <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-2.5 py-1">
-            <span>⚡</span> Script only — zero AI tokens
+            {t("scriptOnlyBadge")}
           </span>
           <span className="text-xs text-surface-500">
-            Groups are built locally, so only representative queries (1 per group) are sent to the AI — cutting cost by up to 90%.
+            {t("scriptOnlyHint")}
           </span>
         </div>
       </div>
@@ -123,7 +125,7 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
             <textarea
               value={pendingKeywords}
               onChange={(e) => setPendingKeywords(e.target.value)}
-              placeholder={hasGroups ? "Paste new keywords here to append to your existing semantic core..." : "buy sneakers\nbuy nike sneakers\nrunning shoes\nbest running shoes 2024\n..."}
+              placeholder={hasGroups ? t("appendPlaceholder") : t("newPlaceholder")}
               className="input-field min-h-[220px] font-mono text-sm resize-y"
               rows={10}
             />
@@ -134,10 +136,10 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
                 onClick={() => fileRef.current?.click()}
                 className="btn-ghost gap-2 text-sm"
               >
-                <Upload className="w-4 h-4" /> Import CSV/TXT
+                <Upload className="w-4 h-4" /> {t("import")}
               </button>
               <input ref={fileRef} type="file" accept=".txt,.csv" className="hidden" onChange={handleFile} />
-              <span className="text-xs text-surface-500">{kwCount} keywords</span>
+              <span className="text-xs text-surface-500">{t("kwCount", { n: kwCount })}</span>
             </div>
             <button
               onClick={handleGroup}
@@ -145,8 +147,8 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
               className="btn-primary gap-2 bg-amber-500 hover:bg-amber-400 text-amber-950 border-none disabled:opacity-50"
             >
               {status === "grouping" ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Grouping...</>
-              ) : hasGroups ? "Append Keywords" : "Group Keywords"}
+                <><Loader2 className="w-4 h-4 animate-spin" /> {t("grouping")}</>
+              ) : hasGroups ? t("appendBtn") : t("groupBtn")}
             </button>
           </div>
         </div>
@@ -158,9 +160,9 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
           {/* Stats */}
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-base font-semibold text-surface-100">Lexical Grouping</h3>
+              <h3 className="text-base font-semibold text-surface-100">{t("statsTitle")}</h3>
               <p className="text-xs text-cyan-400 mt-0.5">
-                {groupsData.totalQueries} queries → {groupsData.totalGroups} groups → {groupsData.totalGroups} representative
+                {t("statsSummary", { queries: groupsData.totalQueries, groups: groupsData.totalGroups })}
               </p>
             </div>
             <button
@@ -168,20 +170,20 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
               className="btn-secondary text-xs gap-1.5"
             >
               {showInput ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-              {showInput ? "Cancel" : "Append Keywords"}
+              {showInput ? t("cancel") : t("appendBtn")}
             </button>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Total queries", value: groupsData.totalQueries, color: "text-brand-400", hint: "Keywords you uploaded" },
-              { label: "Lexical groups", value: groupsData.totalGroups, color: "text-emerald-400", hint: "Clusters built by script" },
-              { label: "AI compression", value: `${groupsData.compressionPct}%`, color: "text-amber-400", hint: "Tokens saved vs sending all keywords" },
+              { labelKey: "queriesLabel", hintKey: "queriesHint", value: groupsData.totalQueries, color: "text-brand-400" },
+              { labelKey: "groupsLabel", hintKey: "groupsHint", value: groupsData.totalGroups, color: "text-emerald-400" },
+              { labelKey: "compressionLabel", hintKey: "compressionHint", value: `${groupsData.compressionPct}%`, color: "text-amber-400" },
             ].map((s) => (
-              <div key={s.label} className="rounded-xl bg-surface-800/30 border border-surface-700/20 p-4" title={s.hint}>
+              <div key={s.labelKey} className="rounded-xl bg-surface-800/30 border border-surface-700/20 p-4" title={t(`stat.${s.hintKey}` as "stat.queriesHint")}>
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-surface-500 mt-1">{s.label}</p>
-                <p className="text-[10px] text-surface-700 mt-0.5 leading-tight">{s.hint}</p>
+                <p className="text-xs text-surface-500 mt-1">{t(`stat.${s.labelKey}` as "stat.queriesLabel")}</p>
+                <p className="text-[10px] text-surface-700 mt-0.5 leading-tight">{t(`stat.${s.hintKey}` as "stat.queriesHint")}</p>
               </div>
             ))}
           </div>
@@ -247,7 +249,7 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
                       className="flex items-center gap-1.5 flex-shrink-0 ml-auto"
                     >
                       <span className="text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-2.5 py-0.5">
-                        {g.count} req.
+                        {g.count} {t("reqShort")}
                       </span>
                       {g.usedCount > 0 && (
                         <span className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${
@@ -255,7 +257,7 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
                             ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
                             : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
                         }`}>
-                          {g.usedCount}/{g.count} used
+                          {t("usedCount", { used: g.usedCount, total: g.count })}
                         </span>
                       )}
                       {isExpanded ? (
@@ -279,7 +281,7 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
                             <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ml-4 ${
                               qUsage === 0 ? 'bg-surface-600' : qUsage === 1 ? 'bg-emerald-500' : 'bg-amber-500'
                             }`} />
-                            
+
                             {isQueryEditing ? (
                               <div className="flex-1 flex items-center gap-2">
                                 <input
@@ -295,13 +297,13 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
                                     if (e.key === "Escape") setEditingQuery(null);
                                   }}
                                 />
-                                <button 
+                                <button
                                   onClick={() => {
                                     if (editingQuery!.text.trim()) {
                                       updateQueryMut.mutate({ queryId: qId, text: editingQuery!.text.trim() });
                                       setEditingQuery(null);
                                     }
-                                  }} 
+                                  }}
                                   className="text-emerald-400 hover:text-emerald-300"
                                 >
                                   <Check className="w-3.5 h-3.5" />
@@ -312,13 +314,13 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
                               </div>
                             ) : (
                               <>
-                                <span 
+                                <span
                                   className={`flex-1 ${qUsage > 0 ? 'text-surface-500' : 'text-surface-300'}`}
                                   onDoubleClick={() => qId && setEditingQuery({ id: qId, text: qText })}
                                 >
                                   {qText}
                                 </span>
-                                
+
                                 {qUsage > 0 && (
                                   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                                     qUsage === 1 ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'
@@ -330,18 +332,18 @@ export function StepKeywords({ semanticCoreId, onRequireSession, pendingKeywords
                                     <button
                                       onClick={() => setEditingQuery({ id: qId, text: qText })}
                                       className="p-1 rounded text-surface-600 hover:text-surface-300 hover:bg-surface-800"
-                                      title="Edit keyword"
+                                      title={t("editKw")}
                                     >
                                       <Pencil className="w-3 h-3" />
                                     </button>
                                     <button
                                       onClick={() => {
-                                        if (confirm(`Delete "${qText}"?`)) {
+                                        if (confirm(t("deleteKwConfirm", { q: qText }))) {
                                           deleteQueryMut.mutate({ queryId: qId });
                                         }
                                       }}
                                       className="p-1 rounded text-surface-600 hover:text-red-400 hover:bg-red-500/10"
-                                      title="Delete keyword"
+                                      title={t("deleteKw")}
                                     >
                                       <X className="w-3 h-3" />
                                     </button>

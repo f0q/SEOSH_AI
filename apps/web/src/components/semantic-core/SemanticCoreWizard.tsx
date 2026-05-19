@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Brain, Globe, Upload, Tags, BarChart3,
   LayoutList, Loader2, CheckCircle2, X, Plus, Wand2, ChevronDown,
@@ -23,9 +24,9 @@ import { useProject } from "@/lib/project-context";
 // ─── Step config ─────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { id: 1, title: "Keywords",   icon: Upload,    description: "Upload & cluster keywords" },
-  { id: 2, title: "Categories", icon: Tags,      description: "AI generates, you approve" },
-  { id: 3, title: "Results",    icon: BarChart3, description: "Keyword → Category mapping" },
+  { id: 1, key: "keywords" as const,   icon: Upload },
+  { id: 2, key: "categories" as const, icon: Tags },
+  { id: 3, key: "results" as const,    icon: BarChart3 },
 ];
 
 // ─── Completion heuristics (for progress dots) ────────────────────────────────
@@ -38,6 +39,7 @@ function stepDone(step: number, semanticCoreId: string | null, groupsDone: boole
 // ─── Main wizard ─────────────────────────────────────────────────────────────
 
 export default function SemanticCoreWizard({ isNew, existingCoreId }: { projectId?: string, isNew?: boolean, existingCoreId?: string }) {
+  const t = useTranslations("semanticCore.wizard");
   const { activeProject } = useProject();
   const projectId = activeProject?.id;
 
@@ -96,8 +98,8 @@ export default function SemanticCoreWizard({ isNew, existingCoreId }: { projectI
             <Brain className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-surface-50">Semantic Core</h1>
-            <p className="text-sm text-surface-400">Build your keyword structure with AI clustering</p>
+            <h1 className="text-2xl font-bold text-surface-50">{t("title")}</h1>
+            <p className="text-sm text-surface-400">{t("subtitle")}</p>
           </div>
         </div>
 
@@ -135,8 +137,8 @@ export default function SemanticCoreWizard({ isNew, existingCoreId }: { projectI
                   )}
                 </div>
                 <div className="hidden md:block min-w-0">
-                  <p className="text-sm font-medium truncate">{s.title}</p>
-                  <p className="text-xs opacity-70 truncate">{s.description}</p>
+                  <p className="text-sm font-medium truncate">{t(`steps.${s.key}.title`)}</p>
+                  <p className="text-xs opacity-70 truncate">{t(`steps.${s.key}.description`)}</p>
                 </div>
               </button>
               {i < STEPS.length - 1 && (
@@ -180,15 +182,15 @@ export default function SemanticCoreWizard({ isNew, existingCoreId }: { projectI
           disabled={step === 1}
           className={`btn-ghost gap-2 ${step === 1 ? "opacity-30 pointer-events-none" : ""}`}
         >
-          ← Back
+          ← {t("back")}
         </button>
         {step < 3 ? (
           <button onClick={() => setStep((s) => s + 1)} className="btn-primary gap-2">
-            Continue →
+            {t("continue")} →
           </button>
         ) : (
           <button onClick={() => (window.location.href = "/semantic-core")} className="btn-primary gap-2">
-            Finish & View Dashboard →
+            {t("finish")} →
           </button>
         )}
       </div>
@@ -205,6 +207,7 @@ function StepCategories({
   semanticCoreId: string | null;
   onDone: () => void;
 }) {
+  const t = useTranslations("semanticCore.categories");
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedModelId, setSelectedModelId] = useState("");
   const [compressModelId, setCompressModelId] = useState("");
@@ -290,23 +293,23 @@ function StepCategories({
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-surface-100 mb-1">AI Categories</h2>
+        <h2 className="text-lg font-semibold text-surface-100 mb-1">{t("title")}</h2>
         <p className="text-sm text-surface-400">
-          AI analyzes your keyword groups and suggests content categories. Review, edit, then approve.
+          {t("subtitle")}
         </p>
       </div>
 
       {/* Keyword groups status / no-groups warning */}
       {!semanticCoreId && (
         <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-          <p className="text-sm text-amber-300">⚠ Create a session first to begin uploading keywords.</p>
+          <p className="text-sm text-amber-300">⚠ {t("sessionFirst")}</p>
         </div>
       )}
 
       {semanticCoreId && !groupsData.isLoading && !hasKeywordGroups && !isGenerating && (
         <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
           <p className="text-sm text-amber-300">
-            ⚠ No keyword groups found. Go to <strong>Step 1 (Keywords)</strong> and upload your keywords first.
+            ⚠ {t("noGroupsYetPart1")} <strong>{t("noGroupsYetStep")}</strong> {t("noGroupsYetPart2")}
           </p>
         </div>
       )}
@@ -319,11 +322,13 @@ function StepCategories({
           </div>
           <div>
             <p className="text-xs font-medium text-surface-200">
-              {groupsData.data?.totalGroups} groups · {groupsData.data?.totalQueries} keywords ready
+              {t("groupsReady", {
+                groups: groupsData.data?.totalGroups ?? 0,
+                queries: groupsData.data?.totalQueries ?? 0,
+              })}
             </p>
             <p className="text-xs text-surface-500 mt-0.5">
-              Groups were built using a pure N-gram script — no AI used. This compresses your keyword list
-              by ~{groupsData.data?.compressionPct}% before sending it to the AI, saving tokens and reducing cost significantly.
+              {t("groupsReadyBody", { pct: groupsData.data?.compressionPct ?? 0 })}
             </p>
           </div>
         </div>
@@ -344,7 +349,7 @@ function StepCategories({
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
           className="input-field !py-1.5 !px-3 !text-sm !w-auto border-emerald-500/20 hover:border-emerald-500/40"
-          title="Output language for category names"
+          title={t("langTitle")}
         >
           <option value="ru">🇷🇺 Русский</option>
           <option value="en">🇬🇧 English</option>
@@ -366,11 +371,11 @@ function StepCategories({
           className="gap-2 w-full sm:w-auto justify-center rounded-xl px-4 py-2 text-sm font-medium border border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/80 transition-colors flex items-center disabled:opacity-50"
         >
           {isGenerating ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+            <><Loader2 className="w-4 h-4 animate-spin" /> {t("generating")}</>
           ) : categories.length > 0 ? (
-            <><Brain className="w-4 h-4" /> Regenerate</>
+            <><Brain className="w-4 h-4" /> {t("regenerate")}</>
           ) : (
-            <><Brain className="w-4 h-4" /> Generate with AI</>
+            <><Brain className="w-4 h-4" /> {t("generate")}</>
           )}
         </button>
       </div>
@@ -388,11 +393,11 @@ function StepCategories({
         <div className="space-y-3 animate-fade-in">
           <div className="flex items-center justify-between">
             <p className="text-sm text-surface-400">
-              {categories.length} categories · edit names or delete unwanted ones
+              {t("listIntro", { n: categories.length })}
             </p>
             {approved && (
               <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                ✓ Approved
+                {t("approvedBadge")}
               </span>
             )}
           </div>
@@ -402,7 +407,7 @@ function StepCategories({
               const clr = getCatColor(cat);
               return (
                 <div key={i} className="flex items-center gap-2 group">
-                  <div 
+                  <div
                     className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ background: clr.badge.background, border: clr.badge.border }}
                   >
@@ -417,12 +422,12 @@ function StepCategories({
                       setCategories(next);
                     }}
                     className="input-field flex-1"
-                    style={{ 
+                    style={{
                       color: clr.badge.color,
                       borderColor: 'transparent',
                       backgroundColor: clr.badge.background
                     }}
-                    placeholder="Category name"
+                    placeholder={t("namePlaceholder")}
                   />
                   <button
                     onClick={() => setCategories(categories.filter((_, j) => j !== i))}
@@ -441,11 +446,11 @@ function StepCategories({
               value={newCat}
               onChange={(e) => setNewCat(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addCategory()}
-              placeholder="Add category manually..."
+              placeholder={t("addManualPlaceholder")}
               className="input-field flex-1 !text-sm"
             />
             <button onClick={addCategory} disabled={!newCat.trim()} className="btn-ghost gap-1.5 text-sm">
-              <Plus className="w-4 h-4" /> Add
+              <Plus className="w-4 h-4" /> {t("addBtn")}
             </button>
           </div>
 
@@ -453,9 +458,9 @@ function StepCategories({
           <div className="rounded-xl border border-surface-700/25 bg-surface-800/15 p-3 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-medium text-surface-300">Compress with AI</p>
+                <p className="text-xs font-medium text-surface-300">{t("compressTitle")}</p>
                 <p className="text-xs text-surface-500 mt-0.5">
-                  AI will merge similar or overlapping categories into one.
+                  {t("compressBody")}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
@@ -473,19 +478,19 @@ function StepCategories({
                   className="gap-2 text-sm flex-shrink-0 rounded-xl px-4 py-2 font-medium border border-emerald-500/50 text-emerald-400 bg-transparent hover:bg-emerald-500/10 transition-colors flex items-center disabled:opacity-50"
                 >
                   {isCompressing ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Merging...</>
+                    <><Loader2 className="w-4 h-4 animate-spin" /> {t("compressing")}</>
                   ) : (
-                    <><Wand2 className="w-4 h-4" /> Compress</>
+                    <><Wand2 className="w-4 h-4" /> {t("compress")}</>
                   )}
                 </button>
               </div>
             </div>
             {lastCompressed && (
               <div className="flex items-center gap-2 text-xs animate-fade-in">
-                <span className="text-surface-500 line-through">{lastCompressed.before} categories</span>
+                <span className="text-surface-500 line-through">{t("compressedBefore", { n: lastCompressed.before })}</span>
                 <span className="text-surface-600">→</span>
-                <span className="text-emerald-400 font-medium">{lastCompressed.after} categories</span>
-                <span className="text-surface-600">· {lastCompressed.before - lastCompressed.after} merged</span>
+                <span className="text-emerald-400 font-medium">{t("compressedAfter", { n: lastCompressed.after })}</span>
+                <span className="text-surface-600">{t("compressedMerged", { n: lastCompressed.before - lastCompressed.after })}</span>
               </div>
             )}
           </div>
@@ -493,7 +498,7 @@ function StepCategories({
           {/* Approve */}
           <div className="flex items-center justify-between pt-2 border-t border-surface-700/20">
             <p className="text-xs text-surface-500">
-              Approving locks the categories and enables categorization in Step 3.
+              {t("approveBody")}
             </p>
             <button
               onClick={handleApprove}
@@ -501,11 +506,11 @@ function StepCategories({
               className="btn-primary gap-2"
             >
               {isApproving ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Approving...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> {t("approving")}</>
               ) : approved ? (
-                "✓ Re-approve"
+                t("reapprove")
               ) : (
-                "Approve Categories →"
+                t("approve")
               )}
             </button>
           </div>
@@ -521,6 +526,7 @@ function StepCategories({
 const BATCH_SIZE = 10; // groups per AI request
 
 function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | null; projectId: string | undefined }) {
+  const t = useTranslations("semanticCore.results");
   const router = useRouter();
   const [genStatus, setGenStatus] = useState<"idle" | "generating" | "done">("idle");
   const [genResult, setGenResult] = useState<{ created: number; categories: string[] } | null>(null);
@@ -570,9 +576,9 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
       if (res.moved > 0) {
         catData.refetch();
         refetch();
-        alert(`Refined: moved ${res.moved} outliers to Uncategorized.`);
+        alert(t("refineMoved", { n: res.moved }));
       } else {
-        alert("Category looks good! No outliers found.");
+        alert(t("refineGood"));
       }
     },
     onError: (e) => setCatError(e.message),
@@ -651,8 +657,8 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-surface-100 mb-1">Results</h2>
-          <p className="text-sm text-surface-400">Keyword → Category assignment</p>
+          <h2 className="text-lg font-semibold text-surface-100 mb-1">{t("title")}</h2>
+          <p className="text-sm text-surface-400">{t("subtitle")}</p>
         </div>
         <button
           className="btn-secondary text-sm"
@@ -676,7 +682,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
             }
           }}
         >
-          {exportCsvMut.isPending ? 'Exporting…' : 'Export CSV'}
+          {exportCsvMut.isPending ? t("exporting") : t("exportCsv")}
         </button>
       </div>
 
@@ -687,7 +693,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
           <div className="bg-indigo-500/10 px-4 py-3 border-b border-indigo-500/20 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Wand2 className="w-4 h-4 text-indigo-400" />
-              <span className="text-sm font-medium text-indigo-300">AI Category Assistant</span>
+              <span className="text-sm font-medium text-indigo-300">{t("aiAssistant")}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
               <select value={catLanguage} onChange={(e) => setCatLanguage(e.target.value)} className="input-field !py-1.5 !px-3 !text-sm !w-auto border-emerald-500/20 hover:border-emerald-500/40" disabled={catRunning}>
@@ -713,7 +719,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
             {/* 1. Category distribution bar — editable */}
             {catNames.length > 0 && (
               <div>
-                <p className="text-xs text-surface-500 uppercase tracking-wide mb-3">Filter & Refine Categories</p>
+                <p className="text-xs text-surface-500 uppercase tracking-wide mb-3">{t("filterTitle")}</p>
                 <div className="flex flex-wrap gap-2">
                   {cats.map((cat) => {
                     const count = summary[cat.name] ?? 0;
@@ -760,26 +766,26 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                         <button
                           onClick={() => setEditingCat({ id: cat.id, name: cat.name })}
                           className="opacity-40 hover:opacity-100 transition-colors ml-1 p-1 -my-0.5 rounded hover:bg-surface-700/50"
-                          title="Rename"
+                          title={t("renameTitle")}
                         >
                           <Pencil className="w-3 h-3" />
                         </button>
                         <button
-                          onClick={() => { if (confirm(`Delete "${cat.name}"? ${count} keywords will become uncategorized.`)) deleteCatMut.mutate({ categoryId: cat.id }); }}
+                          onClick={() => { if (confirm(t("deleteCatConfirm", { name: cat.name, count }))) deleteCatMut.mutate({ categoryId: cat.id }); }}
                           className="opacity-40 hover:opacity-100 transition-colors text-red-400 p-1 -my-0.5 rounded hover:bg-red-500/20"
-                          title="Delete category"
+                          title={t("deleteCatTitle")}
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`Ask AI to refine "${cat.name}"? This will move outliers to Uncategorized.`)) {
+                            if (confirm(t("refineConfirm", { name: cat.name }))) {
                               refineCatMut.mutate({ semanticCoreId: semanticCoreId || "", categoryName: cat.name, modelId: catModelId || undefined, language: catLanguage });
                             }
                           }}
                           disabled={refineCatMut.isPending}
                           className="opacity-60 hover:opacity-100 transition-colors text-emerald-500 hover:bg-emerald-500/20 p-1 -my-0.5 rounded-md disabled:opacity-30 disabled:animate-pulse"
-                          title="Refine with AI (removes outliers)"
+                          title={t("refineTitle")}
                         >
                           <Wand2 className="w-3.5 h-3.5" />
                         </button>
@@ -788,7 +794,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                   })}
                   {summary["Uncategorized"] > 0 && (
                     <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-surface-700/30 bg-surface-800/30">
-                      <span className="text-xs text-surface-500">Uncategorized</span>
+                      <span className="text-xs text-surface-500">{t("uncategorized")}</span>
                       <span className="text-xs text-surface-600">{summary["Uncategorized"]}</span>
                     </div>
                   )}
@@ -800,19 +806,19 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
             <div className={`space-y-3 ${catNames.length > 0 ? "pt-4 border-t border-surface-700/30" : ""}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-surface-200">Assign Uncategorized Keywords</p>
+                  <p className="text-sm font-medium text-surface-200">{t("assignTitle")}</p>
                   <p className="text-xs text-surface-500 mt-0.5">
-                    Processes in batches of {BATCH_SIZE} groups using the selected model. You can stop at any time.
+                    {t("assignBody", { n: BATCH_SIZE })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {catRunning ? (
                     <button onClick={handleCancel} className="btn-ghost gap-2 text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10">
-                      <X className="w-4 h-4" /> Stop
+                      <X className="w-4 h-4" /> {t("stop")}
                     </button>
                   ) : (
                     <button onClick={handleCategorizeAll} disabled={!semanticCoreId} className="gap-2 text-sm rounded-xl px-4 py-2 font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors flex items-center disabled:opacity-50">
-                      <Brain className="w-4 h-4" /> Categorize All
+                      <Brain className="w-4 h-4" /> {t("categorizeAll")}
                     </button>
                   )}
                 </div>
@@ -823,7 +829,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 <div className="space-y-1.5 animate-fade-in">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-surface-400">
-                      {catRunning ? "Processing..." : "Done"} — {catProgress.done} / {catProgress.total} groups
+                      {catRunning ? t("processing") : t("done")} — {t("groupsProgress", { done: catProgress.done, total: catProgress.total })}
                     </span>
                     <span className="text-surface-500">{Math.round((catProgress.done / catProgress.total) * 100)}%</span>
                   </div>
@@ -852,12 +858,12 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-emerald-300">Created {genResult.created} content plan rows</p>
+                  <p className="text-sm font-medium text-emerald-300">{t("genPlanCreated", { n: genResult.created })}</p>
                   <p className="text-xs text-surface-500 mt-0.5">{genResult.categories.join(", ")}</p>
                 </div>
               </div>
               <button onClick={() => router.push("/autopilot/content-planner")} className="btn-primary gap-2 text-sm">
-                <LayoutList className="w-4 h-4" /> Open Content Planner
+                <LayoutList className="w-4 h-4" /> {t("openPlanner")}
               </button>
             </div>
           ) : (
@@ -865,8 +871,8 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
               <div className="flex items-center gap-3">
                 <LayoutList className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-surface-200">Generate Content Plan</p>
-                  <p className="text-xs text-surface-500 mt-0.5">Create rows from categories with page type, schema, and word count.</p>
+                  <p className="text-sm font-medium text-surface-200">{t("genPlanTitle")}</p>
+                  <p className="text-xs text-surface-500 mt-0.5">{t("genPlanBody")}</p>
                 </div>
               </div>
               <button
@@ -874,7 +880,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 disabled={genStatus === "generating"}
                 className="btn-primary gap-2 text-sm flex-shrink-0"
               >
-                {genStatus === "generating" ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><LayoutList className="w-4 h-4" /> Generate Plan</>}
+                {genStatus === "generating" ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("generating")}</> : <><LayoutList className="w-4 h-4" /> {t("genPlan")}</>}
               </button>
             </div>
           )}
@@ -884,7 +890,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
 
       {!projectId && totalResults > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <p className="text-sm text-amber-300">⚠ Select a project from the sidebar to enable content plan generation.</p>
+          <p className="text-sm text-amber-300">⚠ {t("selectProjectWarn")}</p>
         </div>
       )}
 
@@ -894,14 +900,14 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
           <thead>
             <tr className="border-b border-surface-700/30 bg-surface-800/20">
               <th className="text-left px-4 py-3 text-surface-400 font-medium w-8">#</th>
-              <th className="text-left px-4 py-3 text-surface-400 font-medium">Keyword</th>
-              <th className="text-left px-4 py-3 text-surface-400 font-medium w-44">Category</th>
-              <th className="text-left px-4 py-3 text-surface-400 font-medium w-40">Group</th>
+              <th className="text-left px-4 py-3 text-surface-400 font-medium">{t("tableKeyword")}</th>
+              <th className="text-left px-4 py-3 text-surface-400 font-medium w-44">{t("tableCategory")}</th>
+              <th className="text-left px-4 py-3 text-surface-400 font-medium w-40">{t("tableGroup")}</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-surface-500">Loading...</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-surface-500">{t("tableLoading")}</td></tr>
             ) : data?.results && data.results.length > 0 ? (
               data.results.map((r: any, i: number) => (
                 <ResultRow
@@ -915,7 +921,7 @@ function StepResults({ semanticCoreId, projectId }: { semanticCoreId: string | n
                 />
               ))
             ) : (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-surface-500">No results yet — complete Steps 1 & 2 first.</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-surface-500">{t("tableEmpty")}</td></tr>
             )}
           </tbody>
         </table>
@@ -932,9 +938,11 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
   catNames: string[];
   onCategoryChange: (queryId: string, catName: string | null, applyToGroup: boolean) => void;
 }) {
+  const t = useTranslations("semanticCore.results");
   const [open, setOpen] = useState(false);
   const isUncategorized = !row.category || row.category === "Uncategorized";
   const clr = isUncategorized ? null : getCatColor(row.category);
+  const uncategorizedLabel = t("uncategorized");
 
   return (
     <tr className="border-b border-surface-700/20 hover:bg-surface-800/20 transition-colors">
@@ -958,17 +966,17 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
             background: "hsl(0 0% 15% / 0.4)",
             border: "1px solid hsl(0 0% 30% / 0.3)",
           }}
-          title={row.category || "Uncategorized"}
+          title={isUncategorized ? uncategorizedLabel : row.category}
         >
           {!isUncategorized && (
             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: clr!.dot }} />
           )}
-          <span className="truncate">{row.category || "Uncategorized"}</span>
+          <span className="truncate">{isUncategorized ? uncategorizedLabel : row.category}</span>
           <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0" />
         </button>
         {open && (
           <div className="absolute left-0 top-full mt-1 z-50 bg-surface-900 border border-surface-700/50 rounded-xl shadow-2xl min-w-52 max-h-60 overflow-y-auto py-1 animate-fade-in">
-            <p className="text-[10px] text-surface-600 px-3 py-1 uppercase tracking-wide">Assign to category</p>
+            <p className="text-[10px] text-surface-600 px-3 py-1 uppercase tracking-wide">{t("assignToCategory")}</p>
             {catNames.map((name) => {
               const itemClr = getCatColor(name);
               const isActive = name === row.category;
@@ -990,10 +998,10 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
                   </button>
                   <button
                     onClick={() => { onCategoryChange(row.id, name, true); setOpen(false); }}
-                    title="Apply to entire group"
+                    title={t("allGroup")}
                     className="text-[10px] text-surface-600 hover:text-surface-400 px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
                   >
-                    all group
+                    {t("allGroup")}
                   </button>
                 </div>
               );
@@ -1005,7 +1013,7 @@ function ResultRow({ index, row, catNames, onCategoryChange }: {
                   onClick={() => { onCategoryChange(row.id, null, false); setOpen(false); }}
                   className="w-full text-left text-xs px-3 py-1.5 text-surface-500 hover:text-red-400 hover:bg-surface-800 transition-colors"
                 >
-                  Remove category
+                  {t("removeCategory")}
                 </button>
               </>
             )}

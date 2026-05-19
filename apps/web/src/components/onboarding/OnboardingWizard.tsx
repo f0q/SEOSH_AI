@@ -188,50 +188,53 @@ export default function OnboardingWizard() {
         </p>
       </div>
 
-      {/* Step Indicators */}
-      <div className="flex items-center justify-center gap-1 mb-10">
-        {STEPS.map((step, index) => {
-          const isCompleted = currentStep > step.id;
-          const isCurrent = currentStep === step.id;
-          return (
-            <div key={step.id} className="flex items-center">
-              <button
-                onClick={() => setCurrentStep(step.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer ${
-                  isCurrent
-                    ? "bg-brand-500/15 border border-brand-500/30 text-brand-400"
-                    : isCompleted
-                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/15"
-                    : "bg-surface-800/30 border border-surface-700/30 text-surface-400 hover:bg-surface-800/50 hover:text-surface-200"
-                }`}
-              >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                    isCompleted
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : isCurrent
-                      ? "bg-brand-500/20 text-brand-400"
-                      : "bg-surface-700/50 text-surface-500"
+      {/* Step Indicators — compact on narrow viewports, full labels on lg+,
+          horizontal scroll as final fallback so nothing clips. */}
+      <div className="mb-10 -mx-2 px-2 overflow-x-auto">
+        <div className="flex items-center justify-center gap-0.5 min-w-min">
+          {STEPS.map((step, index) => {
+            const isCompleted = currentStep > step.id;
+            const isCurrent = currentStep === step.id;
+            return (
+              <div key={step.id} className="flex items-center flex-shrink-0">
+                <button
+                  onClick={() => setCurrentStep(step.id)}
+                  className={`flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer ${
+                    isCurrent
+                      ? "bg-brand-500/15 border border-brand-500/30 text-brand-400"
+                      : isCompleted
+                      ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/15"
+                      : "bg-surface-800/30 border border-surface-700/30 text-surface-400 hover:bg-surface-800/50 hover:text-surface-200"
                   }`}
                 >
-                  {isCompleted ? (
-                    <Check className="w-3.5 h-3.5" />
-                  ) : (
-                    step.id
-                  )}
-                </div>
-                <span className="text-sm font-medium hidden sm:inline">{t(`stepShort.${step.key}`)}</span>
-              </button>
-              {index < STEPS.length - 1 && (
-                <div
-                  className={`w-8 h-0.5 mx-1 rounded transition-colors ${
-                    isCompleted ? "bg-emerald-500/40" : "bg-surface-700/30"
-                  }`}
-                />
-              )}
-            </div>
-          );
-        })}
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                      isCompleted
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : isCurrent
+                        ? "bg-brand-500/20 text-brand-400"
+                        : "bg-surface-700/50 text-surface-500"
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      step.id
+                    )}
+                  </div>
+                  <span className="text-sm font-medium hidden lg:inline">{t(`stepShort.${step.key}`)}</span>
+                </button>
+                {index < STEPS.length - 1 && (
+                  <div
+                    className={`w-3 lg:w-6 h-0.5 mx-0.5 rounded transition-colors ${
+                      isCompleted ? "bg-emerald-500/40" : "bg-surface-700/30"
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Step Content */}
