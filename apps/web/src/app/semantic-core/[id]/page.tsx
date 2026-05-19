@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
-import { ChevronLeft, Download, Brain, Globe, Search, Loader2, RefreshCw, Tag, Layers, BarChart3, FileText, CheckCircle2, Pencil } from "lucide-react";
+import { ChevronLeft, Download, Brain, Globe, Search, Loader2, RefreshCw, Tag, Layers, BarChart3, FileText, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { getCatColor } from "@/lib/categoryColors";
 
@@ -19,6 +19,12 @@ export default function SemanticCoreDetail({ params }: PageProps) {
   const { data, isLoading, refetch } = trpc.semanticCore.getResults.useQuery({ semanticCoreId: id });
   const { data: stats, refetch: refetchStats } = trpc.semanticCore.getCoreStats.useQuery({ semanticCoreId: id });
   const syncMut = trpc.semanticCore.syncKeywordUsage.useMutation({
+    onSuccess: () => {
+      refetch();
+      refetchStats();
+    },
+  });
+  const deleteQueryMut = trpc.semanticCore.deleteQuery.useMutation({
     onSuccess: () => {
       refetch();
       refetchStats();
@@ -207,6 +213,7 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                       <th className="p-3 font-medium text-surface-400">Keyword</th>
                       <th className="p-3 font-medium text-surface-400">Category</th>
                       <th className="p-3 font-medium text-surface-400 w-20 text-center">Usage</th>
+                      <th className="p-3 w-10"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-800/30">
@@ -243,6 +250,20 @@ export default function SemanticCoreDetail({ params }: PageProps) {
                               row.usageCount === 1 ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
                             }`}>×{row.usageCount}</span>
                           )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => {
+                              if (confirm(`Удалить ключ "${row.query}"?`)) {
+                                deleteQueryMut.mutate({ queryId: row.id });
+                              }
+                            }}
+                            disabled={deleteQueryMut.isPending}
+                            className="opacity-40 hover:opacity-100 text-red-400 hover:bg-red-500/10 p-1.5 rounded transition disabled:opacity-20"
+                            title="Удалить ключ"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </td>
                       </tr>
                       );
