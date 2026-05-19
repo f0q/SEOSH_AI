@@ -9,7 +9,9 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   plugins: [
-    admin()
+    // Match our Prisma UserRole enum (USER/ADMIN/SUPERADMIN), the plugin
+    // defaults to lowercase "user"/"admin" which fails validation.
+    admin({ defaultRole: "USER", adminRoles: ["ADMIN", "SUPERADMIN"] }),
   ],
   emailAndPassword: {
     enabled: true,

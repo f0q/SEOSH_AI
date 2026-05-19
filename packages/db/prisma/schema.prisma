@@ -35,6 +35,10 @@ model User {
   role          UserRole @default(USER)
   locale        String   @default("en") // "en" | "ru"
   isDemo        Boolean  @default(false) // true → read-only access, all mutations blocked
+  // Fields required by better-auth admin plugin
+  banned        Boolean  @default(false)
+  banReason     String?
+  banExpires    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -62,6 +66,7 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
 
   @@map("sessions")
 }
