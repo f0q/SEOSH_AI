@@ -2,18 +2,24 @@
 
 import { useState } from "react";
 import { Loader2, Mail, Building2, Calendar, Trash2 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { trpc } from "@/trpc/client";
 
 type Status = "NEW" | "CONTACTED" | "ONBOARDED" | "REJECTED";
 
-const STATUS_LABELS: Record<Status, { label: string; color: string }> = {
-  NEW:        { label: "Новые",       color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  CONTACTED:  { label: "В работе",    color: "text-brand-400 bg-brand-500/10 border-brand-500/20" },
-  ONBOARDED:  { label: "Подключены",  color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  REJECTED:   { label: "Отклонены",   color: "text-surface-500 bg-surface-700/30 border-surface-600/30" },
+const STATUS_COLORS: Record<Status, string> = {
+  NEW:        "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  CONTACTED:  "text-brand-400 bg-brand-500/10 border-brand-500/20",
+  ONBOARDED:  "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  REJECTED:   "text-surface-500 bg-surface-700/30 border-surface-600/30",
 };
 
 export default function WaitlistSection() {
+  const t = useTranslations("admin.waitlist");
+  const tCommon = useTranslations("admin.common");
+  const locale = useLocale();
+  const dateLocale = locale === "ru" ? "ru-RU" : "en-US";
+
   const [filter, setFilter] = useState<Status | "ALL">("ALL");
   const listQ = trpc.waitlist.list.useQuery({
     limit: 200,
@@ -27,7 +33,7 @@ export default function WaitlistSection() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2">
           <Mail className="w-4 h-4 text-brand-400" />
-          Waitlist ({listQ.data?.length ?? 0})
+          {t("heading", { n: listQ.data?.length ?? 0 })}
         </h2>
         <div className="flex gap-1">
           {(["ALL", "NEW", "CONTACTED", "ONBOARDED", "REJECTED"] as const).map((s) => (
@@ -40,7 +46,7 @@ export default function WaitlistSection() {
                   : "bg-surface-800/50 text-surface-400 hover:bg-surface-700"
               }`}
             >
-              {s === "ALL" ? "Все" : STATUS_LABELS[s].label}
+              {t(`filters.${s}`)}
             </button>
           ))}
         </div>
@@ -49,17 +55,17 @@ export default function WaitlistSection() {
       <div className="glass-card overflow-hidden">
         {listQ.isLoading && (
           <div className="p-8 text-center text-surface-400 flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> Загрузка…
+            <Loader2 className="w-4 h-4 animate-spin" /> {tCommon("loading")}
           </div>
         )}
         {!listQ.isLoading && (listQ.data ?? []).length === 0 && (
           <p className="p-8 text-center text-surface-500 text-sm">
-            Пока никто не записался.
+            {t("empty")}
           </p>
         )}
         <div className="divide-y divide-surface-800/40">
           {listQ.data?.map((row) => {
-            const meta = STATUS_LABELS[row.status as Status];
+            const statusKey = row.status as Status;
             return (
               <div key={row.id} className="p-4 hover:bg-surface-800/20 transition">
                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -68,14 +74,14 @@ export default function WaitlistSection() {
                       <a href={`mailto:${row.email}`} className="text-sm font-medium text-surface-100 hover:text-brand-400 truncate">
                         {row.email}
                       </a>
-                      <span className={`text-[10px] uppercase font-medium px-2 py-0.5 rounded border ${meta.color}`}>
-                        {meta.label}
+                      <span className={`text-[10px] uppercase font-medium px-2 py-0.5 rounded border ${STATUS_COLORS[statusKey]}`}>
+                        {t(`filters.${statusKey}`)}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-surface-500 mt-1">
                       {row.name && <span>{row.name}</span>}
                       {row.company && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{row.company}</span>}
-                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(row.createdAt).toLocaleString("ru-RU")}</span>
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(row.createdAt).toLocaleString(dateLocale)}</span>
                       {row.source && <span className="text-surface-600">{row.source}</span>}
                     </div>
                     {row.message && (
@@ -85,9 +91,9 @@ export default function WaitlistSection() {
                     )}
                   </div>
                   <button
-                    onClick={() => confirm(`Удалить запись ${row.email}?`) && removeMut.mutate({ id: row.id })}
+                    onClick={() => confirm(t("deleteConfirm", { email: row.email })) && removeMut.mutate({ id: row.id })}
                     className="text-red-400 hover:bg-red-500/10 p-1.5 rounded transition flex-shrink-0"
-                    title="Удалить"
+                    title={t("deleteTitle")}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -104,7 +110,7 @@ export default function WaitlistSection() {
                           : "bg-surface-800/50 text-surface-400 hover:bg-surface-700 hover:text-surface-200"
                       }`}
                     >
-                      → {STATUS_LABELS[s].label}
+                      → {t(`filters.${s}`)}
                     </button>
                   ))}
                 </div>

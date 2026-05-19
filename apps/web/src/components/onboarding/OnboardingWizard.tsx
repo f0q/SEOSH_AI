@@ -15,6 +15,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import StepCompany from "./StepCompany";
 import StepProducts from "./StepProducts";
 import StepAudience from "./StepAudience";
@@ -68,15 +69,16 @@ const INITIAL_DATA: OnboardingData = {
 };
 
 const STEPS = [
-  { id: 1, title: "Data", icon: Globe, description: "Data Sources" },
-  { id: 2, title: "Company", icon: Building2, description: "About Your Company" },
-  { id: 3, title: "Products", icon: Package, description: "Products & Services" },
-  { id: 4, title: "Audience", icon: Users, description: "Target Audience" },
-  { id: 5, title: "Competitors", icon: Swords, description: "Competitors" },
-  { id: 6, title: "Structure", icon: Layers, description: "Site Structure" },
+  { id: 1, key: "dataSources" as const, icon: Globe },
+  { id: 2, key: "company" as const, icon: Building2 },
+  { id: 3, key: "products" as const, icon: Package },
+  { id: 4, key: "audience" as const, icon: Users },
+  { id: 5, key: "competitors" as const, icon: Swords },
+  { id: 6, key: "structure" as const, icon: Layers },
 ];
 
 export default function OnboardingWizard() {
+  const t = useTranslations("onboarding");
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<OnboardingData>(INITIAL_DATA);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,11 +180,11 @@ export default function OnboardingWizard() {
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-surface-50">
-            Let&apos;s set up your project
+            {t("title")}
           </h1>
         </div>
         <p className="text-surface-400">
-          Tell us about your business so we can help you grow your search traffic.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -218,7 +220,7 @@ export default function OnboardingWizard() {
                     step.id
                   )}
                 </div>
-                <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
+                <span className="text-sm font-medium hidden sm:inline">{t(`stepShort.${step.key}`)}</span>
               </button>
               {index < STEPS.length - 1 && (
                 <div
@@ -245,10 +247,10 @@ export default function OnboardingWizard() {
           })()}
           <div>
             <h2 className="text-lg font-semibold text-surface-100">
-              {STEPS[currentStep - 1].description}
+              {t(`steps.${STEPS[currentStep - 1].key}`)}
             </h2>
             <p className="text-sm text-surface-500">
-              Step {currentStep} of {STEPS.length}
+              {t("stepOf", { current: currentStep, total: STEPS.length })}
             </p>
           </div>
         </div>
@@ -269,7 +271,7 @@ export default function OnboardingWizard() {
           className={`btn-ghost gap-2 ${currentStep === 1 ? "opacity-30 pointer-events-none" : ""}`}
         >
           <ArrowLeft className="w-4 h-4" />
-          Back
+          {t("back")}
         </button>
 
         {currentStep < 6 ? (
@@ -278,7 +280,7 @@ export default function OnboardingWizard() {
             disabled={!isStepValid()}
             className={`btn-primary gap-2 ${!isStepValid() ? "opacity-50 pointer-events-none" : ""}`}
           >
-            Continue
+            {t("next")}
             <ArrowRight className="w-4 h-4" />
           </button>
         ) : (
@@ -290,12 +292,12 @@ export default function OnboardingWizard() {
             {isSubmitting ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Creating project...
+                {t("creating")}
               </>
             ) : (
               <>
                 <Check className="w-4 h-4" />
-                Complete Setup
+                {t("finish")}
               </>
             )}
           </button>

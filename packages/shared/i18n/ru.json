@@ -251,14 +251,24 @@
   },
   "onboarding": {
     "title": "Настроим ваш проект",
-    "subtitle": "Расскажите о бизнесе — мы поможем его развивать",
+    "subtitle": "Расскажите о бизнесе — мы поможем растить поисковый трафик.",
     "steps": {
       "company": "О компании",
       "products": "Продукты и услуги",
       "audience": "Целевая аудитория",
       "dataSources": "Источники данных",
-      "competitors": "Конкуренты"
+      "competitors": "Конкуренты",
+      "structure": "Структура сайта"
     },
+    "stepShort": {
+      "company": "Компания",
+      "products": "Продукты",
+      "audience": "Аудитория",
+      "dataSources": "Данные",
+      "competitors": "Конкуренты",
+      "structure": "Структура"
+    },
+    "stepOf": "Шаг {current} из {total}",
     "companyName": "Название компании",
     "industry": "Индустрия",
     "description": "Описание бизнеса",
@@ -269,6 +279,7 @@
     "next": "Продолжить",
     "back": "Назад",
     "finish": "Завершить настройку",
+    "creating": "Создаём проект…",
     "aiSuggestion": "AI-подсказка"
   },
   "semanticCore": {
@@ -427,6 +438,133 @@
       "packages": "Тарифы",
       "providers": "Провайдеры",
       "company": "Реквизиты"
+    },
+    "common": {
+      "loading": "Загрузка…",
+      "save": "Сохранить",
+      "saved": "✓ Сохранено",
+      "cancel": "Отменить",
+      "delete": "Удалить"
+    },
+    "users": {
+      "heading": "Пользователи ({n})",
+      "searchPlaceholder": "Поиск по имени или email…",
+      "createTitle": "Создать пользователя",
+      "fullName": "Полное имя",
+      "email": "Email",
+      "password": "Пароль",
+      "createBtn": "Создать",
+      "createOk": "Пользователь создан!",
+      "createErr": "Ошибка: {msg}",
+      "balanceFor": "Баланс пользователя",
+      "tokens": "токенов",
+      "amount": "Сумма",
+      "reason": "Причина (опционально)",
+      "topUp": "Пополнить",
+      "deduct": "Списать",
+      "historyTitle": "История транзакций",
+      "historyEmpty": "Транзакций пока нет",
+      "selectHint": "Выберите пользователя, чтобы управлять балансом"
+    },
+    "waitlist": {
+      "heading": "Waitlist ({n})",
+      "filters": {
+        "ALL": "Все",
+        "NEW": "Новые",
+        "CONTACTED": "В работе",
+        "ONBOARDED": "Подключены",
+        "REJECTED": "Отклонены"
+      },
+      "empty": "Пока никто не записался.",
+      "deleteConfirm": "Удалить запись {email}?",
+      "deleteTitle": "Удалить"
+    },
+    "payments": {
+      "heading": "Платежи",
+      "allStatuses": "Все статусы",
+      "columns": {
+        "date": "Дата",
+        "user": "Пользователь",
+        "package": "Тариф",
+        "provider": "Провайдер",
+        "amount": "Сумма",
+        "tokens": "Токены",
+        "status": "Статус"
+      },
+      "empty": "Платежей пока нет.",
+      "markConfirm": "Зачислить токены этому пользователю?",
+      "markBtn": "Зачислить"
+    },
+    "packages": {
+      "heading": "Тарифы ({n})",
+      "editing": "Редактировать {name}",
+      "createTitle": "Создать тариф",
+      "fields": {
+        "slug": "Slug",
+        "name": "Название",
+        "priceKopecks": "Цена в копейках",
+        "priceHint": "= {amount} ₽",
+        "tokens": "Токены",
+        "sortOrder": "Порядок",
+        "description": "Описание",
+        "descPlaceholder": "Для пробы"
+      },
+      "active": "Активен",
+      "highlighted": "Подсветить как «популярный»",
+      "saveEdit": "Сохранить",
+      "saveCreate": "Создать",
+      "row": "{price} ₽ → {tokens} токенов",
+      "inactive": "inactive",
+      "deactivateConfirm": "Деактивировать тариф «{name}»?"
+    },
+    "providers": {
+      "heading": "Платёжные провайдеры",
+      "webhookHint": "Webhook URL для ЮKassa: {url}",
+      "enabled": "Включён",
+      "testMode": "Тестовый режим",
+      "credsSaved": "Сохранены: {keys} (значения скрыты).",
+      "credsEmpty": "Ключи не настроены.",
+      "credsPlaceholder": "оставьте пустым, если не меняете",
+      "shopIdLabel": "shopId",
+      "shopIdHint": "Идентификатор магазина из ЛК ЮKassa",
+      "secretKeyLabel": "secretKey",
+      "secretKeyHint": "Секретный ключ (он же API-ключ)"
+    },
+    "company": {
+      "heading": "Реквизиты компании-получателя",
+      "hint": "Видны в счёте на оплату, который генерирует пользователь.",
+      "fields": {
+        "legalName": "Юр. название",
+        "legalNamePlaceholder": "ООО «Название»",
+        "shortName": "Краткое название",
+        "shortNamePlaceholder": "Название",
+        "inn": "ИНН",
+        "innPlaceholder": "1234567890",
+        "kpp": "КПП",
+        "kppPlaceholder": "123456789",
+        "ogrn": "ОГРН/ОГРНИП",
+        "ogrnPlaceholder": "1234567890123",
+        "legalAddress": "Юридический адрес",
+        "legalAddressPlaceholder": "г. Москва, ул. ...",
+        "postalAddress": "Почтовый адрес",
+        "postalAddressPlaceholder": "(если отличается)",
+        "bankName": "Банк",
+        "bankNamePlaceholder": "ПАО «Сбербанк»",
+        "accountNumber": "Расчётный счёт",
+        "accountNumberPlaceholder": "40702...",
+        "correspondentAccount": "Корреспондентский счёт",
+        "correspondentAccountPlaceholder": "30101...",
+        "bik": "БИК",
+        "bikPlaceholder": "044525225",
+        "directorName": "Имя руководителя",
+        "directorNamePlaceholder": "Иванов И.И.",
+        "directorTitle": "Должность",
+        "directorTitlePlaceholder": "Генеральный директор",
+        "contactEmail": "Email для связи",
+        "contactEmailPlaceholder": "billing@example.com",
+        "contactPhone": "Телефон",
+        "contactPhonePlaceholder": "+7 ..."
+      }
     }
   },
   "analytics": {

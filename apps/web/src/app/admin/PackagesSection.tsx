@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Loader2, Package, Star, Trash2 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { trpc } from "@/trpc/client";
 
 type PackageForm = {
@@ -28,6 +29,10 @@ const EMPTY: PackageForm = {
 };
 
 export default function PackagesSection() {
+  const t = useTranslations("admin.packages");
+  const tCommon = useTranslations("admin.common");
+  const locale = useLocale();
+  const numLocale = locale === "ru" ? "ru-RU" : "en-US";
   const listQ = trpc.admin.listPackages.useQuery();
   const upsertMut = trpc.admin.upsertPackage.useMutation({ onSuccess: () => listQ.refetch() });
   const deleteMut = trpc.admin.deletePackage.useMutation({ onSuccess: () => listQ.refetch() });
@@ -65,7 +70,7 @@ export default function PackagesSection() {
       <div className="glass-card p-5">
         <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2 mb-3">
           <Package className="w-4 h-4 text-brand-400" />
-          Тарифы ({listQ.data?.length ?? 0})
+          {t("heading", { n: listQ.data?.length ?? 0 })}
         </h2>
         <div className="space-y-2">
           {listQ.data?.map((pkg) => (
@@ -84,15 +89,18 @@ export default function PackagesSection() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-surface-100">{pkg.name}</span>
                   {pkg.highlighted && <Star className="w-3 h-3 text-amber-400" />}
-                  {!pkg.active && <span className="text-[10px] text-red-400 uppercase">inactive</span>}
+                  {!pkg.active && <span className="text-[10px] text-red-400 uppercase">{t("inactive")}</span>}
                 </div>
                 <p className="text-xs text-surface-500">
-                  {(pkg.priceRub / 100).toLocaleString("ru-RU")} ₽ → {pkg.tokens.toLocaleString("ru-RU")} токенов
+                  {t("row", {
+                    price: (pkg.priceRub / 100).toLocaleString(numLocale),
+                    tokens: pkg.tokens.toLocaleString(numLocale),
+                  })}
                 </p>
                 <p className="text-[10px] text-surface-600">slug: {pkg.slug}</p>
               </button>
               <button
-                onClick={() => confirm(`Деактивировать тариф "${pkg.name}"?`) && deleteMut.mutate({ id: pkg.id })}
+                onClick={() => confirm(t("deactivateConfirm", { name: pkg.name })) && deleteMut.mutate({ id: pkg.id })}
                 className="text-red-400 hover:bg-red-500/10 p-1.5 rounded"
               >
                 <Trash2 className="w-4 h-4" />
@@ -104,33 +112,33 @@ export default function PackagesSection() {
 
       <form onSubmit={save} className="glass-card p-5 space-y-3">
         <h3 className="text-sm font-semibold text-surface-100">
-          {editing ? `Редактировать ${form.name}` : "Создать тариф"}
+          {editing ? t("editing", { name: form.name }) : t("createTitle")}
         </h3>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Slug" value={form.slug} onChange={(v) => setForm({ ...form, slug: v })} placeholder="starter" />
-          <Field label="Название" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Starter" />
-          <Field label="Цена в копейках" type="number" value={String(form.priceRub)} onChange={(v) => setForm({ ...form, priceRub: Number(v) })} placeholder="49000" hint={`= ${(form.priceRub / 100).toLocaleString("ru-RU")} ₽`} />
-          <Field label="Токены" type="number" value={String(form.tokens)} onChange={(v) => setForm({ ...form, tokens: Number(v) })} placeholder="5000" />
-          <Field label="Порядок" type="number" value={String(form.sortOrder)} onChange={(v) => setForm({ ...form, sortOrder: Number(v) })} placeholder="0" />
-          <Field label="Описание" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Для пробы" wide />
+          <Field label={t("fields.slug")} value={form.slug} onChange={(v) => setForm({ ...form, slug: v })} placeholder="starter" />
+          <Field label={t("fields.name")} value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Starter" />
+          <Field label={t("fields.priceKopecks")} type="number" value={String(form.priceRub)} onChange={(v) => setForm({ ...form, priceRub: Number(v) })} placeholder="49000" hint={t("fields.priceHint", { amount: (form.priceRub / 100).toLocaleString(numLocale) })} />
+          <Field label={t("fields.tokens")} type="number" value={String(form.tokens)} onChange={(v) => setForm({ ...form, tokens: Number(v) })} placeholder="5000" />
+          <Field label={t("fields.sortOrder")} type="number" value={String(form.sortOrder)} onChange={(v) => setForm({ ...form, sortOrder: Number(v) })} placeholder="0" />
+          <Field label={t("fields.description")} value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder={t("fields.descPlaceholder")} wide />
         </div>
         <div className="flex items-center gap-4 text-sm">
           <label className="flex items-center gap-1 cursor-pointer">
             <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
-            <span className="text-surface-300">Активен</span>
+            <span className="text-surface-300">{t("active")}</span>
           </label>
           <label className="flex items-center gap-1 cursor-pointer">
             <input type="checkbox" checked={form.highlighted} onChange={(e) => setForm({ ...form, highlighted: e.target.checked })} />
-            <span className="text-surface-300">Подсветить как «популярный»</span>
+            <span className="text-surface-300">{t("highlighted")}</span>
           </label>
         </div>
         <div className="flex gap-2">
           <button type="submit" disabled={upsertMut.isPending} className="btn-primary gap-2 flex-1">
             {upsertMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            {editing ? "Сохранить" : "Создать"}
+            {editing ? t("saveEdit") : t("saveCreate")}
           </button>
           {editing && (
-            <button type="button" onClick={reset} className="btn-ghost">Отменить</button>
+            <button type="button" onClick={reset} className="btn-ghost">{tCommon("cancel")}</button>
           )}
         </div>
       </form>

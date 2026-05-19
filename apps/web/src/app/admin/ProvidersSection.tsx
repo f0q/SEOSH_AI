@@ -2,51 +2,56 @@
 
 import { useState } from "react";
 import { Save, Loader2, CreditCard, Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { trpc } from "@/trpc/client";
 
-const CREDENTIAL_FIELDS: Record<string, Array<{ key: string; label: string; hint?: string }>> = {
-  yookassa: [
-    { key: "shopId", label: "shopId", hint: "Идентификатор магазина из ЛК ЮKassa" },
-    { key: "secretKey", label: "secretKey", hint: "Секретный ключ (он же API-ключ)" },
-  ],
-  manual_invoice: [],
-};
+function useCredentialFields() {
+  const t = useTranslations("admin.providers");
+  return {
+    yookassa: [
+      { key: "shopId", label: t("shopIdLabel"), hint: t("shopIdHint") },
+      { key: "secretKey", label: t("secretKeyLabel"), hint: t("secretKeyHint") },
+    ],
+    manual_invoice: [] as Array<{ key: string; label: string; hint?: string }>,
+  } as Record<string, Array<{ key: string; label: string; hint?: string }>>;
+}
 
 export default function ProvidersSection() {
+  const t = useTranslations("admin.providers");
+  const tCommon = useTranslations("admin.common");
   const listQ = trpc.admin.listProviders.useQuery();
   const updateMut = trpc.admin.updateProvider.useMutation({ onSuccess: () => listQ.refetch() });
+  const fieldDefs = useCredentialFields();
 
   if (listQ.isLoading) {
-    return <div className="flex items-center gap-2 text-surface-400"><Loader2 className="w-4 h-4 animate-spin" /> Загрузка…</div>;
+    return <div className="flex items-center gap-2 text-surface-400"><Loader2 className="w-4 h-4 animate-spin" /> {tCommon("loading")}</div>;
   }
 
   return (
     <div className="space-y-4">
       <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2">
         <CreditCard className="w-4 h-4 text-brand-400" />
-        Платёжные провайдеры
+        {t("heading")}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {listQ.data?.map((row) => (
           <ProviderCard
             key={row.slug}
             row={row}
+            fields={fieldDefs[row.slug] ?? []}
             onSave={(input) => updateMut.mutateAsync(input)}
             saving={updateMut.isPending}
           />
         ))}
       </div>
       <p className="text-xs text-surface-500">
-        Webhook URL для ЮKassa: <code className="text-brand-400">{typeof window !== "undefined" ? window.location.origin : ""}/api/payments/yookassa/webhook</code>
+        {t("webhookHint", {
+          url: typeof window !== "undefined" ? `${window.location.origin}/api/payments/yookassa/webhook` : "/api/payments/yookassa/webhook",
+        })}
       </p>
     </div>
   );
 }
-
-function ProvidersSectionFallback() {
-  return null;
-}
-void ProvidersSectionFallback;
 
 interface ProviderRow {
   slug: string;
@@ -58,15 +63,17 @@ interface ProviderRow {
 
 function ProviderCard(props: {
   row: ProviderRow;
+  fields: Array<{ key: string; label: string; hint?: string }>;
   onSave: (input: { slug: string; enabled: boolean; testMode: boolean; credentials?: Record<string, string> }) => Promise<unknown>;
   saving: boolean;
 }) {
-  const { row } = props;
+  const t = useTranslations("admin.providers");
+  const tCommon = useTranslations("admin.common");
+  const { row, fields } = props;
   const [enabled, setEnabled] = useState(row.enabled);
   const [testMode, setTestMode] = useState(row.testMode);
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [show, setShow] = useState<Record<string, boolean>>({});
-  const fields = CREDENTIAL_FIELDS[row.slug] ?? [];
 
   const save = async () => {
     await props.onSave({
@@ -90,11 +97,11 @@ function ProviderCard(props: {
       <div className="space-y-2 text-sm">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          <span>Включён</span>
+          <span>{t("enabled")}</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
-          <span>Тестовый режим</span>
+          <span>{t("testMode")}</span>
         </label>
       </div>
 
@@ -102,8 +109,8 @@ function ProviderCard(props: {
         <div className="space-y-2">
           <p className="text-xs text-surface-500">
             {row.credentialKeys.length > 0
-              ? `Сохранены: ${row.credentialKeys.join(", ")} (значения скрыты).`
-              : "Ключи не настроены."}
+              ? t("credsSaved", { keys: row.credentialKeys.join(", ") })
+              : t("credsEmpty")}
           </p>
           {fields.map((f) => (
             <label key={f.key} className="block">
@@ -113,7 +120,7 @@ function ProviderCard(props: {
                   type={show[f.key] ? "text" : "password"}
                   value={creds[f.key] ?? ""}
                   onChange={(e) => setCreds({ ...creds, [f.key]: e.target.value })}
-                  placeholder="оставьте пустым, если не меняете"
+                  placeholder={t("credsPlaceholder")}
                   className="mt-1 w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50 pr-9"
                 />
                 <button type="button" onClick={() => setShow({ ...show, [f.key]: !show[f.key] })}
@@ -129,7 +136,7 @@ function ProviderCard(props: {
 
       <button onClick={save} disabled={props.saving} className="btn-primary gap-2 w-full">
         {props.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        Сохранить
+        {tCommon("save")}
       </button>
     </div>
   );
