@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { TRPCProvider } from "@/trpc/client";
 import { ProjectProvider } from "@/lib/project-context";
 import "./globals.css";
@@ -39,19 +41,23 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-screen bg-surface-950 bg-grid font-sans antialiased">
-        <TRPCProvider>
-          <ProjectProvider>
-            {children}
-          </ProjectProvider>
-        </TRPCProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <TRPCProvider>
+            <ProjectProvider>
+              {children}
+            </ProjectProvider>
+          </TRPCProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

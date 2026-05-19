@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Sparkles, ArrowLeft, Mail, CheckCircle2, Loader2 } from "lucide-react";
+import LocaleSwitcher from "@/components/layout/LocaleSwitcher";
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations("forgotPassword");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -25,22 +28,23 @@ export default function ForgotPasswordPage() {
         }),
       });
       const data = await res.json().catch(() => null);
-      console.log("Forgot password response:", res.status, data);
       if (!res.ok) {
-        setErrorMsg(`Error ${res.status}: ${data?.message || JSON.stringify(data) || "Unknown error"}`);
+        setErrorMsg(`${t("errorPrefix")} ${res.status}: ${data?.message || JSON.stringify(data) || ""}`);
         setStatus("error");
       } else {
         setStatus("success");
       }
-    } catch (err: any) {
-      console.error("Forgot password fetch error:", err);
-      setErrorMsg(err?.message || "Network error");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : t("networkError"));
       setStatus("error");
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-surface-950 bg-grid">
+      <div className="absolute top-4 right-4 z-10">
+        <LocaleSwitcher />
+      </div>
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md animate-slide-up relative">
@@ -64,14 +68,15 @@ export default function ForgotPasswordPage() {
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400" />
               </div>
-              <h2 className="text-xl font-semibold text-surface-100 mb-2">Check your email</h2>
+              <h2 className="text-xl font-semibold text-surface-100 mb-2">{t("successTitle")}</h2>
               <p className="text-sm text-surface-400 mb-6">
-                If an account with <strong className="text-surface-200">{email}</strong> exists,
-                we&apos;ve sent a password reset link.
+                {t.rich("successBody", {
+                  email: () => <strong className="text-surface-200">{email}</strong>,
+                })}
               </p>
               <Link href="/login" className="btn-primary inline-flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />
-                Back to Login
+                {t("backToLogin")}
               </Link>
             </div>
           ) : (
@@ -80,23 +85,23 @@ export default function ForgotPasswordPage() {
                 <div className="w-12 h-12 rounded-full bg-brand-500/20 flex items-center justify-center mx-auto mb-3">
                   <Mail className="w-6 h-6 text-brand-400" />
                 </div>
-                <h2 className="text-xl font-semibold text-surface-100 mb-1">Forgot your password?</h2>
+                <h2 className="text-xl font-semibold text-surface-100 mb-1">{t("title")}</h2>
                 <p className="text-sm text-surface-400">
-                  Enter your email and we&apos;ll send you a reset link.
+                  {t("subtitle")}
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-surface-300 mb-1.5">
-                    Email address
+                    {t("emailLabel")}
                   </label>
                   <input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={t("emailPlaceholder")}
                     required
                     className="input-field w-full"
                     disabled={status === "loading"}
@@ -115,10 +120,10 @@ export default function ForgotPasswordPage() {
                   {status === "loading" ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Sending...
+                      {t("submitting")}
                     </>
                   ) : (
-                    "Send Reset Link"
+                    t("submit")
                   )}
                 </button>
               </form>
@@ -126,7 +131,7 @@ export default function ForgotPasswordPage() {
               <div className="mt-6 text-center">
                 <Link href="/login" className="text-sm text-surface-500 hover:text-surface-300 inline-flex items-center gap-1">
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  Back to Login
+                  {t("backToLogin")}
                 </Link>
               </div>
             </>

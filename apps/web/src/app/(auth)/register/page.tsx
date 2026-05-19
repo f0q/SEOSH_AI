@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Sparkles, Loader2, CheckCircle2, Eye, ArrowRight, Mail } from "lucide-react";
 import { trpc } from "@/trpc/client";
+import LocaleSwitcher from "@/components/layout/LocaleSwitcher";
 
 export default function RegisterPage() {
-  const router = useRouter();
+  const t = useTranslations("register");
+  const tCommon = useTranslations("common");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
@@ -40,17 +42,18 @@ export default function RegisterPage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error ?? `HTTP ${res.status}`);
       }
-      // Demo session cookie is set; hard-reload to /projects so server
-      // components pick up the fresh session.
       window.location.href = "/projects";
     } catch (err) {
-      setDemoError(err instanceof Error ? err.message : "Не удалось войти в демо");
+      setDemoError(err instanceof Error ? err.message : t("tryDemoError"));
       setDemoLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-surface-950 bg-grid">
+      <div className="absolute top-4 right-4 z-10">
+        <LocaleSwitcher />
+      </div>
       <div className="w-full max-w-md animate-fade-in space-y-6">
         {/* Logo */}
         <Link href="/landing" className="flex items-center justify-center gap-2.5 mb-6">
@@ -74,9 +77,9 @@ export default function RegisterPage() {
             )}
           </div>
           <div className="flex-1 text-left">
-            <p className="text-sm font-semibold text-surface-100">Посмотреть демо</p>
+            <p className="text-sm font-semibold text-surface-100">{t("tryDemo")}</p>
             <p className="text-xs text-surface-500">
-              Войти как гость — только просмотр интерфейса, изменения недоступны
+              {t("tryDemoHint")}
             </p>
           </div>
           <ArrowRight className="w-4 h-4 text-surface-500 group-hover:text-brand-400 transition-colors flex-shrink-0" />
@@ -88,7 +91,7 @@ export default function RegisterPage() {
         {/* Divider */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-surface-800/50" />
-          <span className="text-xs text-surface-500 uppercase tracking-wider">или</span>
+          <span className="text-xs text-surface-500 uppercase tracking-wider">{tCommon("or")}</span>
           <div className="flex-1 h-px bg-surface-800/50" />
         </div>
 
@@ -99,27 +102,28 @@ export default function RegisterPage() {
               <CheckCircle2 className="w-7 h-7 text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-surface-50">Заявка принята</h2>
+              <h2 className="text-lg font-bold text-surface-50">{t("thanksTitle")}</h2>
               <p className="text-sm text-surface-400 mt-2">
-                Мы свяжемся с вами по адресу <span className="text-surface-200">{email}</span>{" "}
-                как только откроем доступ.
+                {t.rich("thanksBody", {
+                  email: () => <span className="text-surface-200">{email}</span>,
+                })}
               </p>
             </div>
             <Link href="/landing" className="text-sm text-brand-400 hover:text-brand-300 inline-block">
-              На главную →
+              {t("backHome")}
             </Link>
           </div>
         ) : (
           <form onSubmit={submit} className="glass-card p-6 space-y-4">
             <div className="text-center mb-2">
-              <h1 className="text-xl font-bold text-surface-50">Записаться на бета-доступ</h1>
+              <h1 className="text-xl font-bold text-surface-50">{t("waitlistTitle")}</h1>
               <p className="text-xs text-surface-500 mt-1">
-                Регистрация сейчас по приглашениям. Оставьте email — пришлём, как откроем доступ.
+                {t("waitlistSubtitle")}
               </p>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-surface-400 mb-1.5 block">Email *</label>
+              <label className="text-xs font-medium text-surface-400 mb-1.5 block">{t("email")} *</label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
                 <input
@@ -127,7 +131,7 @@ export default function RegisterPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t("emailPlaceholder")}
                   className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50"
                 />
               </div>
@@ -135,33 +139,33 @@ export default function RegisterPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-surface-400 mb-1.5 block">Имя</label>
+                <label className="text-xs font-medium text-surface-400 mb-1.5 block">{t("name")}</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ваше имя"
+                  placeholder={t("namePlaceholder")}
                   className="w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-surface-400 mb-1.5 block">Компания</label>
+                <label className="text-xs font-medium text-surface-400 mb-1.5 block">{t("company")}</label>
                 <input
                   type="text"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
-                  placeholder="(опционально)"
+                  placeholder={t("companyPlaceholder")}
                   className="w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-surface-400 mb-1.5 block">Что хотите протестировать?</label>
+              <label className="text-xs font-medium text-surface-400 mb-1.5 block">{t("messageLabel")}</label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Расскажите, какие задачи решаете — мы это учтём при открытии доступа."
+                placeholder={t("messagePlaceholder")}
                 rows={3}
                 className="w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50 resize-none"
               />
@@ -179,20 +183,25 @@ export default function RegisterPage() {
               {joinMut.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                "Записаться"
+                t("submit")
               )}
             </button>
 
             <p className="text-[11px] text-surface-500 text-center leading-relaxed">
-              Отправляя форму, вы соглашаетесь с{" "}
-              <Link href="/legal/privacy" className="text-brand-400 hover:underline">политикой конфиденциальности</Link>.
-              Мы не передаём ваш email третьим лицам.
+              {t.rich("privacyNotice", {
+                privacy: () => (
+                  <Link href="/legal/privacy" className="text-brand-400 hover:underline">
+                    {t("privacyLink")}
+                  </Link>
+                ),
+              })}
             </p>
           </form>
         )}
 
         <div className="text-center text-xs text-surface-500">
-          Уже есть аккаунт? <Link href="/login" className="text-brand-400 hover:text-brand-300">Войти</Link>
+          {t("haveAccount")}{" "}
+          <Link href="/login" className="text-brand-400 hover:text-brand-300">{t("signIn")}</Link>
         </div>
       </div>
     </div>

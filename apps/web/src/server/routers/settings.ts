@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { router, protectedProcedure } from "@/server/trpc";
+import { router, protectedProcedure, authedProcedure } from "@/server/trpc";
 import { prisma } from "../db";
 import { encrypt, decrypt, maskApiKey } from "../lib/encryption";
 import { getBalance, getHistory, PRICING_TABLE } from "../services/tokenService";
@@ -108,5 +108,19 @@ export const settingsRouter = router({
   getPricing: protectedProcedure.query(async () => {
     return PRICING_TABLE;
   }),
+
+  /** Persist UI locale on the user record. Demo users are allowed
+   * to call this so the language switcher works in read-only sessions
+   * (locale is a UI preference, not data).
+   */
+  setLocale: authedProcedure
+    .input(z.object({ locale: z.enum(["en", "ru"]) }))
+    .mutation(async ({ ctx, input }) => {
+      await prisma.user.update({
+        where: { id: ctx.user.id },
+        data: { locale: input.locale },
+      });
+      return { success: true, locale: input.locale };
+    }),
 });
 

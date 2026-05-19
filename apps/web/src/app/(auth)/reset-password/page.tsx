@@ -2,10 +2,13 @@
 
 import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Sparkles, Lock, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
+import LocaleSwitcher from "@/components/layout/LocaleSwitcher";
 
 function ResetPasswordForm() {
+  const t = useTranslations("resetPassword");
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token") || "";
@@ -19,11 +22,11 @@ function ResetPasswordForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      setErrorMsg("Passwords do not match.");
+      setErrorMsg(t("errors.mismatch"));
       return;
     }
     if (password.length < 8) {
-      setErrorMsg("Password must be at least 8 characters.");
+      setErrorMsg(t("errors.tooShort"));
       return;
     }
 
@@ -41,14 +44,14 @@ function ResetPasswordForm() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setErrorMsg(data?.message || "Failed to reset password. The link may have expired.");
+        setErrorMsg(data?.message || t("errors.expired"));
         setStatus("error");
       } else {
         setStatus("success");
         setTimeout(() => router.push("/login"), 3000);
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Something went wrong. Please try again.");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : t("errors.generic"));
       setStatus("error");
     }
   };
@@ -56,12 +59,12 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="glass-card p-8 text-center">
-        <h2 className="text-xl font-semibold text-surface-100 mb-2">Invalid Reset Link</h2>
+        <h2 className="text-xl font-semibold text-surface-100 mb-2">{t("invalidLinkTitle")}</h2>
         <p className="text-sm text-surface-400 mb-6">
-          This password reset link is missing or invalid. Please request a new one.
+          {t("invalidLinkBody")}
         </p>
         <Link href="/forgot-password" className="btn-primary">
-          Request New Link
+          {t("requestNew")}
         </Link>
       </div>
     );
@@ -74,11 +77,11 @@ function ResetPasswordForm() {
           <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-8 h-8 text-emerald-400" />
           </div>
-          <h2 className="text-xl font-semibold text-surface-100 mb-2">Password Reset!</h2>
+          <h2 className="text-xl font-semibold text-surface-100 mb-2">{t("successTitle")}</h2>
           <p className="text-sm text-surface-400 mb-4">
-            Your password has been successfully changed.
+            {t("successBody")}
           </p>
-          <p className="text-xs text-surface-500">Redirecting to login...</p>
+          <p className="text-xs text-surface-500">{t("redirecting")}</p>
         </div>
       ) : (
         <>
@@ -86,16 +89,16 @@ function ResetPasswordForm() {
             <div className="w-12 h-12 rounded-full bg-brand-500/20 flex items-center justify-center mx-auto mb-3">
               <Lock className="w-6 h-6 text-brand-400" />
             </div>
-            <h2 className="text-xl font-semibold text-surface-100 mb-1">Set New Password</h2>
+            <h2 className="text-xl font-semibold text-surface-100 mb-1">{t("title")}</h2>
             <p className="text-sm text-surface-400">
-              Enter your new password below.
+              {t("subtitle")}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-surface-300 mb-1.5">
-                New Password
+                {t("newPassword")}
               </label>
               <div className="relative">
                 <input
@@ -103,7 +106,7 @@ function ResetPasswordForm() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
+                  placeholder={t("newPasswordPlaceholder")}
                   required
                   minLength={8}
                   className="input-field w-full pr-10"
@@ -121,14 +124,14 @@ function ResetPasswordForm() {
 
             <div>
               <label htmlFor="confirm" className="block text-sm font-medium text-surface-300 mb-1.5">
-                Confirm Password
+                {t("confirmPassword")}
               </label>
               <input
                 id="confirm"
                 type={showPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter your password"
+                placeholder={t("confirmPlaceholder")}
                 required
                 className="input-field w-full"
                 disabled={status === "loading"}
@@ -147,10 +150,10 @@ function ResetPasswordForm() {
               {status === "loading" ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Resetting...
+                  {t("submitting")}
                 </>
               ) : (
-                "Reset Password"
+                t("submit")
               )}
             </button>
           </form>
@@ -163,6 +166,9 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-surface-950 bg-grid">
+      <div className="absolute top-4 right-4 z-10">
+        <LocaleSwitcher />
+      </div>
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md animate-slide-up relative">

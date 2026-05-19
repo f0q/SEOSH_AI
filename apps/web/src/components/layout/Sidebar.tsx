@@ -28,6 +28,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { trpc } from "@/trpc/client";
 import { useProject } from "@/lib/project-context";
 
@@ -42,22 +43,18 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, cb: () => voi
   }, [ref, cb]);
 }
 
-const navItems = [
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/project-settings", icon: Settings2, label: "Project Settings" },
-  { href: "/semantic-core", icon: Brain, label: "Semantic Core" },
-  { href: "/autopilot/content-planner", icon: FileText, label: "Content Planner" },
-  { href: "/analytics", icon: BarChart3, label: "Analytics" },
-];
-
-const bottomItems = [
-  { href: "/settings", icon: Settings, label: "Settings" },
-  { href: "/billing", icon: Coins, label: "Billing" },
+const NAV_ITEMS = [
+  { href: "/", icon: LayoutDashboard, key: "dashboard" as const },
+  { href: "/project-settings", icon: Settings2, key: "projectSettings" as const },
+  { href: "/semantic-core", icon: Brain, key: "semanticCore" as const },
+  { href: "/autopilot/content-planner", icon: FileText, key: "contentPlanner" as const },
+  { href: "/analytics", icon: BarChart3, key: "analytics" as const },
 ];
 
 // ── Project Switcher ──────────────────────────────────────────────────────────
 function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
   const router = useRouter();
+  const t = useTranslations("nav");
   const { activeProject, projects, setActiveProjectId } = useProject();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -68,7 +65,7 @@ function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
       <div className="px-3 py-2 border-b border-surface-800/50">
         <div
           className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-500/20 to-accent-500/20 border border-brand-500/20 flex items-center justify-center cursor-pointer hover:border-brand-500/40 transition-all"
-          title={activeProject?.name ?? "No project"}
+          title={activeProject?.name ?? t("noProjectYet")}
           onClick={() => setOpen((o) => !o)}
         >
           <FolderKanban className="w-4 h-4 text-brand-400" />
@@ -79,7 +76,7 @@ function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
 
   return (
     <div ref={ref} className="px-3 py-3 border-b border-surface-800/50 relative">
-      <p className="text-[10px] uppercase tracking-widest text-surface-600 mb-1.5 px-1">Active Project</p>
+      <p className="text-[10px] uppercase tracking-widest text-surface-600 mb-1.5 px-1">{t("activeProject")}</p>
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-brand-500/8 border border-brand-500/15 hover:border-brand-500/30 hover:bg-brand-500/12 transition-all group"
@@ -89,7 +86,7 @@ function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
         </div>
         <div className="flex-1 text-left min-w-0">
           <p className="text-sm font-semibold text-surface-100 truncate leading-tight">
-            {activeProject?.name ?? "No project yet"}
+            {activeProject?.name ?? t("noProjectYet")}
           </p>
           {activeProject?.url && (
             <p className="text-[10px] text-surface-500 truncate leading-tight mt-0.5">
@@ -104,7 +101,7 @@ function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
       {open && (
         <div className="absolute left-3 right-3 top-full mt-1 dropdown-panel p-1 z-50 animate-slide-up">
           {projects.length === 0 ? (
-            <p className="text-xs text-surface-500 px-3 py-2">No projects yet</p>
+            <p className="text-xs text-surface-500 px-3 py-2">{t("noProjects")}</p>
           ) : (
             projects.map((p) => (
               <button
@@ -128,7 +125,7 @@ function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-surface-800/60 transition-colors text-left"
             >
               <Plus className="w-3.5 h-3.5 text-surface-400" />
-              <span className="text-sm text-surface-400">New project</span>
+              <span className="text-sm text-surface-400">{t("newProject")}</span>
             </button>
           </div>
         </div>
@@ -139,6 +136,7 @@ function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
 
 // ── Readiness Bar ─────────────────────────────────────────────────────────────
 function ReadinessBar({ collapsed }: { collapsed: boolean }) {
+  const t = useTranslations("nav.readiness");
   const { activeProject } = useProject();
   const { data: overview } = trpc.dashboard.getOverview.useQuery();
 
@@ -157,10 +155,10 @@ function ReadinessBar({ collapsed }: { collapsed: boolean }) {
     : "from-brand-500 to-accent-500";
 
   const label =
-    score === 0 ? "Start by creating a project"
-    : score < 67 ? "Add a semantic core"
-    : score < 100 ? "Fill company details"
-    : "Ready to launch!";
+    score === 0 ? t("startProject")
+    : score < 67 ? t("addCore")
+    : score < 100 ? t("fillCompany")
+    : t("ready");
 
   if (collapsed) {
     return (
@@ -181,7 +179,7 @@ function ReadinessBar({ collapsed }: { collapsed: boolean }) {
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
           <Zap className="w-3.5 h-3.5 text-brand-400" />
-          <span className="text-xs font-medium text-surface-300">Autopilot Readiness</span>
+          <span className="text-xs font-medium text-surface-300">{t("title")}</span>
         </div>
         <span className="text-xs font-semibold text-surface-300">{score}%</span>
       </div>
@@ -198,6 +196,7 @@ function ReadinessBar({ collapsed }: { collapsed: boolean }) {
 
 // ── Sidebar Token Balance ────────────────────────────────────────────────────
 function SidebarTokenBalance() {
+  const t = useTranslations("nav");
   const { data } = trpc.billing.getBalance.useQuery(undefined, {
     refetchInterval: 30000, // refresh every 30s
   });
@@ -206,7 +205,7 @@ function SidebarTokenBalance() {
   return (
     <div className="glass-card p-3 animate-fade-in">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs text-surface-400">Tokens</span>
+        <span className="text-xs text-surface-400">{t("tokens")}</span>
       </div>
       <div className="flex items-center gap-2">
         <Coins className="w-4 h-4 text-brand-400" />
@@ -229,6 +228,7 @@ function SidebarTokenBalance() {
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 export default function Sidebar() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
   const [collapsed, setCollapsed] = useState(false);
   const { isTeamMember, isLoading } = useProject();
 
@@ -236,8 +236,8 @@ export default function Sidebar() {
   const visibleNavItems = isLoading
     ? []
     : isTeamMember
-      ? navItems.filter(item => item.href === "/autopilot/content-planner")
-      : navItems;
+      ? NAV_ITEMS.filter(item => item.href === "/autopilot/content-planner")
+      : NAV_ITEMS;
 
   return (
     <aside
@@ -262,7 +262,7 @@ export default function Sidebar() {
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="btn-ghost p-1.5 rounded-lg"
-          aria-label="Toggle sidebar"
+          aria-label={t("toggleSidebar")}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
@@ -275,15 +275,16 @@ export default function Sidebar() {
       <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1">
         {visibleNavItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          const label = t(item.key);
           return (
             <Link
               key={item.href}
               href={item.href}
               className={`nav-item ${isActive ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""}`}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? label : undefined}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="animate-fade-in truncate">{item.label}</span>}
+              {!collapsed && <span className="animate-fade-in truncate">{label}</span>}
             </Link>
           );
         })}
@@ -297,10 +298,10 @@ export default function Sidebar() {
             <Link
               href="/autopilot"
               className={`nav-item ${pathname.startsWith("/autopilot") ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""} border border-brand-500/20 bg-brand-500/5 hover:bg-brand-500/10 mb-2`}
-              title={collapsed ? "Autopilot" : undefined}
+              title={collapsed ? t("autopilot") : undefined}
             >
               <Bot className="w-5 h-5 flex-shrink-0 text-brand-400" />
-              {!collapsed && <span className="animate-fade-in text-brand-300 font-medium">Autopilot</span>}
+              {!collapsed && <span className="animate-fade-in text-brand-300 font-medium">{t("autopilot")}</span>}
             </Link>
 
             <ReadinessBar collapsed={collapsed} />
@@ -308,10 +309,10 @@ export default function Sidebar() {
             <Link
               href="/settings"
               className={`nav-item ${pathname === "/settings" ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""}`}
-              title={collapsed ? "Settings" : undefined}
+              title={collapsed ? t("settings") : undefined}
             >
               <Settings className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="animate-fade-in">Settings</span>}
+              {!collapsed && <span className="animate-fade-in">{t("settings")}</span>}
             </Link>
           </>
         )}
@@ -324,10 +325,10 @@ export default function Sidebar() {
             <Link
               href="/billing"
               className={`nav-item ${pathname === "/billing" ? "nav-item-active" : ""} ${collapsed ? "justify-center px-2" : ""}`}
-              title={collapsed ? "Billing" : undefined}
+              title={collapsed ? t("billing") : undefined}
             >
               <Coins className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="animate-fade-in">Billing</span>}
+              {!collapsed && <span className="animate-fade-in">{t("billing")}</span>}
             </Link>
           </>
         )}

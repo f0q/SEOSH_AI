@@ -102,6 +102,12 @@ export const publicProcedure = t.procedure;
 /** Protected procedure — requires valid session; mutations are blocked for demo accounts. */
 export const protectedProcedure = t.procedure.use(enforceAuth).use(enforceNonDemoForMutations);
 
+/**
+ * Authed procedure WITHOUT the demo-mode guard. Use only for harmless UI
+ * preferences (locale, theme) that demo users should still be able to set.
+ */
+export const authedProcedure = t.procedure.use(enforceAuth);
+
 /** Admin procedure — requires ADMIN or SUPERADMIN */
 export const adminProcedure = t.procedure.use(enforceAdmin);
 

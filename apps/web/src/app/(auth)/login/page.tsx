@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { signIn } from "@/lib/auth-client";
 import { Sparkles, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
+import LocaleSwitcher from "@/components/layout/LocaleSwitcher";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const t = useTranslations("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,13 +21,13 @@ export default function LoginPage() {
     try {
       const result = await signIn.email({ email, password });
       if (result.error) {
-        setError(result.error.message || "Invalid email or password");
+        setError(result.error.message || t("errors.invalid"));
       } else {
         // Full page reload to ensure all queries (projects, session) refetch fresh
         window.location.href = "/";
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("errors.generic"));
     } finally {
       setLoading(false);
     }
@@ -34,6 +35,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-surface-950 bg-grid">
+      <div className="absolute top-4 right-4 z-10">
+        <LocaleSwitcher />
+      </div>
+
       {/* Background glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -54,13 +59,13 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="glass-card p-8">
-          <h2 className="text-xl font-semibold text-surface-100 mb-1">Welcome back</h2>
-          <p className="text-sm text-surface-400 mb-6">Sign in to your SEOSH.AI account</p>
+          <h2 className="text-xl font-semibold text-surface-100 mb-1">{t("welcome")}</h2>
+          <p className="text-sm text-surface-400 mb-6">{t("subtitle")}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4" id="login-form">
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-surface-300 mb-1.5">{t("email")}</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-500" />
                 <input
@@ -68,7 +73,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
+                  placeholder={t("emailPlaceholder")}
                   className="input-field !pl-10"
                   required
                   autoComplete="email"
@@ -79,9 +84,9 @@ export default function LoginPage() {
             {/* Password */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-surface-300">Password</label>
+                <label className="text-sm font-medium text-surface-300">{t("password")}</label>
                 <Link href="/forgot-password" className="text-xs text-brand-400 hover:text-brand-300">
-                  Forgot password?
+                  {t("forgotPassword")}
                 </Link>
               </div>
               <div className="relative">
@@ -117,18 +122,16 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Signing in...
+                  {t("submitting")}
                 </>
               ) : (
                 <>
-                  Sign In
+                  {t("submit")}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
-
-
         </div>
       </div>
     </div>

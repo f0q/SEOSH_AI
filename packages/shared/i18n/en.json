@@ -4,28 +4,250 @@
     "tagline": "All-in-One SEO Platform",
     "description": "Automate your SEO: from semantic core to content publishing"
   },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "success": "Success",
+    "confirm": "Are you sure?",
+    "noData": "No data available",
+    "tokens": "Tokens",
+    "language": "Language",
+    "back": "Back",
+    "continue": "Continue",
+    "close": "Close",
+    "or": "or"
+  },
   "nav": {
     "dashboard": "Dashboard",
-    "projects": "Projects",
+    "projectSettings": "Project Settings",
     "semanticCore": "Semantic Core",
-    "content": "Content",
+    "contentPlanner": "Content Planner",
     "analytics": "Analytics",
     "settings": "Settings",
     "billing": "Billing",
-    "newProject": "New Project",
-    "logout": "Log out"
+    "autopilot": "Autopilot",
+    "activeProject": "Active Project",
+    "noProjectYet": "No project yet",
+    "newProject": "New project",
+    "noProjects": "No projects yet",
+    "tokens": "Tokens",
+    "toggleSidebar": "Toggle sidebar",
+    "readiness": {
+      "title": "Autopilot Readiness",
+      "startProject": "Start by creating a project",
+      "addCore": "Add a semantic core",
+      "fillCompany": "Fill company details",
+      "ready": "Ready to launch!"
+    }
+  },
+  "header": {
+    "searchPlaceholder": "Search projects, keywords…",
+    "freePlan": "Free Plan",
+    "demoMode": "Demo mode",
+    "signOut": "Sign out",
+    "settings": "Settings",
+    "billing": "Billing",
+    "guest": "Guest",
+    "language": "Language",
+    "languages": {
+      "en": "English",
+      "ru": "Русский"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "markAllRead": "Mark all read",
+      "viewAll": "View all on dashboard",
+      "items": {
+        "autopilotReady": {
+          "title": "Autopilot ready",
+          "body": "Your project config is 80% complete."
+        },
+        "semanticCoreSaved": {
+          "title": "Semantic core saved",
+          "body": "123 keywords clustered successfully."
+        },
+        "projectCreated": {
+          "title": "Project created",
+          "body": "Your new project was set up."
+        }
+      },
+      "time": {
+        "minutesAgo": "{n}m ago",
+        "hoursAgo": "{n}h ago"
+      }
+    }
+  },
+  "login": {
+    "welcome": "Welcome back",
+    "subtitle": "Sign in to your SEOSH.AI account",
+    "email": "Email",
+    "emailPlaceholder": "you@company.com",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "submit": "Sign In",
+    "submitting": "Signing in…",
+    "errors": {
+      "invalid": "Invalid email or password",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "register": {
+    "tryDemo": "Try the demo",
+    "tryDemoHint": "Sign in as a guest — view-only, no changes allowed",
+    "tryDemoError": "Couldn't sign in to demo",
+    "waitlistTitle": "Join the beta waitlist",
+    "waitlistSubtitle": "Registration is invite-only right now. Leave your email and we'll notify you when access opens.",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "name": "Name",
+    "namePlaceholder": "Your name",
+    "company": "Company",
+    "companyPlaceholder": "(optional)",
+    "messageLabel": "What do you want to test?",
+    "messagePlaceholder": "Tell us what problems you're solving — we'll take it into account.",
+    "submit": "Join waitlist",
+    "thanksTitle": "Request received",
+    "thanksBody": "We'll reach out at {email} as soon as access opens.",
+    "backHome": "Back to home →",
+    "haveAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "privacyNotice": "By submitting, you agree to the {privacy}. We don't share your email with third parties.",
+    "privacyLink": "privacy policy"
+  },
+  "forgotPassword": {
+    "title": "Forgot your password?",
+    "subtitle": "Enter your email and we'll send you a reset link.",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "submit": "Send Reset Link",
+    "submitting": "Sending…",
+    "successTitle": "Check your email",
+    "successBody": "If an account with {email} exists, we've sent a password reset link.",
+    "backToLogin": "Back to Login",
+    "errorPrefix": "Error",
+    "networkError": "Network error"
+  },
+  "resetPassword": {
+    "title": "Set New Password",
+    "subtitle": "Enter your new password below.",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "At least 8 characters",
+    "confirmPassword": "Confirm Password",
+    "confirmPlaceholder": "Re-enter your password",
+    "submit": "Reset Password",
+    "submitting": "Resetting…",
+    "invalidLinkTitle": "Invalid Reset Link",
+    "invalidLinkBody": "This password reset link is missing or invalid. Please request a new one.",
+    "requestNew": "Request New Link",
+    "successTitle": "Password Reset!",
+    "successBody": "Your password has been successfully changed.",
+    "redirecting": "Redirecting to login…",
+    "errors": {
+      "mismatch": "Passwords do not match.",
+      "tooShort": "Password must be at least 8 characters.",
+      "expired": "Failed to reset password. The link may have expired.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "landing": {
+    "metaTitle": "SEOSH.AI — SEO Content Autopilot",
+    "metaDescription": "Semantic core, content plan, AI generation, SEO checks and WordPress publishing — in one platform.",
+    "nav": {
+      "features": "Features",
+      "workflow": "How it works",
+      "pricing": "Pricing",
+      "login": "Sign in",
+      "start": "Get started"
+    },
+    "hero": {
+      "badge": "Complete SEO cycle in one platform",
+      "titleLine1": "SEO on autopilot.",
+      "titleLine2": "From keywords to publication.",
+      "subtitle": "Collect semantics, plan content, generate SEO-optimized text and publish it to WordPress — in minutes, not weeks.",
+      "ctaPrimary": "Try free",
+      "ctaSecondary": "Pricing",
+      "bonus": "2,000 tokens welcome bonus · No credit card required"
+    },
+    "features": {
+      "title": "What's inside",
+      "subtitle": "Six modules cover the entire SEO cycle — from semantics to publishing and analytics.",
+      "semanticCore": {
+        "title": "Semantic Core",
+        "text": "Upload keywords or build clusters — AI groups them into categories and pages."
+      },
+      "contentPlan": {
+        "title": "Content Plan",
+        "text": "Generate ideas, enrich SEO data, export to Excel or share via link."
+      },
+      "aiGeneration": {
+        "title": "AI Generation",
+        "text": "Texts with H1/H2 outline, meta tags, keywords and uniqueness checks."
+      },
+      "seoAnalysis": {
+        "title": "SEO Analysis",
+        "text": "Uniqueness, spam score, E-E-A-T, readability — in real time via Text.ru and AI."
+      },
+      "wordpress": {
+        "title": "WordPress Publishing",
+        "text": "Connect your CMS via Application Password — content gets published or saved as drafts automatically."
+      },
+      "autopilot": {
+        "title": "Autopilot",
+        "text": "Scheduled publishing with an approve/reject queue and notifications."
+      }
+    },
+    "workflow": {
+      "title": "How it works",
+      "steps": {
+        "1": "Describe your business in a 5-step wizard",
+        "2": "Upload a semantic core or build one from competitors",
+        "3": "Get a content plan with priorities and page types",
+        "4": "Generate and optimize SEO-friendly text",
+        "5": "Publish to WordPress in one click — or enable autopilot"
+      }
+    },
+    "pricing": {
+      "title": "Pricing",
+      "subtitle": "Pay for tokens — no subscriptions, no hidden fees.",
+      "popular": "Popular",
+      "empty": "Pricing is being set up. Come back later or contact us.",
+      "tokensLabel": "{count} tokens",
+      "perks": {
+        "operations": "≈ {n} AI operations (depends on model)",
+        "unlimited": "Unlimited projects and users",
+        "wordpress": "WordPress publishing",
+        "payment": "YooKassa payment or invoice for legal entities"
+      },
+      "ctaWithPlan": "Start with {plan}",
+      "footnote": "Prices in rubles. Tokens don't expire and roll over. Invoicing is available for legal entities."
+    },
+    "cta": {
+      "title": "Ready to automate SEO?",
+      "body": "Sign up and get 2,000 tokens as a gift — enough for your first content plan and a couple of articles.",
+      "button": "Create account"
+    },
+    "footer": {
+      "signIn": "Sign in",
+      "register": "Register",
+      "pricing": "Pricing",
+      "offer": "Public offer",
+      "privacy": "Privacy policy",
+      "payment": "Payment & services",
+      "refund": "Returns & refunds"
+    }
+  },
+  "demo": {
+    "blocked": "This is demo mode: changes aren't available. Sign up for full access."
   },
   "auth": {
     "signIn": "Sign In",
-    "signUp": "Sign Up",
-    "email": "Email",
-    "password": "Password",
-    "confirmPassword": "Confirm Password",
-    "name": "Full Name",
-    "forgotPassword": "Forgot password?",
-    "noAccount": "Don't have an account?",
-    "hasAccount": "Already have an account?",
-    "orContinueWith": "Or continue with"
+    "signUp": "Sign Up"
   },
   "onboarding": {
     "title": "Let's set up your project",
@@ -38,15 +260,10 @@
       "competitors": "Competitors"
     },
     "companyName": "Company Name",
-    "companyNamePlaceholder": "e.g., Acme Corp",
     "industry": "Industry",
-    "industryPlaceholder": "e.g., E-commerce, SaaS, Local Services",
     "description": "Business Description",
-    "descriptionPlaceholder": "Tell us about your business, what makes you unique...",
     "geography": "Target Geography",
-    "geographyPlaceholder": "e.g., United States, New York, Global",
     "websiteUrl": "Website URL",
-    "websiteUrlPlaceholder": "https://your-website.com",
     "addProduct": "Add Product/Service",
     "addCompetitor": "Add Competitor",
     "next": "Continue",
@@ -74,40 +291,12 @@
     "createNew": "Create Content",
     "editor": "Content Editor",
     "materials": "Materials",
-    "uploadImages": "Upload Images",
-    "addNotes": "Add Notes",
-    "addVideoLink": "Add Video Link",
     "generate": "Generate with AI",
     "seoAnalysis": "SEO Analysis",
-    "analyzing": "Analyzing...",
-    "recommendations": "Recommendations",
-    "applyRecommendations": "Apply Recommendations",
     "schedule": "Schedule",
     "publishNow": "Publish Now",
     "seoScore": "SEO Score",
     "uniqueness": "Uniqueness",
     "preview": "Preview"
-  },
-  "analytics": {
-    "title": "Analytics",
-    "positions": "Keyword Positions",
-    "traffic": "Search Traffic",
-    "indexation": "Indexation",
-    "performance": "Content Performance"
-  },
-  "common": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "search": "Search",
-    "filter": "Filter",
-    "loading": "Loading...",
-    "error": "Something went wrong",
-    "success": "Success",
-    "confirm": "Are you sure?",
-    "noData": "No data available",
-    "tokens": "Tokens",
-    "language": "Language"
   }
 }

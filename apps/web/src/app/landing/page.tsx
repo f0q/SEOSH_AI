@@ -1,70 +1,43 @@
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/server/db";
 import { LEGAL } from "@/lib/legal-info";
+import LocaleSwitcher from "@/components/layout/LocaleSwitcher";
 import {
   Sparkles, Bot, FileText, BarChart3, Layers, Globe, ShieldCheck, ArrowRight, Check, Star,
 } from "lucide-react";
 
-export const metadata = {
-  title: "SEOSH.AI — автопилот SEO-контента",
-  description:
-    "Семантическое ядро, контент-план, AI-генерация, SEO-проверка и публикация в WordPress — в одной платформе.",
-};
-
-// Render on each request — packages live in the DB and may not be reachable
-// at build time (CI without DB). The query is cheap; ISR could be added later
-// if traffic warrants it.
-export const dynamic = "force-dynamic";
-
-function formatRub(kopecks: number): string {
-  return (kopecks / 100).toLocaleString("ru-RU");
+export async function generateMetadata() {
+  const t = await getTranslations("landing");
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+  };
 }
 
-const FEATURES = [
-  {
-    icon: Layers,
-    title: "Семантическое ядро",
-    text: "Загрузите ключи или соберите кластеры — AI разнесёт их по категориям и страницам.",
-  },
-  {
-    icon: FileText,
-    title: "Контент-план",
-    text: "Сгенерируйте идеи, расширьте SEO-данные, выгрузите Excel или поделитесь по ссылке.",
-  },
-  {
-    icon: Sparkles,
-    title: "AI-генерация",
-    text: "Тексты с заданным каркасом H1/H2, мета-тегами, ключами и проверкой уникальности.",
-  },
-  {
-    icon: BarChart3,
-    title: "SEO-анализ",
-    text: "Уникальность, заспамленность, E-E-A-T, читаемость — в реальном времени по Text.ru и AI.",
-  },
-  {
-    icon: Globe,
-    title: "Публикация в WordPress",
-    text: "Подключите CMS по Application Password — контент уходит в публикацию или черновики автоматически.",
-  },
-  {
-    icon: Bot,
-    title: "Автопилот",
-    text: "Регулярная публикация по расписанию, очередь с approve/reject и уведомлениями.",
-  },
-];
+// Render on each request — packages live in the DB and may not be reachable
+// at build time (CI without DB). The query is cheap; ISR could be added later.
+export const dynamic = "force-dynamic";
 
-const WORKFLOW = [
-  "Опишите бизнес в 5-шаговом мастере",
-  "Загрузите семантическое ядро или соберите его из конкурентов",
-  "Получите контент-план с приоритетами и типами страниц",
-  "Сгенерируйте и оптимизируйте тексты под SEO",
-  "Опубликуйте в WordPress в один клик — или включите автопилот",
-];
+function formatRub(kopecks: number, locale: string): string {
+  return (kopecks / 100).toLocaleString(locale === "ru" ? "ru-RU" : "en-US");
+}
+
+const FEATURE_KEYS = [
+  { key: "semanticCore", icon: Layers },
+  { key: "contentPlan", icon: FileText },
+  { key: "aiGeneration", icon: Sparkles },
+  { key: "seoAnalysis", icon: BarChart3 },
+  { key: "wordpress", icon: Globe },
+  { key: "autopilot", icon: Bot },
+] as const;
+
+const WORKFLOW_STEPS = ["1", "2", "3", "4", "5"] as const;
 
 export default async function LandingPage() {
-  // The landing page must render even if the DB is briefly unreachable —
-  // it's the entry point for new visitors. Fall back to an empty list and
-  // show a "tariffs being set up" message rather than 500.
+  const t = await getTranslations("landing");
+  const locale = await getLocale();
+
   let packages: Awaited<ReturnType<typeof prisma.tokenPackage.findMany>> = [];
   try {
     packages = await prisma.tokenPackage.findMany({
@@ -87,19 +60,20 @@ export default async function LandingPage() {
             <span className="text-lg font-bold tracking-tight">SEOSH.AI</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-surface-300">
-            <a href="#features" className="hover:text-white transition">Возможности</a>
-            <a href="#workflow" className="hover:text-white transition">Как это работает</a>
-            <a href="#pricing" className="hover:text-white transition">Тарифы</a>
+            <a href="#features" className="hover:text-white transition">{t("nav.features")}</a>
+            <a href="#workflow" className="hover:text-white transition">{t("nav.workflow")}</a>
+            <a href="#pricing" className="hover:text-white transition">{t("nav.pricing")}</a>
           </nav>
           <div className="flex items-center gap-2">
+            <LocaleSwitcher />
             <Link href="/login" className="text-sm text-surface-300 hover:text-white px-3 py-1.5">
-              Войти
+              {t("nav.login")}
             </Link>
             <Link
               href="/register"
               className="text-sm bg-brand-500 hover:bg-brand-400 text-white px-4 py-2 rounded-lg font-medium transition"
             >
-              Начать
+              {t("nav.start")}
             </Link>
           </div>
         </div>
@@ -112,35 +86,34 @@ export default async function LandingPage() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-300 text-xs mb-6">
               <Star className="w-3.5 h-3.5" />
-              Полный цикл SEO в одной платформе
+              {t("hero.badge")}
             </div>
             <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
-              SEO на автопилоте.<br />
+              {t("hero.titleLine1")}<br />
               <span className="bg-gradient-to-r from-brand-400 to-accent-400 bg-clip-text text-transparent">
-                От ключевых слов до публикации.
+                {t("hero.titleLine2")}
               </span>
             </h1>
             <p className="mt-6 text-lg md:text-xl text-surface-400 max-w-2xl">
-              Соберите семантику, спланируйте контент, сгенерируйте тексты под SEO
-              и опубликуйте их в WordPress — за минуты, не недели.
+              {t("hero.subtitle")}
             </p>
             <div className="mt-8 flex items-center gap-3">
               <Link
                 href="/register"
                 className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-white px-6 py-3 rounded-xl text-base font-semibold transition shadow-lg shadow-brand-500/30"
               >
-                Попробовать бесплатно
+                {t("hero.ctaPrimary")}
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="#pricing"
                 className="inline-flex items-center gap-2 border border-surface-700 hover:border-surface-500 text-surface-200 px-6 py-3 rounded-xl text-base font-medium transition"
               >
-                Тарифы
+                {t("hero.ctaSecondary")}
               </Link>
             </div>
             <p className="mt-4 text-xs text-surface-500">
-              Стартовый бонус 2 000 токенов · Кредитная карта не нужна
+              {t("hero.bonus")}
             </p>
           </div>
         </div>
@@ -149,18 +122,18 @@ export default async function LandingPage() {
       {/* Features */}
       <section id="features" className="py-16 md:py-24 border-t border-surface-800/40">
         <div className="max-w-6xl mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold text-center">Что внутри</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center">{t("features.title")}</h2>
           <p className="text-center text-surface-400 mt-3 max-w-2xl mx-auto">
-            Шесть модулей закрывают весь SEO-цикл — от семантики до публикации и аналитики.
+            {t("features.subtitle")}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-2xl border border-surface-800/60 bg-surface-900/40 p-6 hover:border-brand-500/40 transition">
+            {FEATURE_KEYS.map(({ key, icon: Icon }) => (
+              <div key={key} className="rounded-2xl border border-surface-800/60 bg-surface-900/40 p-6 hover:border-brand-500/40 transition">
                 <div className="w-10 h-10 rounded-xl bg-brand-500/15 flex items-center justify-center mb-4">
-                  <f.icon className="w-5 h-5 text-brand-400" />
+                  <Icon className="w-5 h-5 text-brand-400" />
                 </div>
-                <h3 className="font-semibold text-lg text-surface-100">{f.title}</h3>
-                <p className="mt-2 text-sm text-surface-400 leading-relaxed">{f.text}</p>
+                <h3 className="font-semibold text-lg text-surface-100">{t(`features.${key}.title`)}</h3>
+                <p className="mt-2 text-sm text-surface-400 leading-relaxed">{t(`features.${key}.text`)}</p>
               </div>
             ))}
           </div>
@@ -170,14 +143,14 @@ export default async function LandingPage() {
       {/* Workflow */}
       <section id="workflow" className="py-16 md:py-24 border-t border-surface-800/40 bg-surface-900/30">
         <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold text-center">Как это работает</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center">{t("workflow.title")}</h2>
           <ol className="mt-10 space-y-4">
-            {WORKFLOW.map((step, i) => (
-              <li key={i} className="flex items-start gap-4 p-4 rounded-xl bg-surface-900/40 border border-surface-800/50">
+            {WORKFLOW_STEPS.map((step, i) => (
+              <li key={step} className="flex items-start gap-4 p-4 rounded-xl bg-surface-900/40 border border-surface-800/50">
                 <div className="w-8 h-8 rounded-full bg-brand-500/15 border border-brand-500/30 text-brand-400 flex items-center justify-center font-bold flex-shrink-0">
                   {i + 1}
                 </div>
-                <p className="text-surface-200 pt-1">{step}</p>
+                <p className="text-surface-200 pt-1">{t(`workflow.steps.${step}`)}</p>
               </li>
             ))}
           </ol>
@@ -187,14 +160,14 @@ export default async function LandingPage() {
       {/* Pricing */}
       <section id="pricing" className="py-16 md:py-24 border-t border-surface-800/40">
         <div className="max-w-6xl mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold text-center">Тарифы</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center">{t("pricing.title")}</h2>
           <p className="text-center text-surface-400 mt-3">
-            Платите за токены — без подписок, без скрытых платежей.
+            {t("pricing.subtitle")}
           </p>
 
           {packages.length === 0 ? (
             <p className="text-center text-surface-500 mt-12">
-              Тарифы в настройке. Зайдите позже или напишите нам.
+              {t("pricing.empty")}
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12">
@@ -210,7 +183,7 @@ export default async function LandingPage() {
                   {pkg.highlighted && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1">
                       <Star className="w-3 h-3" />
-                      Популярный
+                      {t("pricing.popular")}
                     </div>
                   )}
                   <h3 className="text-xl font-bold">{pkg.name}</h3>
@@ -219,29 +192,29 @@ export default async function LandingPage() {
                   )}
                   <div className="my-6">
                     <p className="text-4xl font-extrabold">
-                      {formatRub(pkg.priceRub)}
+                      {formatRub(pkg.priceRub, locale)}
                       <span className="text-lg font-medium text-surface-400 ml-1">₽</span>
                     </p>
                     <p className="text-sm text-brand-400 font-medium mt-1">
-                      {pkg.tokens.toLocaleString("ru-RU")} токенов
+                      {t("pricing.tokensLabel", { count: pkg.tokens.toLocaleString(locale === "ru" ? "ru-RU" : "en-US") })}
                     </p>
                   </div>
                   <ul className="space-y-2 text-sm text-surface-300 mb-6">
                     <li className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" />
-                      <span>≈ {Math.floor(pkg.tokens / 100)} AI-операций (зависит от модели)</span>
+                      <span>{t("pricing.perks.operations", { n: Math.floor(pkg.tokens / 100) })}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" />
-                      <span>Безлимитные проекты и пользователи</span>
+                      <span>{t("pricing.perks.unlimited")}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" />
-                      <span>Публикация в WordPress</span>
+                      <span>{t("pricing.perks.wordpress")}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" />
-                      <span>Оплата ЮKassa или счёт на юр. лицо</span>
+                      <span>{t("pricing.perks.payment")}</span>
                     </li>
                   </ul>
                   <Link
@@ -252,7 +225,7 @@ export default async function LandingPage() {
                         : "bg-surface-800 hover:bg-surface-700 text-surface-100"
                     }`}
                   >
-                    Начать с {pkg.name}
+                    {t("pricing.ctaWithPlan", { plan: pkg.name })}
                   </Link>
                 </div>
               ))}
@@ -260,8 +233,7 @@ export default async function LandingPage() {
           )}
 
           <p className="text-center text-xs text-surface-500 mt-10">
-            Цены указаны в рублях. Токены не сгорают и переносятся между периодами.
-            Возможен счёт на оплату для юридических лиц.
+            {t("pricing.footnote")}
           </p>
         </div>
       </section>
@@ -270,15 +242,15 @@ export default async function LandingPage() {
       <section className="py-20 border-t border-surface-800/40">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <ShieldCheck className="w-12 h-12 text-brand-400 mx-auto mb-4" />
-          <h2 className="text-3xl md:text-4xl font-bold">Готовы автоматизировать SEO?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold">{t("cta.title")}</h2>
           <p className="mt-4 text-surface-400 text-lg">
-            Зарегистрируйтесь и получите 2 000 токенов в подарок — этого хватит на первый контент-план и пару статей.
+            {t("cta.body")}
           </p>
           <Link
             href="/register"
             className="mt-8 inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-white px-8 py-4 rounded-xl text-base font-semibold transition shadow-lg shadow-brand-500/30"
           >
-            Создать аккаунт
+            {t("cta.button")}
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -294,9 +266,9 @@ export default async function LandingPage() {
               <span className="text-surface-600">· © {new Date().getFullYear()}</span>
             </div>
             <div className="flex items-center gap-5 text-surface-400">
-              <Link href="/login" className="hover:text-white transition">Войти</Link>
-              <Link href="/register" className="hover:text-white transition">Регистрация</Link>
-              <a href="#pricing" className="hover:text-white transition">Тарифы</a>
+              <Link href="/login" className="hover:text-white transition">{t("footer.signIn")}</Link>
+              <Link href="/register" className="hover:text-white transition">{t("footer.register")}</Link>
+              <a href="#pricing" className="hover:text-white transition">{t("footer.pricing")}</a>
             </div>
           </div>
 
@@ -307,13 +279,13 @@ export default async function LandingPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-surface-500">
-            <Link href="/legal/offer" className="hover:text-white transition">Договор оферты</Link>
+            <Link href="/legal/offer" className="hover:text-white transition">{t("footer.offer")}</Link>
             <span>|</span>
-            <Link href="/legal/privacy" className="hover:text-white transition">Политика конфиденциальности</Link>
+            <Link href="/legal/privacy" className="hover:text-white transition">{t("footer.privacy")}</Link>
             <span>|</span>
-            <Link href="/legal/payment" className="hover:text-white transition">Оплата и услуги</Link>
+            <Link href="/legal/payment" className="hover:text-white transition">{t("footer.payment")}</Link>
             <span>|</span>
-            <Link href="/legal/refund" className="hover:text-white transition">Обмен и возврат</Link>
+            <Link href="/legal/refund" className="hover:text-white transition">{t("footer.refund")}</Link>
           </div>
         </div>
       </footer>
