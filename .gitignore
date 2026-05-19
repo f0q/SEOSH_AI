@@ -45,3 +45,8 @@ minio-data/
 # Temp
 tmp/
 temp/
+
+# Local Claude Code state
+.claude/
+# Prisma tsbuildinfo
+packages/db/tsconfig.tsbuildinfo

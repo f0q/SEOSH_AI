@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { trpc } from "@/trpc/client";
-import { LayoutList, Loader2, ShieldOff, Eye, Copy, CheckCheck } from "lucide-react";
+import { LayoutList, Loader2, ShieldOff, Eye, KeyRound } from "lucide-react";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   DRAFT:           { label: "Not Started",  color: "text-surface-400" },
@@ -19,30 +19,28 @@ export default function SharedContentPlanPage({
   params: { token: string };
 }) {
   const { token } = params;
-  const [accepted, setAccepted] = useState(false);
-  const [copiedPwd, setCopiedPwd] = useState(false);
+  const [password, setPassword] = useState("");
+  const [pwdError, setPwdError] = useState<string | null>(null);
 
-  const { data, isLoading, error } = trpc.contentPlan.getSharedPlan.useQuery(
+  const { data, isLoading, error, refetch } = trpc.contentPlan.getSharedPlan.useQuery(
     { token },
     { retry: false }
   );
 
-  const acceptShare = trpc.contentPlan.acceptShare.useMutation();
+  const acceptShare = trpc.contentPlan.acceptShare.useMutation({
+    onSuccess: () => {
+      setPwdError(null);
+      refetch();
+    },
+    onError: (err) => {
+      setPwdError(err.message);
+    },
+  });
 
-  // Mark as accepted on first view
-  useEffect(() => {
-    if (data && data.isPending && !accepted) {
-      acceptShare.mutate({ token });
-      setAccepted(true);
-    }
-  }, [data, accepted, token, acceptShare]);
-
-  const copyPwd = () => {
-    if (data?.tempPassword) {
-      navigator.clipboard.writeText(data.tempPassword);
-      setCopiedPwd(true);
-      setTimeout(() => setCopiedPwd(false), 2000);
-    }
+  const submitPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) return;
+    acceptShare.mutate({ token, password });
   };
 
   if (isLoading) {
@@ -75,7 +73,59 @@ export default function SharedContentPlanPage({
     );
   }
 
-  const { plan, items, project, shareEmail, tempPassword, isPending } = data;
+  if (data.isPending) {
+    return (
+      <div className="min-h-screen bg-surface-950 flex items-center justify-center">
+        <div className="glass-card p-8 max-w-md w-full mx-4 space-y-5">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mx-auto">
+              <KeyRound className="w-6 h-6 text-amber-400" />
+            </div>
+            <h1 className="text-xl font-bold text-surface-100">Enter access password</h1>
+            <p className="text-surface-500 text-sm">
+              You were invited as <span className="text-surface-300">{data.shareEmail}</span>.
+              Enter the temporary password from your invite email.
+            </p>
+          </div>
+          <form onSubmit={submitPassword} className="space-y-3">
+            <input
+              type="password"
+              autoFocus
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPwdError(null);
+              }}
+              className="w-full bg-surface-800 border border-surface-700/50 px-3 py-2 rounded-lg text-sm font-mono text-surface-100 tracking-widest"
+              placeholder="Temporary password"
+            />
+            {pwdError && (
+              <p className="text-xs text-red-400">{pwdError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={acceptShare.isPending || !password.trim()}
+              className="btn-primary w-full"
+            >
+              {acceptShare.isPending ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Verifying...
+                </span>
+              ) : (
+                "Unlock plan"
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  const { plan, items, project, shareEmail } = data;
+  if (!plan || !items || !project) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-surface-950 text-surface-200">
@@ -103,32 +153,6 @@ export default function SharedContentPlanPage({
       </div>
 
       <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-5">
-
-        {/* First-time access banner with temp password */}
-        {(isPending || tempPassword) && (
-          <div className="glass-card p-4 border-amber-500/20 bg-amber-500/5 flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Eye className="w-4 h-4 text-amber-400" />
-            </div>
-            <div className="flex-1 space-y-2">
-              <p className="text-sm font-medium text-amber-300">First-time access</p>
-              <p className="text-xs text-surface-400">
-                Save your temporary password — you&apos;ll need it to access this plan again.
-              </p>
-              {tempPassword && (
-                <div className="flex items-center gap-2">
-                  <code className="bg-surface-800 border border-surface-700/50 px-3 py-1.5 rounded-lg text-sm font-mono text-surface-100 tracking-widest">
-                    {tempPassword}
-                  </code>
-                  <button onClick={copyPwd} className="btn-ghost p-1.5 rounded-lg">
-                    {copiedPwd ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-surface-400" />}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Table */}
         <div className="glass-card overflow-x-auto">
           <table className="w-full text-left border-collapse" style={{ minWidth: "1200px" }}>

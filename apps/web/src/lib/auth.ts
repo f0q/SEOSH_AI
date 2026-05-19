@@ -1,6 +1,8 @@
-/** * @module auth * @description Better Auth configuration for SEOSH.AI. * * Features: *   - Email/password authentication *   - Session management (database-backed) *   - Role-based access: USER, ADMIN, SUPERADMIN */ import { betterAuth } from "better-auth"; import { prismaAdapter } from "better-auth/adapters/prisma"; import { admin } from "better-auth/plugins"; import { PrismaClient } from "@prisma/client"; import { APIError, createAuthMiddleware } from "better-auth/api"; import { sendEmail } from "./email";
-
-const prisma = new PrismaClient();
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { admin } from "better-auth/plugins";
+import { sendEmail } from "./email";
+import { prisma } from "../server/db";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -13,9 +15,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false, // Disabled since registration is closed and admin creates users
     sendResetPassword: async ({ user, url }) => {
-      console.log("🔑 sendResetPassword called for:", user.email);
-      console.log("🔗 Reset URL:", url);
-      const result = await sendEmail({
+      await sendEmail({
         to: user.email,
         subject: "Reset your password - SEOSH.AI",
         html: `
@@ -29,7 +29,6 @@ export const auth = betterAuth({
           </div>
         `,
       });
-      console.log("📧 Email send result:", result);
     },
   },
   // Note: Registration page is removed from UI. No sign-up blocking hook needed.

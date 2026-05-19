@@ -206,22 +206,9 @@ export const teamRouter = router({
         `,
       });
 
-      if (!emailSent) {
-        // Fallback log for development
-        console.log(`
-╔══════════════════════════════════════════════════════════
-║  PROJECT INVITE (Email failed/not configured)
-╠══════════════════════════════════════════════════════════
-║  To:       ${input.email}
-║  Project:  ${project.name}
-║  Role:     ${input.role}
-║  URL:      ${inviteUrl}
-║  Password: ${tempPassword}
-╚══════════════════════════════════════════════════════════
-        `);
-      }
-
-      return { success: true, memberId: member.id, inviteUrl, tempPassword };
+      // The plain password is returned to the inviter once so they can
+      // forward it manually if email delivery fails. It is NOT logged.
+      return { success: true, memberId: member.id, inviteUrl, tempPassword, emailSent };
     }),
 
   /** Update a team member's role */

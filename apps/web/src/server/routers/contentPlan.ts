@@ -11,6 +11,7 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import Parser from "rss-parser";
 import { callOpenRouter, getAIConfig, callOpenRouterChat, callOpenRouterWithCost, callOpenRouterChatWithCost } from "../services/ai";
 import { getSeoProvider } from "../services/seoAnalysis";
@@ -432,9 +433,12 @@ export const contentPlanRouter = router({
         });
       }
 
-      // Generate a secure access token + temp password
+      // Generate a secure access token + temp password.
+      // Plain password is only returned to the inviter (to share via email/manual);
+      // DB stores only the bcrypt hash so a DB leak cannot reveal it.
       const accessToken = crypto.randomBytes(32).toString("hex");
       const tempPassword = crypto.randomBytes(6).toString("hex"); // 12-char hex
+      const tempPasswordHash = await bcrypt.hash(tempPassword, 10);
 
       const share = await prisma.contentPlanShare.create({
         data: {
@@ -442,27 +446,16 @@ export const contentPlanRouter = router({
           email: input.email,
           invitedBy: ctx.user.id,
           accessToken,
-          tempPassword, // Stored plain for now; in prod: bcrypt hash
+          tempPassword: tempPasswordHash,
           status: "PENDING",
         },
       });
 
-      // ── Send email (dev: log to console; prod: use nodemailer) ──
       const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/content-plan/shared/${accessToken}`;
-      console.log(`
-╔══════════════════════════════════════════════════════════
-║  CONTENT PLAN INVITE (dev mode — email not sent)
-╠══════════════════════════════════════════════════════════
-║  To:       ${input.email}
-║  URL:      ${inviteUrl}
-║  Password: ${tempPassword}
-╚══════════════════════════════════════════════════════════
-      `);
 
-      // TODO: Replace with actual email send via nodemailer:
-      // await sendInviteEmail({ to: input.email, inviteUrl, tempPassword });
-
-      return { success: true, shareId: share.id, inviteUrl };
+      // Return the plain password ONCE so the caller can deliver it
+      // (email or manual). It is not persisted in plain anywhere.
+      return { success: true, shareId: share.id, inviteUrl, tempPassword };
     }),
 
   /** Revoke a team member's access */
@@ -477,7 +470,11 @@ export const contentPlanRouter = router({
 
   // ─── Public shared access ─────────────────────────────────────────────────
 
-  /** Validate access token and return the content plan (read-only) */
+  /**
+   * Validate access token. For PENDING shares returns only the gate
+   * (status + email) so the client can prompt for the temp password.
+   * For ACTIVE shares returns the full read-only plan.
+   */
   getSharedPlan: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ input }) => {
@@ -502,19 +499,31 @@ export const contentPlanRouter = router({
         });
       }
 
+      if (share.status === "PENDING") {
+        return {
+          isPending: true as const,
+          shareEmail: share.email,
+          plan: null,
+          items: null,
+          project: null,
+        };
+      }
+
       return {
+        isPending: false as const,
+        shareEmail: share.email,
         plan: share.contentPlan,
         items: share.contentPlan.items,
         project: share.contentPlan.project,
-        shareEmail: share.email,
-        isPending: share.status === "PENDING",
-        tempPassword: share.status === "PENDING" ? share.tempPassword : null,
       };
     }),
 
-  /** Mark share as accepted (called after invitee first views the plan) */
+  /**
+   * Accept a share invite: requires the plain temp password that was
+   * delivered out-of-band. Compares against the stored bcrypt hash.
+   */
   acceptShare: publicProcedure
-    .input(z.object({ token: z.string() }))
+    .input(z.object({ token: z.string(), password: z.string().min(1) }))
     .mutation(async ({ input }) => {
       const share = await prisma.contentPlanShare.findUnique({
         where: { accessToken: input.token },
@@ -522,14 +531,25 @@ export const contentPlanRouter = router({
       if (!share || share.status === "REVOKED") {
         throw new TRPCError({ code: "FORBIDDEN", message: "Invalid token." });
       }
-      return prisma.contentPlanShare.update({
+      if (share.status === "ACTIVE") {
+        return { success: true, alreadyActive: true };
+      }
+      if (!share.tempPassword) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Invite is no longer valid." });
+      }
+      const ok = await bcrypt.compare(input.password, share.tempPassword);
+      if (!ok) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect password." });
+      }
+      await prisma.contentPlanShare.update({
         where: { id: share.id },
         data: {
           status: "ACTIVE",
-          tempPassword: null, // Clear after accepted
+          tempPassword: null,
           acceptedAt: new Date(),
         },
       });
+      return { success: true, alreadyActive: false };
     }),
 
   // ─── Ideation & Planning ────────────────────────────────────────────────────

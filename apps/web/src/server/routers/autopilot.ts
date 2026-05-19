@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
-import { PrismaClient } from "@prisma/client";
-
-// Simplified instance since it's injected normally
-const prisma = new PrismaClient();
+import { prisma } from "../db";
 
 export const autopilotRouter = router({
   
