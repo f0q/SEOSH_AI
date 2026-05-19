@@ -114,14 +114,29 @@ export class WordPressPublisher implements PublisherProvider {
       //    the capability for this endpoint.
       if (!opts.allowAnon && res.status === 401) {
         throw new PublisherError(
-          "WordPress отверг авторизацию (401). Возможные причины:\n" +
-          "  • Application Password неверен или отозван — создайте новый в WP → Users → Profile → Application Passwords.\n" +
-          "  • Имя пользователя указано неточно (нужно логин, не отображаемое имя).\n" +
-          "  • Сервер режет заголовок Authorization. Для Apache добавьте в .htaccess:\n" +
-          "       RewriteCond %{HTTP:Authorization} ^(.*)\n" +
-          "       RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]\n" +
-          "    Для Nginx/PHP-FPM: fastcgi_param HTTP_AUTHORIZATION $http_authorization;\n" +
-          `  • Ответ WP: ${text.slice(0, 200)}`
+          `WordPress (${url}) отверг авторизацию.\n\n` +
+          "Роль «Автор» — НЕ препятствие, Application Passwords работают для всех ролей с WP 5.6+.\n\n" +
+          "Самый быстрый способ локализовать проблему — выполнить эту команду в терминале (с вашими данными):\n" +
+          `  curl -i -u 'LOGIN:APP_PASSWORD' ${this.baseUrl}/wp-json/wp/v2/users/me\n\n` +
+          "Если curl тоже вернёт 401 — проблема в WordPress/хостинге, не у нас. По убыванию вероятности:\n\n" +
+          "  1) Application Password неверен или отозван.\n" +
+          "     Создайте новый: WP → Пользователи → Профиль → Application Passwords → New.\n" +
+          "     Скопируйте сразу, второй раз он не покажется. Пробелы можно оставить — мы их убираем.\n\n" +
+          "  2) Указан не логин, а отображаемое имя.\n" +
+          "     Нужно поле «Имя пользователя» (login_name), которое в WP → Пользователи → Все.\n" +
+          "     Email тоже должен работать, но логин надёжнее.\n\n" +
+          "  3) Сайт работает по HTTP, а не HTTPS.\n" +
+          "     WP отключает Application Passwords на не-HTTPS сайтах. Проверьте Base URL начинается с https://.\n\n" +
+          "  4) Хостинг режет заголовок Authorization (частая беда у Beget, Reg.ru, Sprinthost, GoDaddy).\n" +
+          "     Apache (.htaccess в корне WP, до строки # END WordPress):\n" +
+          "       RewriteCond %{HTTP:Authorization} ^(.+)$\n" +
+          "       RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]\n" +
+          "     Nginx + PHP-FPM (в location ~ \\.php$ блоке):\n" +
+          "       fastcgi_param HTTP_AUTHORIZATION $http_authorization;\n\n" +
+          "  5) Security-плагин блокирует Application Passwords.\n" +
+          "     Wordfence, iThemes Security, All In One WP Security, Solid Security часто отключают их.\n" +
+          "     Найдите настройку «Disable Application Passwords» или «Disable REST API» и выключите.\n\n" +
+          `Ответ WP: ${text.slice(0, 300)}`
         );
       }
       throw new PublisherError(`WordPress ${method} ${path} → ${res.status}: ${text.slice(0, 500)}`);

@@ -133,15 +133,19 @@ export default function ConnectorsSection({ projectId }: { projectId: string }) 
                     <p className="text-[10px] text-amber-400">Нужно добавить креденшалы</p>
                   )}
                   {testResult?.id === c.id && (
-                    <p className={`text-xs mt-1 ${testResult.ok ? "text-emerald-400" : "text-red-400"}`}>
-                      {testResult.ok ? "✓" : "✗"} {testResult.message}
-                    </p>
+                    <pre className={`text-xs mt-2 p-3 rounded-lg bg-surface-900/60 border max-h-[400px] overflow-auto whitespace-pre-wrap font-mono leading-relaxed ${
+                      testResult.ok
+                        ? "text-emerald-300 border-emerald-500/30"
+                        : "text-red-300 border-red-500/30"
+                    }`}>
+                      {testResult.ok ? "✓ " : "✗ "}{testResult.message}
+                    </pre>
                   )}
                   {hasError && testResult?.id !== c.id && (
-                    <p className="text-[11px] text-red-400 mt-1 flex items-start gap-1">
-                      <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                      <span className="break-all">{c.lastError}</span>
-                    </p>
+                    <div className="text-[11px] text-red-300 mt-2 p-3 rounded-lg bg-red-500/5 border border-red-500/20 flex items-start gap-2 max-h-[400px] overflow-auto">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0 text-red-400" />
+                      <pre className="whitespace-pre-wrap font-mono leading-relaxed">{c.lastError}</pre>
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-1">
