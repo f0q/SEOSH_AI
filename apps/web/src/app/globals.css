@@ -319,3 +319,49 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(99, 102, 241, 0.35);
 }
+
+/* ─── Legal documents ─────────────────────────────────────────────────── */
+
+.legal-article {
+  color: rgb(212 212 216); /* surface-300 */
+  line-height: 1.7;
+  font-size: 0.95rem;
+}
+.legal-article h1 {
+  font-size: 1.875rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: rgb(244 244 245); /* surface-50 */
+  margin-bottom: 1rem;
+}
+.legal-article h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgb(244 244 245);
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+.legal-article p {
+  margin: 0.75rem 0;
+}
+.legal-article ul, .legal-article ol {
+  padding-left: 1.5rem;
+  margin: 0.75rem 0;
+}
+.legal-article ul { list-style-type: disc; }
+.legal-article ol { list-style-type: decimal; }
+.legal-article li {
+  margin: 0.4rem 0;
+}
+.legal-article a {
+  color: rgb(129 140 248); /* brand-400 */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.legal-article a:hover {
+  color: rgb(165 180 252);
+}
+.legal-article strong {
+  color: rgb(244 244 245);
+  font-weight: 600;
+}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/server/db";
+import { LEGAL } from "@/lib/legal-info";
 import {
   Sparkles, Bot, FileText, BarChart3, Layers, Globe, ShieldCheck, ArrowRight, Check, Star,
 } from "lucide-react";
@@ -284,15 +285,35 @@ export default async function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-surface-800/40 py-8">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-surface-500">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-brand-400" />
-            <span>SEOSH.AI · © {new Date().getFullYear()}</span>
+      <footer className="border-t border-surface-800/40 py-10">
+        <div className="max-w-6xl mx-auto px-6 space-y-6 text-sm text-surface-400">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-surface-300">
+              <Sparkles className="w-4 h-4 text-brand-400" />
+              <span className="font-semibold">SEOSH.AI</span>
+              <span className="text-surface-600">· © {new Date().getFullYear()}</span>
+            </div>
+            <div className="flex items-center gap-5 text-surface-400">
+              <Link href="/login" className="hover:text-white transition">Войти</Link>
+              <Link href="/register" className="hover:text-white transition">Регистрация</Link>
+              <a href="#pricing" className="hover:text-white transition">Тарифы</a>
+            </div>
           </div>
-          <div className="flex items-center gap-6">
-            <Link href="/login" className="hover:text-white transition">Войти</Link>
-            <a href="#pricing" className="hover:text-white transition">Тарифы</a>
+
+          <div className="text-xs leading-relaxed">
+            {LEGAL.legalForm} {LEGAL.fullName} · ИНН {LEGAL.inn} ·{" "}
+            Email: <a href={`mailto:${LEGAL.email}`} className="text-brand-400 hover:text-brand-300">{LEGAL.email}</a> ·{" "}
+            Тел: <a href={`tel:${LEGAL.phone.replace(/[^+\d]/g, "")}`} className="text-brand-400 hover:text-brand-300">{LEGAL.phone}</a>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-surface-500">
+            <Link href="/legal/offer" className="hover:text-white transition">Договор оферты</Link>
+            <span>|</span>
+            <Link href="/legal/privacy" className="hover:text-white transition">Политика конфиденциальности</Link>
+            <span>|</span>
+            <Link href="/legal/payment" className="hover:text-white transition">Оплата и услуги</Link>
+            <span>|</span>
+            <Link href="/legal/refund" className="hover:text-white transition">Обмен и возврат</Link>
           </div>
         </div>
       </footer>
