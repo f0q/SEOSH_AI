@@ -3,27 +3,32 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Coins, History, ArrowDownRight, ArrowUpRight, Loader2, Check, FileText, Star } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
 import { trpc } from "@/trpc/client";
 
-const REASON_LABELS: Record<string, { label: string; icon: string }> = {
-  AI_CONTENT_GENERATE: { label: "Content Generation", icon: "📝" },
-  AI_CONTENT_OPTIMIZE: { label: "Content Optimization", icon: "✨" },
-  AI_CATEGORIES: { label: "AI Categorization", icon: "🧠" },
-  AI_CLASSIFY: { label: "AI Classification", icon: "🏷️" },
-  SEO_ANALYSIS: { label: "SEO Analysis", icon: "🔍" },
-  AI_IMAGE_GENERATE: { label: "Image Generation", icon: "🖼️" },
-  PURCHASE: { label: "Token Purchase", icon: "💰" },
-  SIGNUP_BONUS: { label: "Signup Bonus", icon: "🎁" },
-  REFUND: { label: "Refund / Adjustment", icon: "↩️" },
-  ADMIN_GRANT: { label: "Admin Grant", icon: "🛡️" },
-  ADMIN_REVOKE: { label: "Admin Revoke", icon: "⛔" },
+const REASON_ICONS: Record<string, string> = {
+  AI_CONTENT_GENERATE: "📝",
+  AI_CONTENT_OPTIMIZE: "✨",
+  AI_CATEGORIES: "🧠",
+  AI_CLASSIFY: "🏷️",
+  SEO_ANALYSIS: "🔍",
+  AI_IMAGE_GENERATE: "🖼️",
+  PURCHASE: "💰",
+  SIGNUP_BONUS: "🎁",
+  REFUND: "↩️",
+  ADMIN_GRANT: "🛡️",
+  ADMIN_REVOKE: "⛔",
 };
 
-function formatRub(kopecks: number): string {
-  return (kopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0 });
+function formatRub(kopecks: number, locale: string): string {
+  return (kopecks / 100).toLocaleString(locale === "ru" ? "ru-RU" : "en-US", { minimumFractionDigits: 0 });
 }
 
 export default function BillingPage() {
+  const t = useTranslations("billing");
+  const locale = useLocale();
+  const intlLocale = locale === "ru" ? "ru-RU" : "en-US";
+
   const balanceQuery = trpc.billing.getBalance.useQuery();
   const historyQuery = trpc.billing.getHistory.useQuery({ limit: 50 });
   const packagesQuery = trpc.billing.getPackages.useQuery();
@@ -42,10 +47,9 @@ export default function BillingPage() {
     setSelectedPackage(`${packageSlug}:${providerSlug}`);
     try {
       const res = await createPayment.mutateAsync({ packageSlug, providerSlug });
-      // Manual invoice → in-app page; YooKassa → external redirect.
       window.location.href = res.confirmationUrl;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start payment");
+      setError(err instanceof Error ? err.message : t("startPaymentFailed"));
       setSelectedPackage(null);
     }
   };
@@ -54,8 +58,8 @@ export default function BillingPage() {
     <DashboardLayout>
       <div className="max-w-5xl mx-auto animate-fade-in">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-surface-50">Биллинг и токены</h1>
-          <p className="text-surface-400 mt-1">Управление балансом и пополнение</p>
+          <h1 className="text-2xl font-bold text-surface-50">{t("title")}</h1>
+          <p className="text-surface-400 mt-1">{t("subtitle")}</p>
         </div>
 
         {/* Balance card */}
@@ -66,13 +70,13 @@ export default function BillingPage() {
               <Coins className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-sm text-surface-400">Текущий баланс</p>
+              <p className="text-sm text-surface-400">{t("balanceLabel")}</p>
               {balanceQuery.isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin text-surface-400 mt-1" />
               ) : (
                 <p className="text-3xl font-bold text-surface-50">
-                  {balance.toLocaleString("ru-RU")}{" "}
-                  <span className="text-sm font-normal text-surface-400">токенов</span>
+                  {balance.toLocaleString(intlLocale)}{" "}
+                  <span className="text-sm font-normal text-surface-400">{t("tokensSuffix")}</span>
                 </p>
               )}
             </div>
@@ -81,14 +85,14 @@ export default function BillingPage() {
 
         {/* Packages */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-surface-100 mb-4">Пополнить баланс</h2>
+          <h2 className="text-lg font-semibold text-surface-100 mb-4">{t("topUp")}</h2>
           {packagesQuery.isLoading && (
             <div className="flex items-center gap-2 text-surface-400 text-sm">
-              <Loader2 className="w-4 h-4 animate-spin" /> Загружаем тарифы…
+              <Loader2 className="w-4 h-4 animate-spin" /> {t("loadingPackages")}
             </div>
           )}
           {packages.length === 0 && !packagesQuery.isLoading && (
-            <p className="text-sm text-surface-500">Тарифы пока не настроены. Свяжитесь с поддержкой.</p>
+            <p className="text-sm text-surface-500">{t("noPackages")}</p>
           )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {packages.map((pkg) => (
@@ -100,7 +104,7 @@ export default function BillingPage() {
               >
                 {pkg.highlighted && (
                   <div className="absolute -top-2 right-4 bg-brand-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex items-center gap-1">
-                    <Star className="w-3 h-3" /> Популярный
+                    <Star className="w-3 h-3" /> {t("popular")}
                   </div>
                 )}
                 <h3 className="text-lg font-bold text-surface-50">{pkg.name}</h3>
@@ -109,16 +113,16 @@ export default function BillingPage() {
                 )}
                 <div className="my-4">
                   <p className="text-2xl font-bold text-surface-100">
-                    {formatRub(pkg.priceRub)} ₽
+                    {formatRub(pkg.priceRub, locale)} ₽
                   </p>
                   <p className="text-sm text-brand-400 font-medium mt-1">
-                    {pkg.tokens.toLocaleString("ru-RU")} токенов
+                    {pkg.tokens.toLocaleString(intlLocale)} {t("tokensSuffix")}
                   </p>
                 </div>
                 <div className="space-y-2 mt-4">
                   {providers.length === 0 && (
                     <p className="text-xs text-amber-400">
-                      Способы оплаты не настроены. Обратитесь к админу.
+                      {t("noProviders")}
                     </p>
                   )}
                   {providers.map((prov) => {
@@ -142,7 +146,7 @@ export default function BillingPage() {
                         ) : (
                           <Check className="w-4 h-4" />
                         )}
-                        {prov.slug === "yookassa" ? `Оплатить через ${prov.displayName}` : prov.displayName}
+                        {prov.slug === "yookassa" ? t("payWith", { provider: prov.displayName }) : prov.displayName}
                       </button>
                     );
                   })}
@@ -159,7 +163,7 @@ export default function BillingPage() {
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold text-surface-100 mb-4 flex items-center gap-2">
             <History className="w-5 h-5 text-surface-400" />
-            История транзакций
+            {t("historyTitle")}
           </h2>
           <div className="space-y-1 max-h-[420px] overflow-y-auto">
             {historyQuery.isLoading && (
@@ -169,20 +173,21 @@ export default function BillingPage() {
             )}
             {historyQuery.data?.length === 0 && (
               <p className="text-xs text-surface-500 text-center py-8">
-                Транзакций пока нет.
+                {t("historyEmpty")}
               </p>
             )}
             {historyQuery.data?.map((tx) => {
-              const meta = REASON_LABELS[tx.reason] || { label: tx.reason, icon: "📋" };
+              const icon = REASON_ICONS[tx.reason] || "📋";
+              const reasonLabel = REASON_ICONS[tx.reason] ? t(`reasons.${tx.reason}`) : tx.reason;
               const isPositive = tx.amount > 0;
               return (
                 <div key={tx.id} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-surface-800/30 transition-colors">
                   <div className="flex items-center gap-3">
-                    <span className="text-base">{meta.icon}</span>
+                    <span className="text-base">{icon}</span>
                     <div>
-                      <p className="text-sm text-surface-200">{meta.label}</p>
+                      <p className="text-sm text-surface-200">{reasonLabel}</p>
                       <p className="text-[10px] text-surface-500">
-                        {new Date(tx.createdAt).toLocaleString("ru-RU")}
+                        {new Date(tx.createdAt).toLocaleString(intlLocale)}
                       </p>
                     </div>
                   </div>
@@ -190,7 +195,7 @@ export default function BillingPage() {
                     isPositive ? "text-emerald-400" : "text-red-400"
                   }`}>
                     {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {isPositive ? "+" : ""}{tx.amount.toLocaleString("ru-RU")}
+                    {isPositive ? "+" : ""}{tx.amount.toLocaleString(intlLocale)}
                   </div>
                 </div>
               );

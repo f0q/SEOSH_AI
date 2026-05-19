@@ -3,11 +3,11 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { trpc } from "@/trpc/client";
 import { useProject } from "@/lib/project-context";
+import { useTranslations, useLocale } from "next-intl";
 import {
   FolderKanban,
   Plus,
   Globe,
-  Brain,
   Clock,
   CheckCircle2,
   Loader2,
@@ -19,20 +19,25 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 
-const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  ONBOARDING: { label: "Onboarding", className: "badge-warning" },
-  ACTIVE:     { label: "Active",     className: "badge-success" },
-  PAUSED:     { label: "Paused",     className: "badge" },
-  ARCHIVED:   { label: "Archived",   className: "badge" },
+type StatusKey = "ONBOARDING" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+
+const STATUS_CLASSNAMES: Record<StatusKey, string> = {
+  ONBOARDING: "badge-warning",
+  ACTIVE:     "badge-success",
+  PAUSED:     "badge",
+  ARCHIVED:   "badge",
 };
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const t = useTranslations("projects");
+  const tCommon = useTranslations("common");
+  const locale = useLocale();
   const { data: projects, isLoading, refetch } = trpc.projects.list.useQuery();
   const { activeProject, setActiveProjectId } = useProject();
-  
+
   const [editingProject, setEditingProject] = useState<{ id: string; name: string; url: string } | null>(null);
-  
+
   const updateProjectMut = trpc.projects.update.useMutation({
     onSuccess: () => {
       refetch();
@@ -47,15 +52,15 @@ export default function ProjectsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-surface-50">Projects</h1>
+            <h1 className="text-2xl font-bold text-surface-50">{t("title")}</h1>
             <p className="text-surface-400 mt-1">
               {projects?.length
-                ? `${projects.length} project${projects.length > 1 ? "s" : ""}`
-                : "Manage your SEO projects"}
+                ? t("count", { n: projects.length })
+                : t("manage")}
             </p>
           </div>
           <Link href="/projects/new" className="btn-primary">
-            <Plus className="w-4 h-4" /> New Project
+            <Plus className="w-4 h-4" /> {t("new")}
           </Link>
         </div>
 
@@ -72,12 +77,12 @@ export default function ProjectsPage() {
             <div className="w-16 h-16 rounded-2xl bg-surface-800/50 flex items-center justify-center mb-4">
               <FolderKanban className="w-7 h-7 text-surface-500" />
             </div>
-            <h2 className="text-lg font-semibold text-surface-200 mb-2">No projects yet</h2>
+            <h2 className="text-lg font-semibold text-surface-200 mb-2">{t("emptyTitle")}</h2>
             <p className="text-sm text-surface-500 mb-6 max-w-md">
-              Create your first project to start optimizing your website for search engines.
+              {t("emptyBody")}
             </p>
             <Link href="/projects/new" className="btn-primary">
-              <Plus className="w-4 h-4" /> Create First Project
+              <Plus className="w-4 h-4" /> {t("createFirst")}
             </Link>
           </div>
         )}
@@ -87,7 +92,9 @@ export default function ProjectsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {projects.map((project) => {
               const isActive = activeProject?.id === project.id;
-              const status = STATUS_STYLES[project.status] ?? { label: project.status, className: "badge" };
+              const statusKey = project.status as StatusKey;
+              const statusClass = STATUS_CLASSNAMES[statusKey] ?? "badge";
+              const statusLabel = STATUS_CLASSNAMES[statusKey] ? t(`status.${statusKey}`) : project.status;
 
               return (
                 <div
@@ -134,12 +141,12 @@ export default function ProjectsPage() {
                           setEditingProject({ id: project.id, name: project.name, url: project.url || "" });
                         }}
                         className="p-1.5 rounded-lg text-surface-500 hover:text-brand-400 hover:bg-brand-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Edit project"
+                        title={t("edit")}
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <span className={`badge ${status.className} text-xs`}>
-                        {status.label}
+                      <span className={`badge ${statusClass} text-xs`}>
+                        {statusLabel}
                       </span>
                     </div>
                   </div>
@@ -148,7 +155,7 @@ export default function ProjectsPage() {
                   <div className="flex items-center gap-4 text-xs text-surface-500">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {new Date(project.createdAt).toLocaleDateString()}
+                      {new Date(project.createdAt).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US")}
                     </span>
                   </div>
 
@@ -156,7 +163,7 @@ export default function ProjectsPage() {
                   {isActive && (
                     <div className="mt-3 pt-3 border-t border-brand-500/15 flex items-center gap-1.5 animate-fade-in">
                       <CheckCircle2 className="w-3.5 h-3.5 text-brand-400" />
-                      <span className="text-xs text-brand-400 font-medium">Active project</span>
+                      <span className="text-xs text-brand-400 font-medium">{t("active")}</span>
                     </div>
                   )}
                 </div>
@@ -171,7 +178,7 @@ export default function ProjectsPage() {
               <div className="w-10 h-10 rounded-xl bg-surface-800/40 flex items-center justify-center">
                 <Plus className="w-5 h-5" />
               </div>
-              <span className="text-sm font-medium">New Project</span>
+              <span className="text-sm font-medium">{t("new")}</span>
             </Link>
           </div>
         )}
@@ -182,7 +189,7 @@ export default function ProjectsPage() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-surface-900 border border-surface-700/50 rounded-2xl w-full max-w-md shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-surface-50">Edit Project</h2>
+              <h2 className="text-xl font-semibold text-surface-50">{t("editTitle")}</h2>
               <button
                 onClick={() => setEditingProject(null)}
                 className="text-surface-500 hover:text-surface-200 p-1"
@@ -190,45 +197,45 @@ export default function ProjectsPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-1.5">Project Name *</label>
+                <label className="block text-sm font-medium text-surface-300 mb-1.5">{t("fields.nameLabel")}</label>
                 <input
                   type="text"
                   value={editingProject.name}
                   onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
                   className="input-field w-full"
-                  placeholder="e.g. Acme Corp"
+                  placeholder={t("fields.namePlaceholder")}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-1.5">Website URL</label>
+                <label className="block text-sm font-medium text-surface-300 mb-1.5">{t("fields.urlLabel")}</label>
                 <input
                   type="url"
                   value={editingProject.url}
                   onChange={(e) => setEditingProject({ ...editingProject, url: e.target.value })}
                   className="input-field w-full"
-                  placeholder="https://example.com"
+                  placeholder={t("fields.urlPlaceholder")}
                 />
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-8">
                 <button
                   onClick={() => setEditingProject(null)}
                   className="btn-ghost"
                 >
-                  Cancel
+                  {tCommon("cancel")}
                 </button>
                 <button
                   onClick={() => {
-                    if (!editingProject.name.trim()) return alert("Name is required");
+                    if (!editingProject.name.trim()) return alert(t("nameRequired"));
                     updateProjectMut.mutate(editingProject);
                   }}
                   disabled={updateProjectMut.isPending}
                   className="btn-primary"
                 >
-                  {updateProjectMut.isPending ? "Saving..." : "Save Changes"}
+                  {updateProjectMut.isPending ? t("saving") : t("saveChanges")}
                 </button>
               </div>
             </div>

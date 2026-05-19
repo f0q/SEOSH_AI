@@ -273,7 +273,10 @@
   },
   "semanticCore": {
     "title": "Semantic Core",
+    "titleHighlight": "Core",
     "subtitle": "Analyze and cluster your keywords",
+    "subtitleLong": "Manage your keyword clusters, build site structures, and link to projects.",
+    "loading": "Loading your semantic cores…",
     "addKeywords": "Add Keywords",
     "generateCategories": "Generate Categories",
     "classify": "Classify",
@@ -284,7 +287,23 @@
     "query": "Query",
     "category": "Category",
     "group": "Group",
-    "page": "Page"
+    "page": "Page",
+    "editCore": "Edit Core",
+    "newCore": "New Semantic Core",
+    "createFirst": "Create First Core",
+    "noCoresTitle": "No Semantic Cores Yet",
+    "noProjectHint": "Select a project from the sidebar to view or create its semantic core.",
+    "noCoresHint": "Start by creating your first semantic core for this project.",
+    "columns": {
+      "target": "Core Target",
+      "keywords": "Keywords",
+      "categories": "Categories",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "unknownProject": "Unknown Project",
+    "deleteConfirm": "Delete this semantic core and all its keywords? This cannot be undone.",
+    "deleteTitle": "Delete core"
   },
   "content": {
     "title": "Content Manager",
@@ -298,5 +317,122 @@
     "seoScore": "SEO Score",
     "uniqueness": "Uniqueness",
     "preview": "Preview"
+  },
+  "dashboard": {
+    "welcomeTo": "Welcome to",
+    "welcomeBody": "Your all-in-one SEO automation platform. Let's grow your search traffic.",
+    "smartStart": "Smart Start",
+    "stats": {
+      "projects": "Projects",
+      "keywords": "Keywords / Cores",
+      "content": "Content Pieces",
+      "published": "Published"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "getStarted": "Get started",
+      "autopilot": {
+        "title": "Autopilot",
+        "description": "Enable automatic content generation"
+      },
+      "semanticCore": {
+        "title": "Semantic Core",
+        "description": "Analyze and cluster your keywords with AI"
+      },
+      "createContent": {
+        "title": "Create Content",
+        "description": "Generate SEO-optimized articles with AI"
+      },
+      "newProject": {
+        "title": "New Project",
+        "description": "Set up a new website for SEO optimization"
+      }
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "emptyTitle": "No activity yet",
+      "emptyBody": "Create your first project to get started"
+    },
+    "gettingStarted": {
+      "title": "Getting Started",
+      "step1": "Create your first project",
+      "step2": "Build semantic core",
+      "step3": "Generate first content",
+      "progress": "Progress"
+    }
+  },
+  "projects": {
+    "title": "Projects",
+    "count": "{n, plural, one {# project} other {# projects}}",
+    "manage": "Manage your SEO projects",
+    "new": "New Project",
+    "createFirst": "Create First Project",
+    "emptyTitle": "No projects yet",
+    "emptyBody": "Create your first project to start optimizing your website for search engines.",
+    "active": "Active project",
+    "loadingWizard": "Loading wizard…",
+    "status": {
+      "ONBOARDING": "Onboarding",
+      "ACTIVE": "Active",
+      "PAUSED": "Paused",
+      "ARCHIVED": "Archived"
+    },
+    "editTitle": "Edit Project",
+    "edit": "Edit project",
+    "fields": {
+      "nameLabel": "Project Name *",
+      "namePlaceholder": "e.g. Acme Corp",
+      "urlLabel": "Website URL",
+      "urlPlaceholder": "https://example.com"
+    },
+    "nameRequired": "Name is required",
+    "saving": "Saving…",
+    "saveChanges": "Save Changes"
+  },
+  "billing": {
+    "title": "Billing & tokens",
+    "subtitle": "Manage balance and top-ups",
+    "balanceLabel": "Current balance",
+    "tokensSuffix": "tokens",
+    "topUp": "Top up balance",
+    "loadingPackages": "Loading packages…",
+    "noPackages": "Packages aren't set up yet. Contact support.",
+    "noProviders": "Payment methods aren't configured. Contact admin.",
+    "popular": "Popular",
+    "payWith": "Pay with {provider}",
+    "startPaymentFailed": "Failed to start payment",
+    "historyTitle": "Transaction history",
+    "historyEmpty": "No transactions yet.",
+    "reasons": {
+      "AI_CONTENT_GENERATE": "Content Generation",
+      "AI_CONTENT_OPTIMIZE": "Content Optimization",
+      "AI_CATEGORIES": "AI Categorization",
+      "AI_CLASSIFY": "AI Classification",
+      "SEO_ANALYSIS": "SEO Analysis",
+      "AI_IMAGE_GENERATE": "Image Generation",
+      "PURCHASE": "Token Purchase",
+      "SIGNUP_BONUS": "Signup Bonus",
+      "REFUND": "Refund / Adjustment",
+      "ADMIN_GRANT": "Admin Grant",
+      "ADMIN_REVOKE": "Admin Revoke"
+    }
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "subtitle": "Manage users, tokens, and billing",
+    "tabs": {
+      "users": "Users",
+      "waitlist": "Waitlist",
+      "payments": "Payments",
+      "packages": "Packages",
+      "providers": "Providers",
+      "company": "Company"
+    }
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Track your SEO performance and search positions",
+    "comingSoonTitle": "Analytics coming soon",
+    "comingSoonBody": "Connect Yandex.Metrika, Google Search Console, and other services to track your SEO growth."
   }
 }
