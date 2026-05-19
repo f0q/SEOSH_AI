@@ -66,6 +66,24 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
   );
   const semanticCategories = latestCore?.categories?.map((c: any) => c.name) || [];
 
+  const projectId = (contentItem as any)?.contentPlan?.projectId ?? "";
+  const { data: connectors } = trpc.publisher.listForProject.useQuery(
+    { projectId },
+    { enabled: !!projectId }
+  );
+  const publishMut = trpc.publisher.publishItem.useMutation({
+    onSuccess: (res) => {
+      setSavedMessage(`Опубликовано: ${res.url}`);
+      setErrorMessage("");
+      utils.contentPlan.getContentItem.invalidate({ id: itemId });
+      setPublishOpen(false);
+    },
+    onError: (err) => {
+      setErrorMessage(err.message);
+      setSavedMessage("");
+    },
+  });
+
   // Populate state
   useEffect(() => {
     if (contentItem) {
@@ -608,28 +626,44 @@ export function ContentEditorModal({ itemId, onClose }: ContentEditorModalProps)
               <div className="relative w-full">
                 <button
                   onClick={() => setPublishOpen(!publishOpen)}
-                  className="flex w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-brand-500/10 border border-brand-500/30 hover:border-brand-500 hover:bg-brand-500/20 text-brand-400 transition-colors"
+                  disabled={publishMut.isPending}
+                  className="flex w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-brand-500/10 border border-brand-500/30 hover:border-brand-500 hover:bg-brand-500/20 text-brand-400 transition-colors disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4" />
-                  Publish Actions
+                  {publishMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {(contentItem as any)?.publishedUrl ? "Re-publish" : "Publish"}
                   <ChevronDown className="w-4 h-4 ml-auto" />
                 </button>
                 {publishOpen && (
                   <div className="absolute right-0 left-0 top-full mt-2 dropdown-panel overflow-hidden z-50">
                     <div className="p-2 text-[10px] text-surface-400 font-medium uppercase tracking-wider border-b border-surface-700/50">
-                      Integrations
+                      Connectors
                     </div>
-                    <button className="w-full text-left px-3 py-2 text-xs text-surface-300 hover:bg-surface-700 hover:text-white transition-colors flex items-center gap-2">
-                      <Send className="w-3.5 h-3.5 text-blue-400" />
-                      Telegram
-                    </button>
-                    <button className="w-full text-left px-3 py-2 text-xs text-surface-300 hover:bg-surface-700 hover:text-white transition-colors flex items-center gap-2">
-                      <FileText className="w-3.5 h-3.5 text-blue-300" />
-                      WordPress
-                    </button>
-                    <div className="p-2 text-[10px] text-surface-500 border-t border-surface-700/50 bg-surface-800/50">
-                      Configure in project settings
-                    </div>
+                    {connectors && connectors.length > 0 ? (
+                      connectors.filter((c) => c.isActive).map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => publishMut.mutate({ contentItemId: itemId, connectorId: c.id, status: "publish" })}
+                          disabled={publishMut.isPending || !c.configured}
+                          className="w-full text-left px-3 py-2 text-xs text-surface-300 hover:bg-surface-700 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-40"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-blue-300" />
+                          <span className="flex-1">{c.name}</span>
+                          <span className="text-[10px] text-surface-500">{c.type}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-3 py-3 text-xs text-surface-500">Нет коннекторов. Добавьте в Project Settings.</p>
+                    )}
+                    {(contentItem as any)?.publishedUrl && (
+                      <a
+                        href={(contentItem as any).publishedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block px-3 py-2 text-xs text-emerald-400 hover:bg-surface-700 border-t border-surface-700/50"
+                      >
+                        ↗ Открыть {(contentItem as any).publishedUrl}
+                      </a>
+                    )}
                   </div>
                 )}
               </div>

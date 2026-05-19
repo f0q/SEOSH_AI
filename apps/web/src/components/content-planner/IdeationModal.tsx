@@ -385,7 +385,7 @@ export function IdeationModal({
                           }`}
                         >
                           {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
-                          Generate SEO Data
+                          Flesh out SEO
                         </button>
                       </div>
                     </div>
@@ -545,7 +545,7 @@ export function IdeationModal({
                           }`}
                         >
                           {fleshOutMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
-                          Generate SEO Data
+                          Flesh out SEO
                         </button>
                       </div>
                     </div>

@@ -160,6 +160,7 @@ model Project {
   sitemapPages   SitemapPage[]
   autopilotConfig AutopilotConfig?
   members        ProjectMember[]
+  publisherConnectors PublisherConnector[]
 
   @@map("projects")
 }
@@ -370,10 +371,13 @@ model ContentItem {
   // ── Media ────────────────────────────────────────────────────────────────
   media         ContentMedia[]
 
-  // ── Scheduling ───────────────────────────────────────────────────────────
-  scheduledAt   DateTime?
-  publishedAt   DateTime?
-  publishedUrl  String?
+  // ── Scheduling & publishing ──────────────────────────────────────────────
+  scheduledAt           DateTime?
+  publishedAt           DateTime?
+  publishedUrl          String?
+  publisherConnectorId  String?
+  publisherConnector    PublisherConnector? @relation(fields: [publisherConnectorId], references: [id], onDelete: SetNull)
+  externalPostId        String?    // ID of the post in the target CMS
 
   // ── Keyword tracking ─────────────────────────────────────────────────────
   linkedQueries  ContentItemQuery[]
@@ -502,14 +506,22 @@ enum MediaType {
 model PublisherConnector {
   id         String        @id @default(uuid())
   projectId  String
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   type       ConnectorType
   name       String        // User-friendly name
-  config     Json          // { url, authToken, ... } — encrypted fields
+  baseUrl    String        @default("") // CMS public URL (https://example.com)
+  /// Provider-specific blob. For WordPress: { username, password (encrypted) }
+  config     Json
   isActive   Boolean       @default(true)
+  isDefault  Boolean       @default(false)
   lastSync   DateTime?
+  lastError  String?       @db.Text
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
+  publishedItems ContentItem[]
+
+  @@index([projectId])
   @@map("publisher_connectors")
 }
 

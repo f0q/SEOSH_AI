@@ -73,15 +73,74 @@ export const autopilotRouter = router({
       });
       if (!project) throw new Error("Project not found");
 
-      // We join contentPlans to get all content items for this project
       const items = await prisma.contentItem.findMany({
         where: {
           contentPlan: { projectId: input.projectId },
         },
-        orderBy: { scheduledAt: 'asc' },
+        orderBy: [{ scheduledAt: "asc" }, { createdAt: "asc" }],
         take: 50,
       });
 
       return items;
+    }),
+
+  // 4. Aggregate stats for the dashboard chips
+  getStats: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.user.id },
+      });
+      if (!project) throw new Error("Project not found");
+
+      const where = { contentPlan: { projectId: input.projectId } };
+      const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      const [inQueue, pending, published, publishedThisMonth] = await Promise.all([
+        prisma.contentItem.count({
+          where: { ...where, status: { in: ["DRAFT", "GENERATED", "OPTIMIZED", "REVIEW", "SCHEDULED"] } },
+        }),
+        prisma.contentItem.count({ where: { ...where, status: "REVIEW" } }),
+        prisma.contentItem.count({ where: { ...where, status: "PUBLISHED" } }),
+        prisma.contentItem.count({
+          where: { ...where, status: "PUBLISHED", publishedAt: { gte: monthAgo } },
+        }),
+      ]);
+
+      return { inQueue, pending, published, publishedThisMonth };
+    }),
+
+  // 5. Approve a queued item → SCHEDULED (autopilot will publish on its schedule)
+  approveItem: protectedProcedure
+    .input(z.object({ itemId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const item = await prisma.contentItem.findUnique({
+        where: { id: input.itemId },
+        include: { contentPlan: { select: { project: { select: { userId: true } } } } },
+      });
+      if (!item || item.contentPlan.project.userId !== ctx.user.id) {
+        throw new Error("Content item not found or not yours");
+      }
+      return prisma.contentItem.update({
+        where: { id: input.itemId },
+        data: { status: "SCHEDULED" },
+      });
+    }),
+
+  // 6. Reject a queued item → FAILED (out of the queue)
+  rejectItem: protectedProcedure
+    .input(z.object({ itemId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const item = await prisma.contentItem.findUnique({
+        where: { id: input.itemId },
+        include: { contentPlan: { select: { project: { select: { userId: true } } } } },
+      });
+      if (!item || item.contentPlan.project.userId !== ctx.user.id) {
+        throw new Error("Content item not found or not yours");
+      }
+      return prisma.contentItem.update({
+        where: { id: input.itemId },
+        data: { status: "FAILED" },
+      });
     }),
 });

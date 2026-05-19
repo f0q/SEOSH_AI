@@ -11,6 +11,8 @@
 
 import { router, protectedProcedure, superadminProcedure } from "@/server/trpc";
 import { z } from "zod";
+import { prisma } from "../db";
+import { encrypt, maskApiKey } from "../lib/encryption";
 
 // ─── Model Catalog ─────────────────────────────────────────────────────────
 // Pricing sourced from OpenRouter API. Sorted by cost within each group.
@@ -80,19 +82,49 @@ export const aiRouter = router({
     return MODEL_CATALOG.map(catalogToModel);
   }),
 
-  /** Update user's AI model preferences */
+  /** Read current user's AI preferences. */
+  getPreferences: protectedProcedure.query(async ({ ctx }) => {
+    return prisma.userAIPreferences.upsert({
+      where: { userId: ctx.user.id },
+      create: { userId: ctx.user.id },
+      update: {},
+      select: {
+        modelCategorize: true,
+        modelContent: true,
+        modelAnalyze: true,
+      },
+    });
+  }),
+
+  /** Update user's AI model preferences. */
   updatePreferences: protectedProcedure
     .input(z.object({
-      modelCategorize: z.string().optional(),
-      modelContent: z.string().optional(),
-      modelAnalyze: z.string().optional(),
+      modelCategorize: z.string().optional().nullable(),
+      modelContent: z.string().optional().nullable(),
+      modelAnalyze: z.string().optional().nullable(),
     }))
     .mutation(async ({ input, ctx }) => {
-      // TODO: prisma.userAIPreferences.upsert
+      await prisma.userAIPreferences.upsert({
+        where: { userId: ctx.user.id },
+        create: {
+          userId: ctx.user.id,
+          modelCategorize: input.modelCategorize ?? undefined,
+          modelContent: input.modelContent ?? undefined,
+          modelAnalyze: input.modelAnalyze ?? undefined,
+        },
+        update: {
+          modelCategorize: input.modelCategorize ?? undefined,
+          modelContent: input.modelContent ?? undefined,
+          modelAnalyze: input.modelAnalyze ?? undefined,
+        },
+      });
       return { success: true };
     }),
 
-  /** SUPERADMIN: Configure a new AI provider */
+  /**
+   * SUPERADMIN: Configure (create or update) a provider. API key is encrypted
+   * before storage; passing an empty string keeps the existing one untouched.
+   */
   configureProvider: superadminProcedure
     .input(z.object({
       provider: z.enum(["openrouter", "openai", "anthropic", "ollama"]),
@@ -102,13 +134,49 @@ export const aiRouter = router({
       enabled: z.boolean().default(true),
     }))
     .mutation(async ({ input }) => {
-      // TODO: prisma.aIProviderConfig.upsert
-      return { success: true };
+      const existing = await prisma.aIProviderConfig.findFirst({
+        where: { provider: input.provider },
+      });
+
+      if (input.isDefault) {
+        // Only one default at a time.
+        await prisma.aIProviderConfig.updateMany({
+          where: { NOT: { id: existing?.id ?? "_none" } },
+          data: { isDefault: false },
+        });
+      }
+
+      const data = {
+        provider: input.provider,
+        baseUrl: input.baseUrl,
+        isDefault: input.isDefault,
+        enabled: input.enabled,
+        ...(input.apiKey && input.apiKey.length > 0 ? { apiKey: encrypt(input.apiKey) } : {}),
+      };
+
+      if (existing) {
+        return prisma.aIProviderConfig.update({
+          where: { id: existing.id },
+          data,
+        });
+      }
+      return prisma.aIProviderConfig.create({
+        data: { ...data, models: [] },
+      });
     }),
 
-  /** SUPERADMIN: List all configured providers with status */
+  /** SUPERADMIN: List all configured providers (API keys masked). */
   listProviders: superadminProcedure.query(async () => {
-    // TODO: prisma.aIProviderConfig.findMany
-    return [];
+    const rows = await prisma.aIProviderConfig.findMany({ orderBy: { provider: "asc" } });
+    return rows.map((row) => ({
+      id: row.id,
+      provider: row.provider,
+      enabled: row.enabled,
+      isDefault: row.isDefault,
+      baseUrl: row.baseUrl,
+      apiKeyMasked: row.apiKey ? maskApiKey(row.apiKey.slice(0, 8)) : null,
+      hasApiKey: !!row.apiKey,
+      updatedAt: row.updatedAt,
+    }));
   }),
 });

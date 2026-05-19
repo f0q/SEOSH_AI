@@ -7,6 +7,7 @@ import { Globe, ShieldCheck, Link2, LayoutList, ChevronRight, Layers, FileText, 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import ConnectorsSection from "@/components/project-settings/ConnectorsSection";
 
 export default function ProjectSettingsPage() {
   const { activeProject } = useProject();
@@ -399,6 +400,10 @@ export default function ProjectSettingsPage() {
                 </div>
               </div>
             </div>
+
+            {projectId && (
+              <ConnectorsSection projectId={projectId} />
+            )}
 
           </div>
         )}
