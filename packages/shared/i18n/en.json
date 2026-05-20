@@ -1301,5 +1301,184 @@
       "legendExpensive": "Expensive",
       "legendPremium": "Premium"
     }
+  },
+  "projectSettings": {
+    "title": "Project",
+    "titleAccent": "Settings",
+    "subtitle": "Read-only view of your project's configuration and established sitemap structure.",
+    "editSetup": "Edit Project Setup",
+    "noProjectTitle": "No active project",
+    "noProjectBody": "Please select or create a project from the sidebar.",
+    "details": {
+      "title": "Project Details",
+      "companyName": "Company Name",
+      "primaryUrl": "Primary URL",
+      "description": "Description"
+    },
+    "competitors": {
+      "title": "Competitors",
+      "empty": "No competitors recorded."
+    },
+    "rss": {
+      "title": "Competitor RSS Feeds",
+      "empty": "No RSS feeds added yet.",
+      "placeholder": "https://competitor.com/feed.xml",
+      "add": "Add",
+      "removeTooltip": "Remove feed"
+    },
+    "semanticCore": {
+      "title": "Semantic Core",
+      "master": "Master Core (Merged)",
+      "connected": "Connected",
+      "viewDetails": "View Details",
+      "edit": "Edit Core",
+      "noneTitle": "No semantic core linked",
+      "noneBody": "Create or link a semantic core to enable keyword-driven content planning.",
+      "createNew": "Create New Core",
+      "linkExisting": "Link Existing..."
+    },
+    "danger": {
+      "title": "Danger Zone",
+      "body": "Permanently delete this project and all of its associated data, including content plans and settings.",
+      "delete": "Delete Project",
+      "deleting": "Deleting...",
+      "confirm": "Are you sure you want to delete this project and all its data? This cannot be undone."
+    },
+    "sitemap": {
+      "title": "Approved Structure of Website",
+      "sections": "{n} sections",
+      "emptyTitle": "No sitemap structure found",
+      "emptyBody": "No approved structure has been generated. This is usually created during project setup."
+    },
+    "connectors": {
+      "title": "Publishing Connectors",
+      "subtitle": "Connect a CMS where autopilot will publish content.",
+      "add": "Add",
+      "loading": "Loading…",
+      "empty": "No connectors yet.",
+      "credsSaved": "Credentials saved",
+      "credsMissing": "Credentials missing",
+      "connectionOk": "Connection established",
+      "errorGeneric": "Error",
+      "disabled": "DISABLED",
+      "test": "Test",
+      "testing": "...",
+      "edit": "Edit",
+      "deleteConfirm": "Delete connector \"{name}\"?",
+      "editingTitle": "Edit {name}",
+      "newTitle": "New connector",
+      "fieldType": "Type",
+      "fieldName": "Name",
+      "namePlaceholder": "My blog",
+      "fieldBaseUrl": "Base URL",
+      "useAsDefault": "Use as default connector",
+      "save": "Save",
+      "cancel": "Cancel",
+      "keepUnchangedHint": "leave empty to keep unchanged",
+      "tilda": "Tilda (soon)",
+      "bitrix": "Bitrix (soon)",
+      "wpUsername": "WordPress username",
+      "wpUsernameHint": "User who owns the Application Password",
+      "wpPassword": "Application Password",
+      "wpPasswordHint": "WP → Users → Profile → Application Passwords"
+    }
+  },
+  "autopilotPage": {
+    "title": "Autopilot",
+    "running": "Running",
+    "paused": "Paused",
+    "stop": "Stop",
+    "enable": "Enable",
+    "selectProject": "Select a project to configure autopilot.",
+    "needConnector": "Add a CMS connector in <link>Project Settings</link> to enable autopilot.",
+    "schedule": {
+      "title": "Publishing Schedule",
+      "oneDay": "1 article / day",
+      "threeWeek": "3 articles / week",
+      "oneWeek": "1 article / week"
+    },
+    "autoApprove": {
+      "title": "Auto-Approve",
+      "subtitle": "Skip manual approval step"
+    },
+    "connectors": {
+      "title": "CMS connectors",
+      "empty": "No connectors. Add them in Project Settings.",
+      "noCreds": "no creds",
+      "manage": "Manage →"
+    },
+    "stats": {
+      "inQueue": "In Queue",
+      "pending": "Pending",
+      "published": "Published",
+      "thisMonth": "This Month"
+    },
+    "queue": {
+      "title": "Content Queue",
+      "loading": "Loading…",
+      "empty": "Queue is empty. Create a content plan in <link>Content Planner</link>.",
+      "openTooltip": "↗ Open",
+      "approve": "Approve",
+      "edit": "Edit",
+      "reject": "Reject",
+      "status": {
+        "DRAFT": "Draft",
+        "IN_PROGRESS": "In Progress",
+        "GENERATED": "Generated",
+        "OPTIMIZED": "Optimized",
+        "REVIEW": "Awaiting",
+        "SCHEDULED": "Scheduled",
+        "PUBLISHING": "Publishing",
+        "PUBLISHED": "Published",
+        "FAILED": "Rejected"
+      }
+    },
+    "telegram": {
+      "title": "Telegram approval (soon)",
+      "body": "Telegram bot integration for remote approval will arrive in upcoming releases."
+    },
+    "toggleError": "Failed"
+  },
+  "invite": {
+    "loadingTitle": "Accepting Invitation...",
+    "loadingBody": "Please wait while we set up your access.",
+    "successTitle": "Invitation Accepted!",
+    "successBody": "You now have access to <strong>{project}</strong>.",
+    "successInstruction": "Use your email and the temporary password from your invitation to sign in.",
+    "redirecting": "Redirecting to login...",
+    "errorTitle": "Invitation Error",
+    "errorDefault": "Invalid or expired invitation link.",
+    "goLogin": "Go to Login",
+    "fallbackProject": "the project"
+  },
+  "invoice": {
+    "loading": "Loading…",
+    "notFound": "Invoice not found.",
+    "backToBilling": "Back to billing",
+    "print": "Print / PDF",
+    "title": "Invoice № {no}",
+    "dateOf": "of {date}",
+    "totalLabel": "Total due",
+    "currency": "₽",
+    "supplier": "Supplier",
+    "innKpp": "INN: {inn} / KPP: {kpp}",
+    "ogrn": "OGRN: {ogrn}",
+    "bank": "Bank: {bank}",
+    "account": "Account: {account}",
+    "correspondent": "Correspondent acct: {acct}",
+    "bik": "BIK: {bik}",
+    "purpose": "Payment purpose",
+    "purposeBody": "Purchase of SEOSH.AI token package",
+    "paymentNo": "Payment № {no}",
+    "noVatNote": "VAT-free. Tokens are credited manually after the payment is received.",
+    "tableService": "Service",
+    "tableQty": "Qty",
+    "tableSum": "Amount",
+    "tokenPackageLine": "«{name}» token pack — {tokens} tokens",
+    "totalRow": "Total:",
+    "director": "Director: {name} ({title})",
+    "contacts": "Contacts: {email} · {phone}",
+    "afterPaymentNote": "After payment, send confirmation to {email} — tokens will be credited within one business day.",
+    "dash": "—"
   }
 }

@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Sparkles, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { trpc } from "@/trpc/client";
+import LocaleSwitcher from "@/components/layout/LocaleSwitcher";
 
 export default function InvitePage() {
+  const t = useTranslations("invite");
   const params = useParams();
   const router = useRouter();
   const token = params.token as string;
@@ -16,12 +19,12 @@ export default function InvitePage() {
   const acceptMut = trpc.team.acceptInvite.useMutation({
     onSuccess: (data) => {
       setStatus("success");
-      setProjectName(data.projectName || "the project");
+      setProjectName(data.projectName || t("fallbackProject"));
       setTimeout(() => router.push("/login"), 4000);
     },
     onError: (err) => {
       setStatus("error");
-      setMessage(err.message || "Invalid or expired invitation link.");
+      setMessage(err.message || t("errorDefault"));
     },
   });
 
@@ -34,6 +37,9 @@ export default function InvitePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-surface-950 bg-grid">
+      <div className="absolute top-4 right-4 z-10">
+        <LocaleSwitcher />
+      </div>
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md animate-slide-up relative">
@@ -54,8 +60,8 @@ export default function InvitePage() {
           {status === "loading" && (
             <>
               <Loader2 className="w-12 h-12 text-brand-400 mx-auto mb-4 animate-spin" />
-              <h2 className="text-xl font-semibold text-surface-100 mb-2">Accepting Invitation...</h2>
-              <p className="text-sm text-surface-400">Please wait while we set up your access.</p>
+              <h2 className="text-xl font-semibold text-surface-100 mb-2">{t("loadingTitle")}</h2>
+              <p className="text-sm text-surface-400">{t("loadingBody")}</p>
             </>
           )}
 
@@ -64,14 +70,14 @@ export default function InvitePage() {
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400" />
               </div>
-              <h2 className="text-xl font-semibold text-surface-100 mb-2">Invitation Accepted!</h2>
+              <h2 className="text-xl font-semibold text-surface-100 mb-2">{t("successTitle")}</h2>
               <p className="text-sm text-surface-400 mb-4">
-                You now have access to <strong className="text-surface-200">{projectName}</strong>.
+                {t.rich("successBody", { project: projectName, strong: (chunks) => <strong className="text-surface-200">{chunks}</strong> })}
               </p>
               <p className="text-sm text-surface-400">
-                Use your email and the temporary password from your invitation to sign in.
+                {t("successInstruction")}
               </p>
-              <p className="text-xs text-surface-500 mt-4">Redirecting to login...</p>
+              <p className="text-xs text-surface-500 mt-4">{t("redirecting")}</p>
             </>
           )}
 
@@ -80,13 +86,13 @@ export default function InvitePage() {
               <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
                 <XCircle className="w-8 h-8 text-red-400" />
               </div>
-              <h2 className="text-xl font-semibold text-surface-100 mb-2">Invitation Error</h2>
+              <h2 className="text-xl font-semibold text-surface-100 mb-2">{t("errorTitle")}</h2>
               <p className="text-sm text-surface-400 mb-4">{message}</p>
               <button
                 onClick={() => router.push("/login")}
                 className="btn-primary mx-auto"
               >
-                Go to Login
+                {t("goLogin")}
               </button>
             </>
           )}

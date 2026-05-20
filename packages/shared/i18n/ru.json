@@ -1301,5 +1301,184 @@
       "legendExpensive": "Дорого",
       "legendPremium": "Премиум"
     }
+  },
+  "projectSettings": {
+    "title": "Настройки",
+    "titleAccent": "проекта",
+    "subtitle": "Конфигурация проекта и согласованная структура сайта (только просмотр).",
+    "editSetup": "Изменить настройку проекта",
+    "noProjectTitle": "Активного проекта нет",
+    "noProjectBody": "Выберите или создайте проект в боковом меню.",
+    "details": {
+      "title": "Сведения о проекте",
+      "companyName": "Название компании",
+      "primaryUrl": "Основной URL",
+      "description": "Описание"
+    },
+    "competitors": {
+      "title": "Конкуренты",
+      "empty": "Конкуренты не указаны."
+    },
+    "rss": {
+      "title": "RSS-фиды конкурентов",
+      "empty": "RSS-фидов пока нет.",
+      "placeholder": "https://competitor.com/feed.xml",
+      "add": "Добавить",
+      "removeTooltip": "Удалить фид"
+    },
+    "semanticCore": {
+      "title": "Семантическое ядро",
+      "master": "Master Core (объединённое)",
+      "connected": "Подключено",
+      "viewDetails": "Подробнее",
+      "edit": "Редактировать",
+      "noneTitle": "Семантическое ядро не привязано",
+      "noneBody": "Создайте или привяжите ядро, чтобы планировать контент по ключевым.",
+      "createNew": "Создать новое ядро",
+      "linkExisting": "Привязать существующее..."
+    },
+    "danger": {
+      "title": "Опасная зона",
+      "body": "Безвозвратно удалить проект и все связанные данные, включая контент-планы и настройки.",
+      "delete": "Удалить проект",
+      "deleting": "Удаление...",
+      "confirm": "Удалить проект и все его данные? Действие необратимо."
+    },
+    "sitemap": {
+      "title": "Утверждённая структура сайта",
+      "sections": "{n} разделов",
+      "emptyTitle": "Структуры сайта нет",
+      "emptyBody": "Утверждённая структура ещё не создана. Обычно она формируется на этапе настройки проекта."
+    },
+    "connectors": {
+      "title": "Коннекторы публикации",
+      "subtitle": "Подключите CMS, куда автопилот будет публиковать контент.",
+      "add": "Добавить",
+      "loading": "Загрузка…",
+      "empty": "Пока нет коннекторов.",
+      "credsSaved": "Креденшалы сохранены",
+      "credsMissing": "Нужно добавить креденшалы",
+      "connectionOk": "Соединение установлено",
+      "errorGeneric": "Ошибка",
+      "disabled": "ОТКЛЮЧЁН",
+      "test": "Проверить",
+      "testing": "...",
+      "edit": "Изменить",
+      "deleteConfirm": "Удалить коннектор «{name}»?",
+      "editingTitle": "Редактировать {name}",
+      "newTitle": "Новый коннектор",
+      "fieldType": "Тип",
+      "fieldName": "Название",
+      "namePlaceholder": "Мой блог",
+      "fieldBaseUrl": "Base URL",
+      "useAsDefault": "Использовать как коннектор по умолчанию",
+      "save": "Сохранить",
+      "cancel": "Отменить",
+      "keepUnchangedHint": "оставьте пустым если не меняете",
+      "tilda": "Tilda (скоро)",
+      "bitrix": "Bitrix (скоро)",
+      "wpUsername": "Имя пользователя WordPress",
+      "wpUsernameHint": "Тот, для кого создан Application Password",
+      "wpPassword": "Application Password",
+      "wpPasswordHint": "WP → Users → Profile → Application Passwords"
+    }
+  },
+  "autopilotPage": {
+    "title": "Автопилот",
+    "running": "Работает",
+    "paused": "Остановлен",
+    "stop": "Остановить",
+    "enable": "Включить",
+    "selectProject": "Выберите проект, чтобы настроить автопилот.",
+    "needConnector": "Подключите CMS-коннектор в <link>настройках проекта</link>, чтобы включить автопилот.",
+    "schedule": {
+      "title": "Расписание публикаций",
+      "oneDay": "1 статья / день",
+      "threeWeek": "3 статьи / неделю",
+      "oneWeek": "1 статья / неделю"
+    },
+    "autoApprove": {
+      "title": "Автоматическое одобрение",
+      "subtitle": "Пропускать ручное согласование"
+    },
+    "connectors": {
+      "title": "Коннекторы CMS",
+      "empty": "Нет коннекторов. Добавьте в настройках проекта.",
+      "noCreds": "нет креденшалов",
+      "manage": "Управлять →"
+    },
+    "stats": {
+      "inQueue": "В очереди",
+      "pending": "На ожидании",
+      "published": "Опубликовано",
+      "thisMonth": "В этом месяце"
+    },
+    "queue": {
+      "title": "Очередь контента",
+      "loading": "Загрузка…",
+      "empty": "Очередь пуста. Создайте контент-план в <link>планнере</link>.",
+      "openTooltip": "↗ Открыть",
+      "approve": "Одобрить",
+      "edit": "Редактировать",
+      "reject": "Отклонить",
+      "status": {
+        "DRAFT": "Черновик",
+        "IN_PROGRESS": "В работе",
+        "GENERATED": "Сгенерирован",
+        "OPTIMIZED": "Оптимизирован",
+        "REVIEW": "Ожидает",
+        "SCHEDULED": "Запланирован",
+        "PUBLISHING": "Публикация",
+        "PUBLISHED": "Опубликован",
+        "FAILED": "Отклонён"
+      }
+    },
+    "telegram": {
+      "title": "Одобрение через Telegram (скоро)",
+      "body": "Интеграция с Telegram-ботом для удалённого одобрения публикаций будет добавлена в ближайших обновлениях."
+    },
+    "toggleError": "Не удалось"
+  },
+  "invite": {
+    "loadingTitle": "Принимаем приглашение...",
+    "loadingBody": "Подождите, настраиваем ваш доступ.",
+    "successTitle": "Приглашение принято!",
+    "successBody": "Теперь у вас есть доступ к <strong>{project}</strong>.",
+    "successInstruction": "Войдите, используя email и временный пароль из приглашения.",
+    "redirecting": "Перенаправляем на страницу входа...",
+    "errorTitle": "Ошибка приглашения",
+    "errorDefault": "Недействительная или истёкшая ссылка приглашения.",
+    "goLogin": "На страницу входа",
+    "fallbackProject": "проекту"
+  },
+  "invoice": {
+    "loading": "Загрузка…",
+    "notFound": "Счёт не найден.",
+    "backToBilling": "К биллингу",
+    "print": "Печать / PDF",
+    "title": "Счёт на оплату № {no}",
+    "dateOf": "от {date}",
+    "totalLabel": "Итого к оплате",
+    "currency": "₽",
+    "supplier": "Поставщик",
+    "innKpp": "ИНН: {inn} / КПП: {kpp}",
+    "ogrn": "ОГРН: {ogrn}",
+    "bank": "Банк: {bank}",
+    "account": "Р/с: {account}",
+    "correspondent": "К/с: {acct}",
+    "bik": "БИК: {bik}",
+    "purpose": "Назначение платежа",
+    "purposeBody": "Покупка пакета токенов SEOSH.AI",
+    "paymentNo": "Платёж № {no}",
+    "noVatNote": "Без НДС. После зачисления средств токены будут добавлены администратором вручную.",
+    "tableService": "Услуга",
+    "tableQty": "Кол-во",
+    "tableSum": "Сумма",
+    "tokenPackageLine": "Пакет токенов «{name}» — {tokens} токенов",
+    "totalRow": "Итого:",
+    "director": "Руководитель: {name} ({title})",
+    "contacts": "Контакты: {email} · {phone}",
+    "afterPaymentNote": "После оплаты пришлите подтверждение на {email} — токены будут зачислены в течение рабочего дня.",
+    "dash": "—"
   }
 }

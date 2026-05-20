@@ -7,9 +7,11 @@ import { Globe, ShieldCheck, Link2, LayoutList, ChevronRight, Layers, FileText, 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import ConnectorsSection from "@/components/project-settings/ConnectorsSection";
 
 export default function ProjectSettingsPage() {
+  const t = useTranslations("projectSettings");
   const { activeProject } = useProject();
   const projectId = activeProject?.id ?? "";
 
@@ -54,7 +56,7 @@ export default function ProjectSettingsPage() {
   };
 
   const handleDeleteProject = async () => {
-    if (!confirm("Are you sure you want to delete this project and all its data? This cannot be undone.")) return;
+    if (!confirm(t("danger.confirm"))) return;
     try {
       await deleteProject.mutateAsync({ id: projectId });
       utils.projects.list.invalidate();
@@ -78,8 +80,8 @@ export default function ProjectSettingsPage() {
       <DashboardLayout>
         <div className="max-w-4xl mx-auto py-12 flex flex-col items-center text-center animate-fade-in">
           <Globe className="w-16 h-16 text-surface-600 mb-4" />
-          <h1 className="text-2xl font-bold text-surface-200">No active project</h1>
-          <p className="text-surface-500 mt-2">Please select or create a project from the sidebar.</p>
+          <h1 className="text-2xl font-bold text-surface-200">{t("noProjectTitle")}</h1>
+          <p className="text-surface-500 mt-2">{t("noProjectBody")}</p>
         </div>
       </DashboardLayout>
     );
@@ -92,10 +94,10 @@ export default function ProjectSettingsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-surface-50">
-              Project <span className="gradient-text-brand">Settings</span>
+              {t("title")} <span className="gradient-text-brand">{t("titleAccent")}</span>
             </h1>
             <p className="text-surface-400 mt-1.5 text-base">
-              Read-only view of your project's configuration and established sitemap structure.
+              {t("subtitle")}
             </p>
           </div>
           <Link
@@ -103,7 +105,7 @@ export default function ProjectSettingsPage() {
             className="btn-secondary gap-2"
           >
             <Pencil className="w-4 h-4" />
-            Edit Project Setup
+            {t("editSetup")}
           </Link>
         </div>
 
@@ -121,17 +123,17 @@ export default function ProjectSettingsPage() {
                 <div className="p-4 border-b border-surface-800/50 bg-surface-800/20">
                   <h2 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                     <Globe className="w-4 h-4 text-brand-400" />
-                    Project Details
+                    {t("details.title")}
                   </h2>
                 </div>
                 <div className="p-4 space-y-4">
                   <div>
-                    <label className="text-xs text-surface-500 uppercase tracking-wider">Company Name</label>
+                    <label className="text-xs text-surface-500 uppercase tracking-wider">{t("details.companyName")}</label>
                     <p className="text-sm font-medium text-surface-200 mt-1">{projectData?.companyProfile?.companyName || projectData?.name}</p>
                   </div>
                   {projectData?.url && (
                     <div>
-                      <label className="text-xs text-surface-500 uppercase tracking-wider">Primary URL</label>
+                      <label className="text-xs text-surface-500 uppercase tracking-wider">{t("details.primaryUrl")}</label>
                       <a href={projectData.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-brand-400 mt-1 flex items-center gap-1 hover:underline">
                         {projectData.url} <Link2 className="w-3 h-3" />
                       </a>
@@ -139,7 +141,7 @@ export default function ProjectSettingsPage() {
                   )}
                   {projectData?.companyProfile?.description && (
                     <div>
-                      <label className="text-xs text-surface-500 uppercase tracking-wider">Description</label>
+                      <label className="text-xs text-surface-500 uppercase tracking-wider">{t("details.description")}</label>
                       <p className="text-sm text-surface-300 mt-1 leading-relaxed">
                         {projectData.companyProfile.description}
                       </p>
@@ -152,12 +154,12 @@ export default function ProjectSettingsPage() {
                 <div className="p-4 border-b border-surface-800/50 bg-surface-800/20">
                   <h2 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                     <LayoutList className="w-4 h-4 text-accent-400" />
-                    Competitors
+                    {t("competitors.title")}
                   </h2>
                 </div>
                 <div className="p-4">
                   {competitors.length === 0 ? (
-                    <p className="text-sm text-surface-500 italic">No competitors recorded.</p>
+                    <p className="text-sm text-surface-500 italic">{t("competitors.empty")}</p>
                   ) : (
                     <ul className="space-y-3">
                       {competitors.map((comp: any, i: number) => (
@@ -178,12 +180,12 @@ export default function ProjectSettingsPage() {
                 <div className="p-4 border-b border-surface-800/50 bg-surface-800/20">
                   <h2 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                     <Rss className="w-4 h-4 text-amber-400" />
-                    Competitor RSS Feeds
+                    {t("rss.title")}
                   </h2>
                 </div>
                 <div className="p-4 space-y-3">
                   {rssFeeds.length === 0 ? (
-                    <p className="text-sm text-surface-500 italic">No RSS feeds added yet.</p>
+                    <p className="text-sm text-surface-500 italic">{t("rss.empty")}</p>
                   ) : (
                     <ul className="space-y-2">
                       {rssFeeds.map((feed: string, i: number) => (
@@ -196,7 +198,7 @@ export default function ProjectSettingsPage() {
                               updateRssFeedsMut.mutate({ projectId, rssFeeds: updated });
                             }}
                             className="text-surface-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                            title="Remove feed"
+                            title={t("rss.removeTooltip")}
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -209,7 +211,7 @@ export default function ProjectSettingsPage() {
                       type="url"
                       value={newRssUrl}
                       onChange={(e) => setNewRssUrl(e.target.value)}
-                      placeholder="https://competitor.com/feed.xml"
+                      placeholder={t("rss.placeholder")}
                       className="input-field !py-1.5 !text-sm flex-1 min-w-0"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && newRssUrl.trim() && projectId) {
@@ -228,7 +230,7 @@ export default function ProjectSettingsPage() {
                       disabled={!newRssUrl.trim() || !projectId || updateRssFeedsMut.isPending}
                       className="btn-secondary !py-1.5 !px-3 text-xs gap-1 flex-shrink-0"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add
+                      <Plus className="w-3.5 h-3.5" /> {t("rss.add")}
                     </button>
                   </div>
                 </div>
@@ -238,7 +240,7 @@ export default function ProjectSettingsPage() {
                 <div className="p-4 border-b border-surface-800/50 bg-surface-800/20">
                   <h2 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                     <Brain className="w-4 h-4 text-purple-400" />
-                    Semantic Core
+                    {t("semanticCore.title")}
                   </h2>
                 </div>
                 <div className="p-4 space-y-3">
@@ -251,9 +253,9 @@ export default function ProjectSettingsPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-surface-200 truncate">
-                              {latestCore.siteUrl === "merged-cores" ? "Master Core (Merged)" : (latestCore.siteUrl === "unknown" ? (activeProject?.url || activeProject?.name || `Core ${latestCore.id.split('-')[0]}`) : (latestCore.siteUrl || `Core ${latestCore.id.split('-')[0]}`))}
+                              {latestCore.siteUrl === "merged-cores" ? t("semanticCore.master") : (latestCore.siteUrl === "unknown" ? (activeProject?.url || activeProject?.name || `Core ${latestCore.id.split('-')[0]}`) : (latestCore.siteUrl || `Core ${latestCore.id.split('-')[0]}`))}
                             </p>
-                            <p className="text-[10px] text-surface-500 uppercase tracking-wider">Connected</p>
+                            <p className="text-[10px] text-surface-500 uppercase tracking-wider">{t("semanticCore.connected")}</p>
                           </div>
                         </div>
                       </div>
@@ -262,27 +264,27 @@ export default function ProjectSettingsPage() {
                           href={`/semantic-core/${latestCore.id}`}
                           className="btn-secondary !py-1.5 !px-3 text-xs gap-1 flex-1 justify-center"
                         >
-                          <Layers className="w-3.5 h-3.5" /> View Details
+                          <Layers className="w-3.5 h-3.5" /> {t("semanticCore.viewDetails")}
                         </Link>
                         <Link
                           href={`/semantic-core/new?coreId=${latestCore.id}`}
                           className="btn-secondary !py-1.5 !px-3 text-xs gap-1 flex-1 justify-center"
                         >
-                          <Pencil className="w-3.5 h-3.5" /> Edit Core
+                          <Pencil className="w-3.5 h-3.5" /> {t("semanticCore.edit")}
                         </Link>
                       </div>
                     </>
                   ) : (
                     <div className="text-center py-4">
                       <Brain className="w-10 h-10 text-surface-600 mx-auto mb-2" />
-                      <p className="text-sm text-surface-400 mb-1">No semantic core linked</p>
-                      <p className="text-xs text-surface-500 mb-4">Create or link a semantic core to enable keyword-driven content planning.</p>
+                      <p className="text-sm text-surface-400 mb-1">{t("semanticCore.noneTitle")}</p>
+                      <p className="text-xs text-surface-500 mb-4">{t("semanticCore.noneBody")}</p>
                       <div className="flex gap-2 justify-center">
                         <Link
                           href={`/semantic-core/new?projectId=${projectId}`}
                           className="btn-primary !py-1.5 !px-3 text-xs gap-1"
                         >
-                          <Plus className="w-3.5 h-3.5" /> Create New Core
+                          <Plus className="w-3.5 h-3.5" /> {t("semanticCore.createNew")}
                         </Link>
                         {allCores && allCores.length > 0 && (
                           <select
@@ -290,10 +292,10 @@ export default function ProjectSettingsPage() {
                             onChange={(e) => handleLinkCore(e.target.value)}
                             className="input-field !py-1.5 !px-3 !text-xs"
                           >
-                            <option value="">Link Existing...</option>
+                            <option value="">{t("semanticCore.linkExisting")}</option>
                             {allCores.filter((c: any) => !c.projectId).map((core: any) => (
                               <option key={core.id} value={core.id}>
-                                {core.siteUrl === "merged-cores" ? "Master Core (Merged)" : (core.siteUrl || `Core ${core.id.split('-')[0]}`)}
+                                {core.siteUrl === "merged-cores" ? t("semanticCore.master") : (core.siteUrl || `Core ${core.id.split('-')[0]}`)}
                               </option>
                             ))}
                           </select>
@@ -309,19 +311,19 @@ export default function ProjectSettingsPage() {
                 <div className="p-4 border-b border-red-500/10 bg-red-500/5">
                   <h2 className="text-sm font-semibold text-red-400 flex items-center gap-2">
                     <Trash2 className="w-4 h-4" />
-                    Danger Zone
+                    {t("danger.title")}
                   </h2>
                 </div>
                 <div className="p-4">
                   <p className="text-sm text-surface-400 mb-4">
-                    Permanently delete this project and all of its associated data, including content plans and settings.
+                    {t("danger.body")}
                   </p>
                   <button
                     onClick={handleDeleteProject}
                     disabled={deleteProject.isPending}
                     className="btn-primary !bg-red-500/10 !text-red-400 !border-red-500/20 hover:!bg-red-500/20 hover:!text-red-300 w-full"
                   >
-                    {deleteProject.isPending ? "Deleting..." : "Delete Project"}
+                    {deleteProject.isPending ? t("danger.deleting") : t("danger.delete")}
                   </button>
                 </div>
               </div>
@@ -334,20 +336,20 @@ export default function ProjectSettingsPage() {
                 <div className="p-4 border-b border-surface-800/50 bg-surface-800/20 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                     <Layers className="w-4 h-4 text-cyan-400" />
-                    Approved Structure of Website
+                    {t("sitemap.title")}
                   </h2>
                   <div className="text-xs text-surface-500">
-                    {siteStructure.length} sections
+                    {t("sitemap.sections", { n: siteStructure.length })}
                   </div>
                 </div>
-                
+
                 <div className="p-4">
                   {siteStructure.length === 0 ? (
                     <div className="py-12 flex flex-col items-center text-center">
                       <Layers className="w-12 h-12 text-surface-600 mb-3" />
-                      <p className="text-surface-300 font-medium">No sitemap structure found</p>
+                      <p className="text-surface-300 font-medium">{t("sitemap.emptyTitle")}</p>
                       <p className="text-sm text-surface-500 mt-1 max-w-sm">
-                        No approved structure has been generated. This is usually created during project setup.
+                        {t("sitemap.emptyBody")}
                       </p>
                     </div>
                   ) : (

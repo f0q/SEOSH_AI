@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
+import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useProject } from "@/lib/project-context";
 import { trpc } from "@/trpc/client";
@@ -11,25 +13,32 @@ import {
   Globe, Bell,
 } from "lucide-react";
 
+// Schedule options — visual values only; labels resolved via i18n
 const SCHEDULE_OPTIONS = [
-  { label: "1 article / day",   value: "1d" },
-  { label: "3 articles / week", value: "3w" },
-  { label: "1 article / week",  value: "1w" },
+  { value: "1d", labelKey: "oneDay" },
+  { value: "3w", labelKey: "threeWeek" },
+  { value: "1w", labelKey: "oneWeek" },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof Clock }> = {
-  DRAFT:       { label: "Draft",       color: "text-surface-300", bg: "bg-surface-700/30 border-surface-600/30", icon: Clock },
-  IN_PROGRESS: { label: "In Progress", color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20",     icon: Clock },
-  GENERATED:   { label: "Generated",   color: "text-indigo-400",  bg: "bg-indigo-500/10 border-indigo-500/20",   icon: Sparkles },
-  OPTIMIZED:   { label: "Optimized",   color: "text-teal-400",    bg: "bg-teal-500/10 border-teal-500/20",       icon: CheckCircle2 },
-  REVIEW:      { label: "Awaiting",    color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20",     icon: Clock },
-  SCHEDULED:   { label: "Scheduled",   color: "text-brand-400",   bg: "bg-brand-500/10 border-brand-500/20",     icon: CheckCircle2 },
-  PUBLISHING:  { label: "Publishing",  color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20",       icon: Loader2 },
-  PUBLISHED:   { label: "Published",   color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", icon: Globe },
-  FAILED:      { label: "Rejected",    color: "text-red-400",     bg: "bg-red-500/10 border-red-500/20",         icon: XCircle },
+// Status visuals only — label is resolved by status key via i18n
+const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: typeof Clock }> = {
+  DRAFT:       { color: "text-surface-300", bg: "bg-surface-700/30 border-surface-600/30", icon: Clock },
+  IN_PROGRESS: { color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20",     icon: Clock },
+  GENERATED:   { color: "text-indigo-400",  bg: "bg-indigo-500/10 border-indigo-500/20",   icon: Sparkles },
+  OPTIMIZED:   { color: "text-teal-400",    bg: "bg-teal-500/10 border-teal-500/20",       icon: CheckCircle2 },
+  REVIEW:      { color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20",     icon: Clock },
+  SCHEDULED:   { color: "text-brand-400",   bg: "bg-brand-500/10 border-brand-500/20",     icon: CheckCircle2 },
+  PUBLISHING:  { color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20",       icon: Loader2 },
+  PUBLISHED:   { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", icon: Globe },
+  FAILED:      { color: "text-red-400",     bg: "bg-red-500/10 border-red-500/20",         icon: XCircle },
 };
 
 export default function AutopilotPage() {
+  const t = useTranslations("autopilotPage");
+  const tStatus = useTranslations("autopilotPage.queue.status");
+  const tPlannerTitle = useTranslations("contentPlanner")("title");
+  const tPlannerCta = useTranslations("contentPlanner.header")("startPlanning");
+  const locale = useLocale();
   const router = useRouter();
   const { activeProject } = useProject();
   const projectId = activeProject?.id ?? "";
@@ -62,7 +71,7 @@ export default function AutopilotPage() {
     try {
       await updateMut.mutateAsync({ projectId, enabled: !enabled });
     } catch (err) {
-      setEnableError(err instanceof Error ? err.message : "Failed");
+      setEnableError(err instanceof Error ? err.message : t("toggleError"));
     }
   };
 
@@ -70,7 +79,7 @@ export default function AutopilotPage() {
     return (
       <DashboardLayout>
         <div className="max-w-3xl mx-auto py-12 text-center">
-          <p className="text-surface-400">Выберите проект, чтобы настроить автопилот.</p>
+          <p className="text-surface-400">{t("selectProject")}</p>
         </div>
       </DashboardLayout>
     );
@@ -87,9 +96,9 @@ export default function AutopilotPage() {
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-surface-50">Autopilot</h1>
+              <h1 className="text-2xl font-bold text-surface-50">{t("title")}</h1>
               <p className={`text-sm ${enabled ? "text-emerald-400" : "text-surface-500"}`}>
-                {enabled ? "Running" : "Paused"}
+                {enabled ? t("running") : t("paused")}
               </p>
             </div>
           </div>
@@ -103,13 +112,15 @@ export default function AutopilotPage() {
             }`}
           >
             {updateMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {enabled ? "Stop" : "Enable"}
+            {enabled ? t("stop") : t("enable")}
           </button>
         </div>
 
         {!hasActiveConnector && (
           <div className="glass-card p-4 border-amber-500/30 bg-amber-500/5 text-sm text-amber-200">
-            Подключите CMS-коннектор в <a className="underline" href="/project-settings">Project Settings</a>, чтобы включить автопилот.
+            {t.rich("needConnector", {
+              link: (chunks) => <Link className="underline" href="/project-settings">{chunks}</Link>,
+            })}
           </div>
         )}
         {enableError && (
@@ -131,8 +142,8 @@ export default function AutopilotPage() {
                     <LayoutList className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-surface-100 group-hover:text-white">Content Planner</p>
-                    <p className="text-xs text-surface-500 mt-0.5">Plan & track all pages</p>
+                    <p className="text-sm font-semibold text-surface-100 group-hover:text-white">{tPlannerTitle}</p>
+                    <p className="text-xs text-surface-500 mt-0.5">{tPlannerCta}</p>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-surface-600 group-hover:text-emerald-400" />
@@ -142,7 +153,7 @@ export default function AutopilotPage() {
             <div className="glass-card p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-surface-400" />
-                <h2 className="text-sm font-semibold text-surface-200">Publishing Schedule</h2>
+                <h2 className="text-sm font-semibold text-surface-200">{t("schedule.title")}</h2>
               </div>
               <div className="grid grid-cols-1 gap-2">
                 {SCHEDULE_OPTIONS.map((opt) => (
@@ -156,7 +167,7 @@ export default function AutopilotPage() {
                         : "bg-surface-800/20 border-surface-700/20 text-surface-400 hover:border-surface-600/30"
                     }`}
                   >
-                    {opt.label}
+                    {t(`schedule.${opt.labelKey}`)}
                   </button>
                 ))}
               </div>
@@ -165,8 +176,8 @@ export default function AutopilotPage() {
             <div className="glass-card p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-surface-200">Auto-Approve</p>
-                  <p className="text-xs text-surface-500 mt-0.5">Skip manual approval step</p>
+                  <p className="text-sm font-medium text-surface-200">{t("autoApprove.title")}</p>
+                  <p className="text-xs text-surface-500 mt-0.5">{t("autoApprove.subtitle")}</p>
                 </div>
                 <button
                   onClick={() => updateMut.mutate({ projectId, autoApprove: !autoApprove })}
@@ -181,23 +192,23 @@ export default function AutopilotPage() {
             <div className="glass-card p-5 space-y-2">
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4 text-surface-400" />
-                <h2 className="text-sm font-semibold text-surface-200">CMS connectors</h2>
+                <h2 className="text-sm font-semibold text-surface-200">{t("connectors.title")}</h2>
               </div>
               {(connectorsQ.data ?? []).length === 0 ? (
-                <p className="text-xs text-surface-500">Нет коннекторов. Добавьте в Project Settings.</p>
+                <p className="text-xs text-surface-500">{t("connectors.empty")}</p>
               ) : (
                 <ul className="space-y-1">
                   {connectorsQ.data!.map((c) => (
                     <li key={c.id} className="flex items-center justify-between text-xs">
                       <span className="text-surface-300">{c.name}</span>
                       <span className={c.configured ? "text-emerald-400" : "text-amber-400"}>
-                        {c.configured ? `✓ ${c.type}` : "no creds"}
+                        {c.configured ? `✓ ${c.type}` : t("connectors.noCreds")}
                       </span>
                     </li>
                   ))}
                 </ul>
               )}
-              <a href="/project-settings" className="text-xs text-brand-400 hover:underline">Управлять →</a>
+              <Link href="/project-settings" className="text-xs text-brand-400 hover:underline">{t("connectors.manage")}</Link>
             </div>
           </div>
 
@@ -205,14 +216,14 @@ export default function AutopilotPage() {
           <div className="lg:col-span-2 space-y-4">
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: "In Queue", value: statsQ.data?.inQueue ?? "—", color: "text-brand-400" },
-                { label: "Pending",  value: statsQ.data?.pending ?? "—", color: "text-amber-400" },
-                { label: "Published", value: statsQ.data?.published ?? "—", color: "text-emerald-400" },
-                { label: "This Month", value: statsQ.data?.publishedThisMonth ?? "—", color: "text-cyan-400" },
+                { labelKey: "inQueue", value: statsQ.data?.inQueue ?? "—", color: "text-brand-400" },
+                { labelKey: "pending", value: statsQ.data?.pending ?? "—", color: "text-amber-400" },
+                { labelKey: "published", value: statsQ.data?.published ?? "—", color: "text-emerald-400" },
+                { labelKey: "thisMonth", value: statsQ.data?.publishedThisMonth ?? "—", color: "text-cyan-400" },
               ].map((s) => (
-                <div key={s.label} className="glass-card p-4 text-center">
+                <div key={s.labelKey} className="glass-card p-4 text-center">
                   <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                  <p className="text-xs text-surface-500 mt-1">{s.label}</p>
+                  <p className="text-xs text-surface-500 mt-1">{t(`stats.${s.labelKey}`)}</p>
                 </div>
               ))}
             </div>
@@ -221,19 +232,21 @@ export default function AutopilotPage() {
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-surface-700/30">
                 <h3 className="text-sm font-semibold text-surface-200 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-brand-400" />
-                  Content Queue
+                  {t("queue.title")}
                 </h3>
               </div>
 
               <div className="divide-y divide-surface-700/20 max-h-[600px] overflow-y-auto">
                 {queueQ.isLoading && (
                   <div className="px-5 py-8 text-center text-surface-400 flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Загрузка…
+                    <Loader2 className="w-4 h-4 animate-spin" /> {t("queue.loading")}
                   </div>
                 )}
                 {!queueQ.isLoading && (queueQ.data ?? []).length === 0 && (
                   <p className="px-5 py-8 text-center text-surface-500 text-sm">
-                    Очередь пуста. Создайте контент-план в <a href="/autopilot/content-planner" className="text-brand-400 hover:underline">Content Planner</a>.
+                    {t.rich("queue.empty", {
+                      link: (chunks) => <Link href="/autopilot/content-planner" className="text-brand-400 hover:underline">{chunks}</Link>,
+                    })}
                   </p>
                 )}
                 {queueQ.data?.map((item) => {
@@ -244,16 +257,16 @@ export default function AutopilotPage() {
                     <div key={item.id} className="flex items-center gap-4 px-5 py-3 hover:bg-surface-800/20 transition-colors group">
                       <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium flex-shrink-0 ${cfg.bg} ${cfg.color}`}>
                         <StatusIcon className="w-3.5 h-3.5" />
-                        {cfg.label}
+                        {tStatus(item.status)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-surface-100 font-medium truncate">
                           {item.metaTitle || item.title || "Untitled"}
                         </p>
                         <p className="text-xs text-surface-500 mt-0.5">
-                          {item.scheduledAt ? new Date(item.scheduledAt).toLocaleString("ru-RU") : "—"}
+                          {item.scheduledAt ? new Date(item.scheduledAt).toLocaleString(locale === "ru" ? "ru-RU" : "en-US") : "—"}
                           {item.publishedUrl && (
-                            <> · <a href={item.publishedUrl} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">↗ Open</a></>
+                            <> · <a href={item.publishedUrl} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">{t("queue.openTooltip")}</a></>
                           )}
                         </p>
                       </div>
@@ -269,14 +282,14 @@ export default function AutopilotPage() {
                               onClick={() => approveMut.mutate({ itemId: item.id })}
                               disabled={approveMut.isPending}
                               className="btn-ghost p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded-lg"
-                              title="Approve"
+                              title={t("queue.approve")}
                             >
                               <CheckCircle2 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => router.push(`/autopilot/content-planner?item=${item.id}`)}
                               className="btn-ghost p-1.5 text-brand-400 hover:bg-brand-500/10 rounded-lg"
-                              title="Edit"
+                              title={t("queue.edit")}
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
@@ -284,7 +297,7 @@ export default function AutopilotPage() {
                               onClick={() => rejectMut.mutate({ itemId: item.id })}
                               disabled={rejectMut.isPending}
                               className="btn-ghost p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg"
-                              title="Reject"
+                              title={t("queue.reject")}
                             >
                               <XCircle className="w-4 h-4" />
                             </button>
@@ -300,10 +313,10 @@ export default function AutopilotPage() {
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-2">
                 <Bell className="w-4 h-4 text-surface-400" />
-                <h3 className="text-sm font-semibold text-surface-200">Telegram approval (скоро)</h3>
+                <h3 className="text-sm font-semibold text-surface-200">{t("telegram.title")}</h3>
               </div>
               <p className="text-xs text-surface-500">
-                Подключение Telegram-бота для удалённого одобрения публикаций будет добавлено в следующих обновлениях.
+                {t("telegram.body")}
               </p>
             </div>
           </div>

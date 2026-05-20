@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Globe, Plus, Loader2, Check, AlertTriangle, Trash2, Star, Eye, EyeOff } from "lucide-react";
 import { trpc } from "@/trpc/client";
 
@@ -23,10 +24,11 @@ const EMPTY: ConnectorFormState = {
   credentials: { username: "", password: "" },
 };
 
-const CREDS_BY_TYPE: Record<ConnectorType, Array<{ key: string; label: string; hint?: string; type?: string }>> = {
+// Credential field metadata — labels/hints resolved via i18n keys
+const CREDS_BY_TYPE: Record<ConnectorType, Array<{ key: string; labelKey: string; hintKey?: string; type?: string }>> = {
   WORDPRESS: [
-    { key: "username", label: "WordPress username", hint: "Тот, для кого создан Application Password" },
-    { key: "password", label: "Application Password", type: "password", hint: "WP → Users → Profile → Application Passwords" },
+    { key: "username", labelKey: "wpUsername", hintKey: "wpUsernameHint" },
+    { key: "password", labelKey: "wpPassword", hintKey: "wpPasswordHint", type: "password" },
   ],
   TILDA: [],
   BITRIX: [],
@@ -35,6 +37,7 @@ const CREDS_BY_TYPE: Record<ConnectorType, Array<{ key: string; label: string; h
 };
 
 export default function ConnectorsSection({ projectId }: { projectId: string }) {
+  const t = useTranslations("projectSettings.connectors");
   const listQ = trpc.publisher.listForProject.useQuery({ projectId });
   const upsertMut = trpc.publisher.upsert.useMutation({ onSuccess: () => listQ.refetch() });
   const testMut = trpc.publisher.test.useMutation({ onSuccess: () => listQ.refetch() });
@@ -75,9 +78,9 @@ export default function ConnectorsSection({ projectId }: { projectId: string }) 
     setTestResult(null);
     try {
       await testMut.mutateAsync({ connectorId: id });
-      setTestResult({ id, ok: true, message: "Соединение установлено" });
+      setTestResult({ id, ok: true, message: t("connectionOk") });
     } catch (err) {
-      setTestResult({ id, ok: false, message: err instanceof Error ? err.message : "Ошибка" });
+      setTestResult({ id, ok: false, message: err instanceof Error ? err.message : t("errorGeneric") });
     }
   };
 
@@ -87,27 +90,27 @@ export default function ConnectorsSection({ projectId }: { projectId: string }) 
         <div>
           <h2 className="text-base font-semibold text-surface-100 flex items-center gap-2">
             <Globe className="w-4 h-4 text-brand-400" />
-            Коннекторы публикации
+            {t("title")}
           </h2>
           <p className="text-xs text-surface-500 mt-0.5">
-            Подключите CMS, куда автопилот будет публиковать контент.
+            {t("subtitle")}
           </p>
         </div>
         {!form && (
           <button onClick={startCreate} className="btn-primary gap-2">
-            <Plus className="w-4 h-4" /> Добавить
+            <Plus className="w-4 h-4" /> {t("add")}
           </button>
         )}
       </div>
 
       {listQ.isLoading && (
         <div className="text-surface-400 text-sm flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> Загрузка…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t("loading")}
         </div>
       )}
 
       {!listQ.isLoading && listQ.data?.length === 0 && !form && (
-        <p className="text-sm text-surface-500">Пока нет коннекторов.</p>
+        <p className="text-sm text-surface-500">{t("empty")}</p>
       )}
 
       <div className="space-y-2">
@@ -124,13 +127,13 @@ export default function ConnectorsSection({ projectId }: { projectId: string }) 
                       {c.type}
                     </span>
                     {c.isDefault && <Star className="w-3 h-3 text-amber-400" />}
-                    {!c.isActive && <span className="text-[10px] text-red-400">DISABLED</span>}
+                    {!c.isActive && <span className="text-[10px] text-red-400">{t("disabled")}</span>}
                   </div>
                   <p className="text-xs text-surface-500 truncate">{c.baseUrl}</p>
                   {c.configured ? (
-                    <p className="text-[10px] text-emerald-400">✓ Креденшалы сохранены</p>
+                    <p className="text-[10px] text-emerald-400">✓ {t("credsSaved")}</p>
                   ) : (
-                    <p className="text-[10px] text-amber-400">Нужно добавить креденшалы</p>
+                    <p className="text-[10px] text-amber-400">{t("credsMissing")}</p>
                   )}
                   {testResult?.id === c.id && (
                     <pre className={`text-xs mt-2 p-3 rounded-lg bg-surface-900/60 border max-h-[400px] overflow-auto whitespace-pre-wrap font-mono leading-relaxed ${
@@ -151,13 +154,13 @@ export default function ConnectorsSection({ projectId }: { projectId: string }) 
                 <div className="flex items-center gap-1">
                   <button onClick={() => test(c.id)} disabled={isTesting}
                     className="text-xs px-2.5 py-1 rounded bg-surface-800 hover:bg-surface-700 text-surface-200 disabled:opacity-50">
-                    {testMut.isPending && testResult?.id === c.id ? "..." : "Проверить"}
+                    {testMut.isPending && testResult?.id === c.id ? t("testing") : t("test")}
                   </button>
                   <button onClick={() => startEdit(c)}
                     className="text-xs px-2.5 py-1 rounded bg-surface-800 hover:bg-surface-700 text-surface-200">
-                    Изменить
+                    {t("edit")}
                   </button>
-                  <button onClick={() => confirm(`Удалить коннектор "${c.name}"?`) && deleteMut.mutate({ connectorId: c.id })}
+                  <button onClick={() => confirm(t("deleteConfirm", { name: c.name })) && deleteMut.mutate({ connectorId: c.id })}
                     className="text-red-400 hover:bg-red-500/10 p-1 rounded">
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -171,42 +174,42 @@ export default function ConnectorsSection({ projectId }: { projectId: string }) 
       {form && (
         <form onSubmit={submit} className="border border-surface-700/50 rounded-lg p-4 space-y-3 bg-surface-900/40">
           <h3 className="text-sm font-semibold text-surface-100">
-            {form.id ? `Редактировать ${form.name}` : "Новый коннектор"}
+            {form.id ? t("editingTitle", { name: form.name }) : t("newTitle")}
           </h3>
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
-              <span className="text-xs text-surface-400">Тип</span>
+              <span className="text-xs text-surface-400">{t("fieldType")}</span>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value as ConnectorType, credentials: {} })}
                 className="mt-1 w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100"
               >
                 <option value="WORDPRESS">WordPress</option>
-                <option value="TILDA" disabled>Tilda (скоро)</option>
-                <option value="BITRIX" disabled>Bitrix (скоро)</option>
+                <option value="TILDA" disabled>{t("tilda")}</option>
+                <option value="BITRIX" disabled>{t("bitrix")}</option>
               </select>
             </label>
             <label className="block">
-              <span className="text-xs text-surface-400">Название</span>
+              <span className="text-xs text-surface-400">{t("fieldName")}</span>
               <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Мой блог" required
+                placeholder={t("namePlaceholder")} required
                 className="mt-1 w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100" />
             </label>
             <label className="block col-span-2">
-              <span className="text-xs text-surface-400">Base URL</span>
+              <span className="text-xs text-surface-400">{t("fieldBaseUrl")}</span>
               <input type="url" value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
                 placeholder="https://example.com" required
                 className="mt-1 w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100" />
             </label>
             {CREDS_BY_TYPE[form.type].map((f) => (
               <label key={f.key} className="block col-span-2">
-                <span className="text-xs text-surface-400">{f.label}</span>
+                <span className="text-xs text-surface-400">{t(f.labelKey)}</span>
                 <div className="relative">
                   <input
                     type={f.type === "password" && !showCreds[f.key] ? "password" : "text"}
                     value={form.credentials[f.key] ?? ""}
                     onChange={(e) => setForm({ ...form, credentials: { ...form.credentials, [f.key]: e.target.value } })}
-                    placeholder={form.id ? "оставьте пустым если не меняете" : ""}
+                    placeholder={form.id ? t("keepUnchangedHint") : ""}
                     className="mt-1 w-full px-3 py-2 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 pr-9"
                   />
                   {f.type === "password" && (
@@ -216,20 +219,20 @@ export default function ConnectorsSection({ projectId }: { projectId: string }) 
                     </button>
                   )}
                 </div>
-                {f.hint && <span className="text-[10px] text-surface-600">{f.hint}</span>}
+                {f.hintKey && <span className="text-[10px] text-surface-600">{t(f.hintKey)}</span>}
               </label>
             ))}
           </div>
           <label className="flex items-center gap-2 text-sm text-surface-300 cursor-pointer">
             <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm({ ...form, isDefault: e.target.checked })} />
-            Использовать как коннектор по умолчанию
+            {t("useAsDefault")}
           </label>
           <div className="flex gap-2">
             <button type="submit" disabled={upsertMut.isPending} className="btn-primary gap-2">
               {upsertMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              Сохранить
+              {t("save")}
             </button>
-            <button type="button" onClick={() => setForm(null)} className="btn-ghost">Отменить</button>
+            <button type="button" onClick={() => setForm(null)} className="btn-ghost">{t("cancel")}</button>
           </div>
         </form>
       )}
