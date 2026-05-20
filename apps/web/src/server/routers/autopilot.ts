@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
 import { prisma } from "../db";
+import { computeNextScheduledAt } from "../services/autopilot/schedule";
 
 export const autopilotRouter = router({
   
@@ -110,20 +111,35 @@ export const autopilotRouter = router({
       return { inQueue, pending, published, publishedThisMonth };
     }),
 
-  // 5. Approve a queued item → SCHEDULED (autopilot will publish on its schedule)
+  // 5. Approve a queued item → SCHEDULED with a computed scheduledAt.
+  //    The autopilot tick worker will publish it when scheduledAt is due.
   approveItem: protectedProcedure
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const item = await prisma.contentItem.findUnique({
         where: { id: input.itemId },
-        include: { contentPlan: { select: { project: { select: { userId: true } } } } },
+        include: {
+          contentPlan: {
+            select: {
+              projectId: true,
+              project: {
+                select: {
+                  userId: true,
+                  autopilotConfig: { select: { scheduleFreq: true } },
+                },
+              },
+            },
+          },
+        },
       });
       if (!item || item.contentPlan.project.userId !== ctx.user.id) {
         throw new Error("Content item not found or not yours");
       }
+      const freq = item.contentPlan.project.autopilotConfig?.scheduleFreq ?? "1w";
+      const scheduledAt = await computeNextScheduledAt(item.contentPlan.projectId, freq);
       return prisma.contentItem.update({
         where: { id: input.itemId },
-        data: { status: "SCHEDULED" },
+        data: { status: "SCHEDULED", scheduledAt },
       });
     }),
 
