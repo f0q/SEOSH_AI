@@ -1434,8 +1434,21 @@
       }
     },
     "telegram": {
-      "title": "Telegram approval (soon)",
-      "body": "Telegram bot integration for remote approval will arrive in upcoming releases."
+      "title": "Telegram approval",
+      "body": "Send ready items to a Telegram chat with one-tap Approve / Reject buttons. Works only when Auto-Approve is off.",
+      "connectedAs": "Connected as <strong>@{username}</strong>",
+      "connectedChat": "Chat: <code>{chatId}</code>",
+      "broken": "Bot token no longer works — please reconnect.",
+      "disconnect": "Disconnect",
+      "disconnecting": "Disconnecting…",
+      "configHint": "Create a bot via <bot>@BotFather</bot>, copy the token, add the bot to your chat or open a private chat, then send any message to it. Get the chat id with <ud>@userinfobot</ud>.",
+      "botTokenLabel": "Bot token",
+      "botTokenPlaceholder": "1234567890:ABCDef-GhIjKlMnOpQrStUvWxYz",
+      "chatIdLabel": "Chat id",
+      "chatIdPlaceholder": "123456789 (negative for groups)",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "autoApproveConflict": "Auto-Approve is on — Telegram notifications are paused. Turn it off above to enable them."
     },
     "toggleError": "Failed"
   },

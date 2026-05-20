@@ -33,6 +33,117 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: typeof Cl
   FAILED:      { color: "text-red-400",     bg: "bg-red-500/10 border-red-500/20",         icon: XCircle },
 };
 
+function TelegramSection({ projectId, autoApprove }: { projectId: string; autoApprove: boolean }) {
+  const t = useTranslations("autopilotPage.telegram");
+  const statusQ = trpc.autopilot.getTelegramStatus.useQuery({ projectId }, { enabled: !!projectId });
+  const utils = trpc.useUtils();
+  const connectMut = trpc.autopilot.setTelegramConfig.useMutation({
+    onSuccess: () => {
+      utils.autopilot.getTelegramStatus.invalidate({ projectId });
+      setBotToken("");
+      setChatId("");
+      setError(null);
+    },
+    onError: (err) => setError(err.message),
+  });
+  const disconnectMut = trpc.autopilot.removeTelegramConfig.useMutation({
+    onSuccess: () => utils.autopilot.getTelegramStatus.invalidate({ projectId }),
+  });
+
+  const [botToken, setBotToken] = useState("");
+  const [chatId, setChatId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const status = statusQ.data;
+  const connected = status?.connected;
+  const broken = connected && "broken" in status && status.broken;
+
+  return (
+    <div className="glass-card p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <Bell className="w-4 h-4 text-surface-400" />
+        <h3 className="text-sm font-semibold text-surface-200">{t("title")}</h3>
+      </div>
+      <p className="text-xs text-surface-500">{t("body")}</p>
+
+      {autoApprove && !connected && (
+        <p className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1.5">
+          {t("autoApproveConflict")}
+        </p>
+      )}
+
+      {connected ? (
+        <div className="space-y-2 pt-1 border-t border-surface-800/60">
+          {status.botUsername && (
+            <p className="text-xs text-surface-300">
+              {t.rich("connectedAs", { username: status.botUsername, strong: (chunks) => <strong>{chunks}</strong> })}
+            </p>
+          )}
+          <p className="text-xs text-surface-500">
+            {t.rich("connectedChat", { chatId: status.chatId, code: (chunks) => <code className="text-surface-300">{chunks}</code> })}
+          </p>
+          {broken && (
+            <p className="text-[11px] text-red-400 bg-red-500/5 border border-red-500/20 rounded px-2 py-1.5">
+              {t("broken")}
+            </p>
+          )}
+          <button
+            onClick={() => disconnectMut.mutate({ projectId })}
+            disabled={disconnectMut.isPending}
+            className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+          >
+            {disconnectMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+            {disconnectMut.isPending ? t("disconnecting") : t("disconnect")}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2 pt-1 border-t border-surface-800/60">
+          <p className="text-[11px] text-surface-500 leading-snug">
+            {t.rich("configHint", {
+              bot: (c) => <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">{c}</a>,
+              ud: (c) => <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">{c}</a>,
+            })}
+          </p>
+          <div className="space-y-1">
+            <label className="text-[10px] text-surface-500 uppercase">{t("botTokenLabel")}</label>
+            <input
+              type="password"
+              value={botToken}
+              onChange={(e) => setBotToken(e.target.value)}
+              placeholder={t("botTokenPlaceholder")}
+              className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none font-mono"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-surface-500 uppercase">{t("chatIdLabel")}</label>
+            <input
+              type="text"
+              value={chatId}
+              onChange={(e) => setChatId(e.target.value)}
+              placeholder={t("chatIdPlaceholder")}
+              className="w-full bg-surface-800/50 border border-surface-700 rounded p-2 text-xs text-surface-200 focus:border-brand-500 outline-none font-mono"
+            />
+          </div>
+          {error && (
+            <p className="text-[11px] text-red-400 bg-red-500/5 border border-red-500/20 rounded px-2 py-1.5">{error}</p>
+          )}
+          <button
+            onClick={() => {
+              setError(null);
+              connectMut.mutate({ projectId, botToken: botToken.trim(), chatId: chatId.trim() });
+            }}
+            disabled={!botToken.trim() || !chatId.trim() || connectMut.isPending}
+            className="w-full text-xs px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
+          >
+            {connectMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+            {connectMut.isPending ? t("connecting") : t("connect")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AutopilotPage() {
   const t = useTranslations("autopilotPage");
   const tStatus = useTranslations("autopilotPage.queue.status");
@@ -310,15 +421,7 @@ export default function AutopilotPage() {
               </div>
             </div>
 
-            <div className="glass-card p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <Bell className="w-4 h-4 text-surface-400" />
-                <h3 className="text-sm font-semibold text-surface-200">{t("telegram.title")}</h3>
-              </div>
-              <p className="text-xs text-surface-500">
-                {t("telegram.body")}
-              </p>
-            </div>
+            <TelegramSection projectId={projectId} autoApprove={autoApprove} />
           </div>
         </div>
       </div>

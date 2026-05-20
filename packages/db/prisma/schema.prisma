@@ -715,9 +715,10 @@ model AutopilotConfig {
   scheduleFreq     String   @default("3w")
   autoApprove      Boolean  @default(false)
   
-  tgBotToken       String?
-  tgChatId         String?
-  
+  tgBotToken       String?   // Encrypted Telegram bot token
+  tgChatId         String?   // Telegram chat id where notifications are sent
+  tgWebhookSecret  String?   @unique // Random hex, used in webhook URL + secret_token header
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

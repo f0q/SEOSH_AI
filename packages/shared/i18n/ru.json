@@ -1434,8 +1434,21 @@
       }
     },
     "telegram": {
-      "title": "Одобрение через Telegram (скоро)",
-      "body": "Интеграция с Telegram-ботом для удалённого одобрения публикаций будет добавлена в ближайших обновлениях."
+      "title": "Одобрение через Telegram",
+      "body": "Отправляйте готовые материалы в Telegram-чат с кнопками Одобрить / Отклонить. Работает только когда автоодобрение выключено.",
+      "connectedAs": "Подключён как <strong>@{username}</strong>",
+      "connectedChat": "Чат: <code>{chatId}</code>",
+      "broken": "Токен бота больше не работает — переподключите его.",
+      "disconnect": "Отключить",
+      "disconnecting": "Отключаем…",
+      "configHint": "Создайте бота через <bot>@BotFather</bot>, скопируйте токен, добавьте бота в чат (или откройте личку) и отправьте ему любое сообщение. Узнать chat id можно через <ud>@userinfobot</ud>.",
+      "botTokenLabel": "Токен бота",
+      "botTokenPlaceholder": "1234567890:ABCDef-GhIjKlMnOpQrStUvWxYz",
+      "chatIdLabel": "Chat id",
+      "chatIdPlaceholder": "123456789 (отрицательный для групп)",
+      "connect": "Подключить",
+      "connecting": "Подключаем…",
+      "autoApproveConflict": "Включено автоодобрение — уведомления Telegram приостановлены. Выключите автоодобрение выше, чтобы их включить."
     },
     "toggleError": "Не удалось"
   },

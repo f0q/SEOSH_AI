@@ -9,8 +9,10 @@
 // the Next.js app ever scales out, only one process at a time runs the tick.
 
 import { prisma } from "../../db";
+import { decrypt } from "../../lib/encryption";
 import { publishContentItem } from "../publisher/publishService";
 import { computeNextScheduledAt } from "./schedule";
+import { sendMessage } from "./telegram";
 
 const ADVISORY_LOCK_KEY = 8273645231;
 
@@ -26,6 +28,7 @@ export async function autopilotTick(): Promise<void> {
     `;
     if (!rows[0]?.ok) return;
     try {
+      await telegramNotifyPass();
       await autoApprovePass();
       await publishDuePass();
     } finally {
@@ -35,6 +38,87 @@ export async function autopilotTick(): Promise<void> {
     console.error("[autopilot] tick failed:", err);
   } finally {
     ticking = false;
+  }
+}
+
+// ── Pass 0: Telegram approval notifications ──
+//
+// For projects where autopilot is enabled, autoApprove is OFF, and the user
+// has connected a Telegram bot: push OPTIMIZED items that haven't been
+// notified yet into the chat with Approve/Reject inline buttons. We track
+// the sent Telegram message id in `seoAnalysis.tgMessage` so we don't spam.
+
+async function telegramNotifyPass() {
+  const configs = await prisma.autopilotConfig.findMany({
+    where: {
+      enabled: true,
+      autoApprove: false,
+      NOT: [{ tgBotToken: null }, { tgChatId: null }],
+    },
+    select: {
+      projectId: true,
+      tgBotToken: true,
+      tgChatId: true,
+    },
+  });
+
+  for (const cfg of configs) {
+    if (!cfg.tgBotToken || !cfg.tgChatId) continue;
+    let token: string;
+    try {
+      token = decrypt(cfg.tgBotToken);
+    } catch {
+      continue; // Corrupted config — skip silently.
+    }
+
+    // One item per tick per project to avoid floods.
+    const candidates = await prisma.contentItem.findMany({
+      where: {
+        contentPlan: { projectId: cfg.projectId },
+        status: "OPTIMIZED",
+        NOT: { markdownBody: null },
+      },
+      orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+      take: 5,
+      select: {
+        id: true,
+        metaTitle: true,
+        seoScore: true,
+        seoAnalysis: true,
+      },
+    });
+
+    for (const item of candidates) {
+      const analysis = (item.seoAnalysis ?? {}) as Record<string, unknown>;
+      if (analysis.tgMessage) continue; // Already notified.
+
+      const title = item.metaTitle || "Без заголовка";
+      const text =
+        `📝 *Готов к публикации*\n\n${title}\n\n` +
+        (item.seoScore != null ? `SEO Score: *${item.seoScore}/100*\n\n` : "") +
+        "Одобрить — материал уйдёт в очередь на публикацию.";
+
+      try {
+        const msg = await sendMessage(token, cfg.tgChatId, {
+          text,
+          parseMode: "Markdown",
+          buttons: [[
+            { text: "✅ Одобрить", callback_data: `ap_approve_${item.id}` },
+            { text: "❌ Отклонить", callback_data: `ap_reject_${item.id}` },
+          ]],
+        });
+        await prisma.contentItem.update({
+          where: { id: item.id },
+          data: {
+            seoAnalysis: { ...analysis, tgMessage: { id: msg.message_id, chatId: msg.chat.id, sentAt: new Date().toISOString() } },
+          },
+        });
+        console.log(`[autopilot] tg-notified item ${item.id} (msg ${msg.message_id})`);
+        break; // One per project per tick.
+      } catch (err) {
+        console.error(`[autopilot] tg notification failed for item ${item.id}:`, err);
+      }
+    }
   }
 }
 

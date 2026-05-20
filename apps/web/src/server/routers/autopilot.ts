@@ -2,6 +2,15 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
 import { prisma } from "../db";
 import { computeNextScheduledAt } from "../services/autopilot/schedule";
+import {
+  buildWebhookUrl,
+  deleteWebhook,
+  generateWebhookSecret,
+  getMe,
+  sendMessage,
+  setWebhook,
+} from "../services/autopilot/telegram";
+import { encrypt, decrypt } from "../lib/encryption";
 
 export const autopilotRouter = router({
   
@@ -158,5 +167,112 @@ export const autopilotRouter = router({
         where: { id: input.itemId },
         data: { status: "FAILED" },
       });
+    }),
+
+  // 7. Connect a Telegram bot for approval flow. Validates the token via
+  //    getMe, sets the webhook, sends a hello message to the configured chat,
+  //    and persists the encrypted token + chat id + secret. Returns the bot's
+  //    handle so the UI can show "Connected as @MyBot".
+  setTelegramConfig: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      botToken: z.string().min(20),
+      chatId: z.string().min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const project = await prisma.project.findFirst({
+        where: { id: input.projectId, userId: ctx.user.id },
+        select: { id: true },
+      });
+      if (!project) throw new Error("Project not found");
+
+      // Probe the token. If this throws, the token is invalid and we don't
+      // touch anything.
+      const me = await getMe(input.botToken);
+
+      const secret = generateWebhookSecret();
+      const webhookUrl = buildWebhookUrl(secret);
+      await setWebhook(input.botToken, webhookUrl, secret);
+
+      // Send a hello so the user sees the bot works and knows they have the
+      // right chat id. If this fails, we still saved the config — they can
+      // fix the chat id and try again.
+      try {
+        await sendMessage(input.botToken, input.chatId, {
+          text:
+            "✅ SEOSH.AI автопилот подключён.\n\n" +
+            "Я буду присылать сюда статьи, готовые к публикации, с кнопками *Одобрить* и *Отклонить*.",
+          parseMode: "Markdown",
+        });
+      } catch (err) {
+        // Persist anyway but surface a partial-success error to UI.
+        await prisma.autopilotConfig.update({
+          where: { projectId: input.projectId },
+          data: {
+            tgBotToken: encrypt(input.botToken),
+            tgChatId: input.chatId,
+            tgWebhookSecret: secret,
+          },
+        });
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        throw new Error(`Бот подключён, но тестовое сообщение не доставлено: ${msg}. Проверьте chat id.`);
+      }
+
+      await prisma.autopilotConfig.update({
+        where: { projectId: input.projectId },
+        data: {
+          tgBotToken: encrypt(input.botToken),
+          tgChatId: input.chatId,
+          tgWebhookSecret: secret,
+        },
+      });
+
+      return { botUsername: me.username, botName: me.first_name };
+    }),
+
+  // 8. Disconnect Telegram — remove the webhook from Telegram's side, clear
+  //    fields on our side. Idempotent.
+  removeTelegramConfig: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const config = await prisma.autopilotConfig.findFirst({
+        where: { projectId: input.projectId, project: { userId: ctx.user.id } },
+        select: { tgBotToken: true },
+      });
+      if (!config) throw new Error("Autopilot config not found");
+      if (config.tgBotToken) {
+        try {
+          await deleteWebhook(decrypt(config.tgBotToken));
+        } catch {
+          // Token may already be invalid — best-effort.
+        }
+      }
+      await prisma.autopilotConfig.update({
+        where: { projectId: input.projectId },
+        data: { tgBotToken: null, tgChatId: null, tgWebhookSecret: null },
+      });
+      return { ok: true };
+    }),
+
+  // 9. Light status accessor for the UI — true/false and bot username if known.
+  //    The actual token never leaves the server.
+  getTelegramStatus: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const config = await prisma.autopilotConfig.findFirst({
+        where: { projectId: input.projectId, project: { userId: ctx.user.id } },
+        select: { tgBotToken: true, tgChatId: true },
+      });
+      if (!config?.tgBotToken || !config.tgChatId) return { connected: false as const };
+      // Probe getMe so the UI shows the current bot handle. Cheap — one HTTP
+      // round-trip and Telegram caches our identity.
+      try {
+        const me = await getMe(decrypt(config.tgBotToken));
+        return { connected: true as const, botUsername: me.username, chatId: config.tgChatId };
+      } catch {
+        // Token died (bot revoked etc.) — still tell the UI it's "connected"
+        // so user can see and fix, but mark as broken.
+        return { connected: true as const, botUsername: null, chatId: config.tgChatId, broken: true };
+      }
     }),
 });
