@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { auth } from "@/lib/auth";
+import { ensureDemoProject } from "@/server/demo-seed";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,13 +19,13 @@ const DEMO_EMAIL = "demo@seosh.aijam.pro";
 const DEMO_PASSWORD = "seosh-demo-2026-readonly";
 const DEMO_NAME = "Demo Visitor";
 
-async function ensureDemoUserExists() {
+async function ensureDemoUserExists(): Promise<string> {
   const existing = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
   if (existing) {
     if (!existing.isDemo) {
       await prisma.user.update({ where: { id: existing.id }, data: { isDemo: true } });
     }
-    return;
+    return existing.id;
   }
   // First request — provision the demo account via better-auth so the
   // password is properly hashed in the credential account record.
@@ -43,15 +44,23 @@ async function ensureDemoUserExists() {
       throw err;
     }
   }
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { email: DEMO_EMAIL },
     data: { isDemo: true, emailVerified: true },
+    select: { id: true },
   });
+  return user.id;
 }
 
 export async function POST(req: Request) {
   try {
-    await ensureDemoUserExists();
+    const demoUserId = await ensureDemoUserExists();
+    // Best-effort seed; if it fails we still let the user log in.
+    try {
+      await ensureDemoProject(demoUserId);
+    } catch (seedErr) {
+      console.error("[demo] failed to seed demo project:", seedErr);
+    }
     const response = await auth.api.signInEmail({
       body: { email: DEMO_EMAIL, password: DEMO_PASSWORD },
       headers: req.headers,
