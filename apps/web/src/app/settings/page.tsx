@@ -1,19 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Settings, Key, Eye, EyeOff, Loader2, Check, Trash2, AlertCircle, Shield, Cpu, Coins, ChevronDown, ChevronRight, Users, UserPlus, Crown, Mail, X, Lock } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { useProject } from "@/lib/project-context";
 
-// Provider definitions for UI
+// Provider definitions for UI — labels resolved via i18n by id
 const API_KEY_PROVIDERS = [
   {
     id: "textru" as const,
     name: "Text.ru",
-    description: "Russian-focused uniqueness & spam check. Used for Expert Analysis in Content Editor.",
     docsUrl: "https://text.ru/api-check",
-    placeholder: "Enter your Text.ru API key",
   },
   // Future providers can be added here:
   // { id: "copyscape", name: "Copyscape", ... },
@@ -26,6 +25,8 @@ function ApiKeyRow({ provider, status, onSave, onRemove }: {
   onSave: (provider: string, key: string) => Promise<void>;
   onRemove: (provider: string) => Promise<void>;
 }) {
+  const t = useTranslations("settings.apiKeys");
+  const tProvider = useTranslations(`settings.apiKeys.providers.${provider.id}`);
   const [isEditing, setIsEditing] = useState(false);
   const [keyValue, setKeyValue] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -71,13 +72,13 @@ function ApiKeyRow({ provider, status, onSave, onRemove }: {
           </div>
           <div>
             <h3 className="font-semibold text-surface-100">{provider.name}</h3>
-            <p className="text-xs text-surface-400">{provider.description}</p>
+            <p className="text-xs text-surface-400">{tProvider("description")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {justSaved && (
             <span className="text-xs text-emerald-400 flex items-center gap-1 animate-fade-in">
-              <Check className="w-3.5 h-3.5" /> Saved
+              <Check className="w-3.5 h-3.5" /> {t("saved")}
             </span>
           )}
           {configured && !isEditing && (
@@ -87,12 +88,12 @@ function ApiKeyRow({ provider, status, onSave, onRemove }: {
           )}
           {configured && !isEditing && (
             <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded flex items-center gap-1">
-              <Check className="w-3 h-3" /> Active
+              <Check className="w-3 h-3" /> {t("active")}
             </span>
           )}
           {!configured && !isEditing && (
             <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> Not configured
+              <AlertCircle className="w-3 h-3" /> {t("notConfigured")}
             </span>
           )}
         </div>
@@ -104,7 +105,7 @@ function ApiKeyRow({ provider, status, onSave, onRemove }: {
             onClick={() => setIsEditing(true)}
             className="text-xs px-3 py-1.5 rounded-lg bg-brand-500/10 text-brand-400 hover:bg-brand-500/20 transition-colors"
           >
-            {configured ? "Update Key" : "Add Key"}
+            {configured ? t("updateKey") : t("addKey")}
           </button>
           {configured && (
             <button
@@ -113,7 +114,7 @@ function ApiKeyRow({ provider, status, onSave, onRemove }: {
               className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
             >
               {removing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-              Remove
+              {t("remove")}
             </button>
           )}
           {provider.docsUrl && (
@@ -123,7 +124,7 @@ function ApiKeyRow({ provider, status, onSave, onRemove }: {
               rel="noopener noreferrer"
               className="text-xs text-surface-500 hover:text-surface-300 transition-colors ml-auto"
             >
-              Get API Key →
+              {t("getApiKey")}
             </a>
           )}
         </div>
@@ -134,7 +135,7 @@ function ApiKeyRow({ provider, status, onSave, onRemove }: {
               type={showKey ? "text" : "password"}
               value={keyValue}
               onChange={(e) => setKeyValue(e.target.value)}
-              placeholder={provider.placeholder}
+              placeholder={tProvider("placeholder")}
               className="w-full px-3 py-2 pr-9 text-sm rounded-lg bg-surface-900/50 border border-surface-700 text-surface-100 placeholder:text-surface-500 focus:outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/20 font-mono"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && handleSave()}
@@ -152,13 +153,13 @@ function ApiKeyRow({ provider, status, onSave, onRemove }: {
             className="text-xs px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors disabled:opacity-50 flex items-center gap-1.5 font-medium"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            Save
+            {t("save")}
           </button>
           <button
             onClick={() => { setIsEditing(false); setKeyValue(""); }}
             className="text-xs px-3 py-2 rounded-lg text-surface-400 hover:text-surface-200 transition-colors"
           >
-            Cancel
+            {t("cancel")}
           </button>
         </div>
       )}
@@ -206,6 +207,7 @@ function saveEnabledModels(ids: Set<string>) {
 }
 
 function ModelPricingTable() {
+  const t = useTranslations("settings.models");
   const { data: models, isLoading } = trpc.ai.listModels.useQuery();
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set(["Google", "OpenAI", "Anthropic", "DeepSeek", "xAI"]));
   const [enabledModels, setEnabledModels] = useState<Set<string> | null>(null);
@@ -301,7 +303,11 @@ function ModelPricingTable() {
       {/* Summary bar */}
       <div className="flex items-center justify-between px-1">
         <span className="text-xs text-surface-400">
-          <span className="text-surface-200 font-medium">{enabledCount}</span> of {models.length} models enabled
+          {t.rich("enabledOf", {
+            enabled: enabledCount,
+            total: models.length,
+            strong: (chunks) => <span className="text-surface-200 font-medium">{chunks}</span>,
+          })}
         </span>
       </div>
 
@@ -324,7 +330,7 @@ function ModelPricingTable() {
                 </div>
                 <span className={`font-semibold ${style.color}`}>{providerName}</span>
                 <span className="text-[10px] text-surface-500 bg-surface-800/50 px-2 py-0.5 rounded">
-                  {enabledInProvider}/{providerModels.length} active
+                  {t("activeOf", { enabled: enabledInProvider, total: providerModels.length })}
                 </span>
               </div>
               {isExpanded 
@@ -342,31 +348,31 @@ function ModelPricingTable() {
                     onClick={() => enableAllInProvider(providerModels)}
                     className="text-[10px] text-emerald-400/70 hover:text-emerald-400 transition-colors"
                   >
-                    Enable all
+                    {t("enableAll")}
                   </button>
                   <span className="text-surface-700">|</span>
                   <button
                     onClick={() => disableAllInProvider(providerModels)}
                     className="text-[10px] text-red-400/70 hover:text-red-400 transition-colors"
                   >
-                    Disable all
+                    {t("disableAll")}
                   </button>
                 </div>
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-surface-700/30">
                       <th className="px-3 py-2 text-[10px] font-semibold text-surface-500 uppercase tracking-wider w-8"></th>
-                      <th className="px-3 py-2 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Model</th>
+                      <th className="px-3 py-2 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">{t("model")}</th>
                       <th className="px-3 py-2 text-[10px] font-semibold text-surface-500 uppercase tracking-wider text-right whitespace-nowrap">
                         <span className="flex items-center justify-end gap-1">
                           <Coins className="w-3 h-3 text-emerald-400" />
-                          Per 1K tokens
+                          {t("per1k")}
                         </span>
                       </th>
                       <th className="px-3 py-2 text-[10px] font-semibold text-surface-500 uppercase tracking-wider text-right whitespace-nowrap">
                         <span className="flex items-center justify-end gap-1">
                           <Coins className="w-3 h-3 text-emerald-400" />
-                          ~ Per Article
+                          {t("perArticle")}
                         </span>
                       </th>
                     </tr>
@@ -421,40 +427,44 @@ function ModelPricingTable() {
         <p className="text-[11px] text-surface-500 flex items-start gap-2">
           <Coins className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-emerald-400" />
           <span>
-            <strong className="text-surface-400">Per 1K tokens</strong> — blended cost in SEOSH tokens per 1,000 API tokens (average of input + output).
+            <strong className="text-surface-400">{t("per1k")}</strong> — {t("per1kBody")}
           </span>
         </p>
         <p className="text-[11px] text-surface-500 flex items-start gap-2">
           <Coins className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-emerald-400" />
           <span>
-            <strong className="text-surface-400">Per Article</strong> — estimated cost for a typical article (~2K prompt + ~3K output tokens). Actual cost depends on content length.
+            <strong className="text-surface-400">{t("perArticle")}</strong> — {t("perArticleBody")}
           </span>
         </p>
         <div className="flex items-center gap-4 pt-1">
-          <span className="text-[10px] text-emerald-400">● Cheap</span>
-          <span className="text-[10px] text-amber-400">● Moderate</span>
-          <span className="text-[10px] text-orange-400">● Expensive</span>
-          <span className="text-[10px] text-red-400">● Premium</span>
+          <span className="text-[10px] text-emerald-400">● {t("legendCheap")}</span>
+          <span className="text-[10px] text-amber-400">● {t("legendModerate")}</span>
+          <span className="text-[10px] text-orange-400">● {t("legendExpensive")}</span>
+          <span className="text-[10px] text-red-400">● {t("legendPremium")}</span>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Role Styles ─────────────────────────────────────────────────────────────
-const ROLE_STYLES: Record<string, { color: string; bg: string; label: string }> = {
-  VIEWER: { color: "text-blue-400", bg: "bg-blue-500/10", label: "Viewer" },
-  EDITOR: { color: "text-amber-400", bg: "bg-amber-500/10", label: "Editor" },
-  ADMIN:  { color: "text-purple-400", bg: "bg-purple-500/10", label: "Admin" },
+// ─── Role / Status Style Lookups (labels resolved via i18n) ───────────────────
+const ROLE_STYLES: Record<string, { color: string; bg: string }> = {
+  VIEWER: { color: "text-blue-400", bg: "bg-blue-500/10" },
+  EDITOR: { color: "text-amber-400", bg: "bg-amber-500/10" },
+  ADMIN:  { color: "text-purple-400", bg: "bg-purple-500/10" },
 };
 
-const STATUS_STYLES: Record<string, { color: string; bg: string; label: string }> = {
-  PENDING: { color: "text-amber-400", bg: "bg-amber-500/10", label: "Pending" },
-  ACTIVE:  { color: "text-emerald-400", bg: "bg-emerald-500/10", label: "Active" },
-  REVOKED: { color: "text-red-400", bg: "bg-red-500/10", label: "Revoked" },
+const STATUS_STYLES: Record<string, { color: string; bg: string }> = {
+  PENDING: { color: "text-amber-400", bg: "bg-amber-500/10" },
+  ACTIVE:  { color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  REVOKED: { color: "text-red-400", bg: "bg-red-500/10" },
 };
 
 function TeamMembersSection() {
+  const t = useTranslations("settings.team");
+  const tTable = useTranslations("settings.team.table");
+  const tRoles = useTranslations("settings.team.roles");
+  const tStatus = useTranslations("settings.team.memberStatus");
   const canInviteQuery = trpc.team.canInvite.useQuery();
   const membersQuery = trpc.team.listAllMembers.useQuery();
 
@@ -505,10 +515,10 @@ function TeamMembersSection() {
         <div>
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-lg font-semibold text-surface-100">Team Members</h2>
+            <h2 className="text-lg font-semibold text-surface-100">{t("title")}</h2>
           </div>
           <p className="text-sm text-surface-400 mt-1">
-            Manage team access across all your projects
+            {t("subtitle")}
           </p>
         </div>
         {canInvite && (
@@ -517,7 +527,7 @@ function TeamMembersSection() {
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-medium hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/20"
           >
             <UserPlus className="w-4 h-4" />
-            Invite Member
+            {t("invite")}
           </button>
         )}
       </div>
@@ -530,12 +540,12 @@ function TeamMembersSection() {
               <Lock className="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-surface-100 mb-1">Upgrade to invite team members</h3>
+              <h3 className="font-semibold text-surface-100 mb-1">{t("upgradeTitle")}</h3>
               <p className="text-sm text-surface-400">
-                {canInviteQuery.data?.reason || "Team management is available on paid plans."}
+                {canInviteQuery.data?.reason || t("upgradeFallback")}
               </p>
               <button className="mt-3 px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-medium hover:from-amber-600 hover:to-orange-600 transition-all">
-                View Plans
+                {t("viewPlans")}
               </button>
             </div>
           </div>
@@ -548,7 +558,7 @@ function TeamMembersSection() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-surface-100 flex items-center gap-2">
               <Mail className="w-4 h-4 text-indigo-400" />
-              Send Invite
+              {t("sendInvite")}
             </h3>
             <button onClick={() => setShowInviteForm(false)} className="btn-ghost p-1 rounded-lg">
               <X className="w-4 h-4" />
@@ -559,7 +569,7 @@ function TeamMembersSection() {
               type="email"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="colleague@company.com"
+              placeholder={t("emailPlaceholder")}
               className="input-field text-sm flex-1 min-w-[200px]"
             />
             <select
@@ -576,9 +586,9 @@ function TeamMembersSection() {
               onChange={(e) => setInviteRole(e.target.value as any)}
               className="px-3 py-2 rounded-lg bg-surface-800 border border-surface-700 text-sm text-surface-200 focus:outline-none focus:border-indigo-500/50"
             >
-              <option value="VIEWER">Viewer</option>
-              <option value="EDITOR">Editor</option>
-              <option value="ADMIN">Admin</option>
+              <option value="VIEWER">{tRoles("VIEWER")}</option>
+              <option value="EDITOR">{tRoles("EDITOR")}</option>
+              <option value="ADMIN">{tRoles("ADMIN")}</option>
             </select>
             <button
               onClick={() => inviteMut.mutate({ projectId: inviteProject, email: inviteEmail, role: inviteRole })}
@@ -586,14 +596,14 @@ function TeamMembersSection() {
               className="px-4 py-2 rounded-lg bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {inviteMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-              Send
+              {t("send")}
             </button>
           </div>
           {inviteMut.error && (
             <p className="text-xs text-red-400 mt-2">{inviteMut.error.message}</p>
           )}
           <p className="text-[11px] text-surface-500 mt-2">
-            In dev mode, the invite link and temporary password will be printed in the server console.
+            {t("devNote")}
           </p>
         </div>
       )}
@@ -603,7 +613,9 @@ function TeamMembersSection() {
         <div className="glass-card p-4 mb-4 border border-emerald-500/20 animate-fade-in space-y-3">
           <div className="flex items-center gap-2">
             <Check className="w-4 h-4 text-emerald-400" />
-            <p className="text-sm text-emerald-400">Invite created for <strong>{lastInviteEmail}</strong></p>
+            <p className="text-sm text-emerald-400">
+              {t.rich("successWith", { email: lastInviteEmail, strong: (chunks) => <strong>{chunks}</strong> })}
+            </p>
           </div>
           {lastInviteUrl && (
             <div className="flex gap-2">
@@ -613,18 +625,18 @@ function TeamMembersSection() {
                 className="btn-secondary gap-1 flex-shrink-0 text-xs"
               >
                 {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Mail className="w-3 h-3" />}
-                {copied ? "Copied" : "Copy"}
+                {copied ? t("copied") : t("copyLink")}
               </button>
             </div>
           )}
           {lastInvitePassword && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-800/50">
-              <span className="text-[11px] text-surface-400">Password:</span>
+              <span className="text-[11px] text-surface-400">{t("password")}</span>
               <code className="text-sm text-amber-400 font-mono font-bold">{lastInvitePassword}</code>
             </div>
           )}
-          <p className="text-[11px] text-surface-500">Share the link and password with the invitee.</p>
-          <button onClick={() => setInviteSuccess(false)} className="text-[11px] text-surface-500 hover:text-surface-300">Dismiss</button>
+          <p className="text-[11px] text-surface-500">{t("shareHint")}</p>
+          <button onClick={() => setInviteSuccess(false)} className="text-[11px] text-surface-500 hover:text-surface-300">{t("dismiss")}</button>
         </div>
       )}
 
@@ -636,11 +648,11 @@ function TeamMembersSection() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-surface-700/30">
-                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Member</th>
-                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Project</th>
-                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Role</th>
-                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Status</th>
-                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider text-right">Actions</th>
+                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">{tTable("member")}</th>
+                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">{tTable("project")}</th>
+                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">{tTable("role")}</th>
+                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider">{tTable("status")}</th>
+                <th className="px-5 py-3 text-[10px] font-semibold text-surface-500 uppercase tracking-wider text-right">{tTable("actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-700/15">
@@ -659,16 +671,16 @@ function TeamMembersSection() {
                     </div>
                   </td>
                   <td className="px-5 py-3">
-                    <span className="text-xs text-surface-400">All projects</span>
+                    <span className="text-xs text-surface-400">{tTable("allProjects")}</span>
                   </td>
                   <td className="px-5 py-3">
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-medium">
                       <Crown className="w-3 h-3" />
-                      Owner
+                      {tRoles("OWNER")}
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Active</span>
+                    <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">{tStatus("ACTIVE")}</span>
                   </td>
                   <td className="px-5 py-3 text-right">
                     <span className="text-[10px] text-surface-500">—</span>
@@ -701,19 +713,19 @@ function TeamMembersSection() {
                           onChange={(e) => updateRoleMut.mutate({ memberId: member.id, role: e.target.value as any })}
                           className={`px-2.5 py-1 rounded-lg text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/30 ${roleStyle.bg} ${roleStyle.color}`}
                         >
-                          <option value="VIEWER">Viewer</option>
-                          <option value="EDITOR">Editor</option>
-                          <option value="ADMIN">Admin</option>
+                          <option value="VIEWER">{tRoles("VIEWER")}</option>
+                          <option value="EDITOR">{tRoles("EDITOR")}</option>
+                          <option value="ADMIN">{tRoles("ADMIN")}</option>
                         </select>
                       ) : (
                         <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${roleStyle.bg} ${roleStyle.color}`}>
-                          {roleStyle.label}
+                          {tRoles(member.role)}
                         </span>
                       )}
                     </td>
                     <td className="px-5 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded ${statusStyle.bg} ${statusStyle.color}`}>
-                        {statusStyle.label}
+                        {tStatus(member.status)}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-right">
@@ -724,7 +736,7 @@ function TeamMembersSection() {
                           className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50 inline-flex items-center gap-1"
                         >
                           {removeMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                          Remove
+                          {tTable("remove")}
                         </button>
                       )}
                     </td>
@@ -737,9 +749,9 @@ function TeamMembersSection() {
                 <tr>
                   <td colSpan={5} className="px-5 py-8 text-center">
                     <Users className="w-8 h-8 text-surface-600 mx-auto mb-2" />
-                    <p className="text-sm text-surface-400">No team members yet.</p>
+                    <p className="text-sm text-surface-400">{tTable("noMembers")}</p>
                     {canInvite && (
-                      <p className="text-xs text-surface-500 mt-1">Click "Invite Member" to add someone to your project.</p>
+                      <p className="text-xs text-surface-500 mt-1">{tTable("noMembersHint")}</p>
                     )}
                   </td>
                 </tr>
@@ -753,13 +765,13 @@ function TeamMembersSection() {
       {revokedMembers.length > 0 && (
         <details className="mt-3">
           <summary className="text-xs text-surface-500 cursor-pointer hover:text-surface-300 transition-colors">
-            {revokedMembers.length} revoked member{revokedMembers.length > 1 ? "s" : ""}
+            {t("revokedSummary", { n: revokedMembers.length })}
           </summary>
           <div className="mt-2 space-y-1">
             {revokedMembers.map(m => (
               <div key={m.id} className="flex items-center justify-between px-4 py-2 rounded-lg bg-surface-800/20 opacity-50">
                 <span className="text-xs text-surface-400">{m.email}</span>
-                <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded">Revoked</span>
+                <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded">{tStatus("REVOKED")}</span>
               </div>
             ))}
           </div>
@@ -770,6 +782,9 @@ function TeamMembersSection() {
 }
 
 export default function SettingsPage() {
+  const t = useTranslations("settings");
+  const tApi = useTranslations("settings.apiKeys");
+  const tModels = useTranslations("settings.models");
   const statusQuery = trpc.settings.getApiKeyStatus.useQuery();
   const saveMut = trpc.settings.saveApiKey.useMutation({
     onSuccess: () => statusQuery.refetch(),
@@ -792,19 +807,19 @@ export default function SettingsPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-surface-50 flex items-center gap-3">
             <Settings className="w-7 h-7 text-brand-400" />
-            Settings
+            {t("title")}
           </h1>
-          <p className="text-surface-400 mt-1">Configure your SEOSH.AI experience</p>
+          <p className="text-surface-400 mt-1">{t("subtitle")}</p>
         </div>
 
         {/* API Keys Section */}
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
             <Shield className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-lg font-semibold text-surface-100">API Keys</h2>
+            <h2 className="text-lg font-semibold text-surface-100">{tApi("title")}</h2>
           </div>
           <p className="text-sm text-surface-400 mb-4">
-            Connect external SEO analysis providers by adding your API keys. Keys are encrypted and stored securely.
+            {tApi("intro")}
           </p>
 
           <div className="space-y-3">
@@ -823,7 +838,7 @@ export default function SettingsPage() {
           <div className="mt-4 p-3 rounded-lg bg-surface-800/30 border border-surface-700/30">
             <p className="text-[11px] text-surface-500 flex items-start gap-2">
               <Shield className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-              <span>Your API keys are encrypted with AES-256-GCM before storage. They are never displayed in full or transmitted in API responses.</span>
+              <span>{tApi("securityNote")}</span>
             </p>
           </div>
         </div>
@@ -835,10 +850,10 @@ export default function SettingsPage() {
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
             <Cpu className="w-5 h-5 text-brand-400" />
-            <h2 className="text-lg font-semibold text-surface-100">AI Models & Pricing</h2>
+            <h2 className="text-lg font-semibold text-surface-100">{tModels("title")}</h2>
           </div>
           <p className="text-sm text-surface-400 mb-4">
-            Available AI models and their estimated costs in SEOSH tokens. Choose cheaper models for bulk operations and premium models for high-quality content.
+            {tModels("intro")}
           </p>
 
           <ModelPricingTable />

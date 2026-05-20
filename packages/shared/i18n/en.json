@@ -1219,5 +1219,87 @@
     "subtitle": "Track your SEO performance and search positions",
     "comingSoonTitle": "Analytics coming soon",
     "comingSoonBody": "Connect Yandex.Metrika, Google Search Console, and other services to track your SEO growth."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configure your SEOSH.AI experience",
+    "apiKeys": {
+      "title": "API Keys",
+      "intro": "Connect external SEO analysis providers by adding your API keys. Keys are encrypted and stored securely.",
+      "securityNote": "Your API keys are encrypted with AES-256-GCM before storage. They are never displayed in full or transmitted in API responses.",
+      "providers": {
+        "textru": {
+          "description": "Russian-focused uniqueness & spam check. Used for Expert Analysis in Content Editor.",
+          "placeholder": "Enter your Text.ru API key"
+        }
+      },
+      "saved": "Saved",
+      "active": "Active",
+      "notConfigured": "Not configured",
+      "updateKey": "Update Key",
+      "addKey": "Add Key",
+      "remove": "Remove",
+      "getApiKey": "Get API Key →",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "team": {
+      "title": "Team Members",
+      "subtitle": "Manage team access across all your projects",
+      "invite": "Invite Member",
+      "upgradeTitle": "Upgrade to invite team members",
+      "upgradeFallback": "Team management is available on paid plans.",
+      "viewPlans": "View Plans",
+      "sendInvite": "Send Invite",
+      "emailPlaceholder": "colleague@company.com",
+      "send": "Send",
+      "devNote": "In dev mode, the invite link and temporary password will be printed in the server console.",
+      "successWith": "Invite created for <strong>{email}</strong>",
+      "copyLink": "Copy",
+      "copied": "Copied",
+      "password": "Password:",
+      "shareHint": "Share the link and password with the invitee.",
+      "dismiss": "Dismiss",
+      "table": {
+        "member": "Member",
+        "project": "Project",
+        "role": "Role",
+        "status": "Status",
+        "actions": "Actions",
+        "allProjects": "All projects",
+        "noMembers": "No team members yet.",
+        "noMembersHint": "Click \"Invite Member\" to add someone to your project.",
+        "remove": "Remove"
+      },
+      "roles": {
+        "VIEWER": "Viewer",
+        "EDITOR": "Editor",
+        "ADMIN": "Admin",
+        "OWNER": "Owner"
+      },
+      "memberStatus": {
+        "PENDING": "Pending",
+        "ACTIVE": "Active",
+        "REVOKED": "Revoked"
+      },
+      "revokedSummary": "{n, plural, one {# revoked member} other {# revoked members}}"
+    },
+    "models": {
+      "title": "AI Models & Pricing",
+      "intro": "Available AI models and their estimated costs in SEOSH tokens. Choose cheaper models for bulk operations and premium models for high-quality content.",
+      "enabledOf": "<strong>{enabled}</strong> of {total} models enabled",
+      "activeOf": "{enabled}/{total} active",
+      "enableAll": "Enable all",
+      "disableAll": "Disable all",
+      "model": "Model",
+      "per1k": "Per 1K tokens",
+      "perArticle": "~ Per Article",
+      "per1kBody": "blended cost in SEOSH tokens per 1,000 API tokens (average of input + output).",
+      "perArticleBody": "estimated cost for a typical article (~2K prompt + ~3K output tokens). Actual cost depends on content length.",
+      "legendCheap": "Cheap",
+      "legendModerate": "Moderate",
+      "legendExpensive": "Expensive",
+      "legendPremium": "Premium"
+    }
   }
 }
