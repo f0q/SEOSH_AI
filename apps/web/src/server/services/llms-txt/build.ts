@@ -1,19 +1,43 @@
 // Builds the per-project llms.txt that the client publishes at the root of
-// their own domain (https://their-site/llms.txt). It's a markdown summary of
-// what the site is about, what it sells, how it's structured, and the
-// top topics it covers — designed so an LLM crawler can orient itself in
-// one fetch instead of crawling the whole site.
+// their own domain (https://their-site/llms.txt). Two generation paths:
 //
-// Source data (CompanyProfile + SemanticCore + SitemapPage) is gathered from
-// what onboarding + later steps have already populated. Sections that have
-// no data are silently skipped so the file stays compact for fresh projects.
+//   1. Deterministic (buildLlmsTxt + regenerateProjectLlmsTxt): concatenates
+//      CompanyProfile + Products + SiteStructure + Sitemap + Queries into
+//      markdown. Free, instant, used during onboarding.
+//
+//   2. AI (generateLlmsTxtWithAI): passes the same raw data to an LLM and
+//      asks for a polished, mintlify-style llms.txt. Costs tokens, takes a
+//      few seconds, used when the user explicitly picks a model on
+//      /project-settings.
+//
+// Both paths persist to Project.llmsTxt and bump llmsTxtUpdatedAt.
 
 import { prisma } from "../../db";
+import { callOpenRouterWithCost, getAIConfig } from "../ai";
+import { deductByCost } from "../tokenService";
 
 type ProductsServices = Array<{ name?: string; description?: string; priceRange?: string }>;
 type SiteStructureNode = { name?: string; url?: string; children?: SiteStructureNode[] };
 
-export async function buildLlmsTxt(projectId: string): Promise<string> {
+// ─── Data gathering ─────────────────────────────────────────────────────────
+
+interface ProjectDataForLlms {
+  name: string;
+  url: string | null;
+  company: {
+    name: string;
+    industry: string | null;
+    description: string | null;
+    geography: string | null;
+    usp: string | null;
+  };
+  products: ProductsServices;
+  siteStructure: SiteStructureNode | null;
+  sitemapPages: Array<{ url: string; title: string | null; h1: string | null }>;
+  queriesByCategory: Map<string, string[]>;
+}
+
+async function gatherProjectData(projectId: string): Promise<ProjectDataForLlms> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
@@ -36,44 +60,67 @@ export async function buildLlmsTxt(projectId: string): Promise<string> {
   if (!project) throw new Error(`Project not found: ${projectId}`);
 
   const cp = project.companyProfile;
-  const name = cp?.companyName || project.name;
+  const queriesByCategory = new Map<string, string[]>();
+  const core = project.semanticCores[0];
+  if (core) {
+    for (const q of core.queries) {
+      const cat = q.category?.name || "Other";
+      if (!queriesByCategory.has(cat)) queriesByCategory.set(cat, []);
+      const bucket = queriesByCategory.get(cat)!;
+      if (bucket.length < 8) bucket.push(q.text);
+    }
+  }
+
+  return {
+    name: cp?.companyName || project.name,
+    url: project.url,
+    company: {
+      name: cp?.companyName || project.name,
+      industry: cp?.industry ?? null,
+      description: cp?.description ?? null,
+      geography: cp?.geography ?? null,
+      usp: cp?.usp ?? null,
+    },
+    products: ((cp?.productsServices as ProductsServices | null) ?? []).filter(p => p?.name),
+    siteStructure: (cp?.siteStructure as SiteStructureNode | null) ?? null,
+    sitemapPages: project.sitemapPages.map(p => ({ url: p.url, title: p.title, h1: p.h1 })),
+    queriesByCategory,
+  };
+}
+
+// ─── Deterministic path ─────────────────────────────────────────────────────
+
+export async function buildLlmsTxt(projectId: string): Promise<string> {
+  const data = await gatherProjectData(projectId);
   const lines: string[] = [];
 
-  lines.push(`# ${name}`);
+  lines.push(`# ${data.name}`);
   lines.push("");
 
-  const tagline = buildTagline(cp, project.url);
+  const tagline = buildTagline(data);
   if (tagline) {
     lines.push(`> ${tagline}`);
     lines.push("");
   }
 
-  // ── Products & Services ──
-  const products = (cp?.productsServices as ProductsServices | null) ?? [];
-  const validProducts = products.filter(p => p?.name);
-  if (validProducts.length > 0) {
+  if (data.products.length > 0) {
     lines.push("## Products & Services");
     lines.push("");
-    for (const p of validProducts) {
+    for (const p of data.products) {
       const desc = [p.description, p.priceRange].filter(Boolean).join(" — ");
       lines.push(desc ? `- **${p.name}**: ${desc}` : `- **${p.name}**`);
     }
     lines.push("");
   }
 
-  // ── Site Structure ──
-  // Merge approved siteStructure tree (from onboarding) with discovered sitemap
-  // pages. Prefer structure entries since they have curated names; fall back
-  // to raw URLs.
-  const structureLines = flattenStructure(cp?.siteStructure as SiteStructureNode | null);
-  const sitemapLines = project.sitemapPages
+  const structureLines = flattenStructure(data.siteStructure);
+  const sitemapLines = data.sitemapPages
     .filter(p => p.url)
     .map(p => `- [${p.title || p.h1 || p.url}](${p.url})`);
   const allStructure = [...structureLines, ...sitemapLines];
   if (allStructure.length > 0) {
     lines.push("## Site Structure");
     lines.push("");
-    // De-dupe by trailing URL
     const seen = new Set<string>();
     for (const line of allStructure) {
       const key = line.match(/\(([^)]+)\)/)?.[1] ?? line;
@@ -84,31 +131,19 @@ export async function buildLlmsTxt(projectId: string): Promise<string> {
     lines.push("");
   }
 
-  // ── Key Topics (top 20 queries grouped by category) ──
-  const core = project.semanticCores[0];
-  if (core && core.queries.length > 0) {
-    const byCategory = new Map<string, string[]>();
-    for (const q of core.queries) {
-      const cat = q.category?.name || "Other";
-      if (!byCategory.has(cat)) byCategory.set(cat, []);
-      const bucket = byCategory.get(cat)!;
-      if (bucket.length < 8) bucket.push(q.text); // cap per-category to stay readable
-    }
-    if (byCategory.size > 0) {
-      lines.push("## Key Topics");
+  if (data.queriesByCategory.size > 0) {
+    lines.push("## Key Topics");
+    lines.push("");
+    lines.push("> Search queries this site targets, grouped by topic.");
+    lines.push("");
+    for (const [cat, queries] of data.queriesByCategory) {
+      lines.push(`### ${cat}`);
       lines.push("");
-      lines.push("> Search queries this site targets, grouped by topic.");
+      for (const q of queries) lines.push(`- ${q}`);
       lines.push("");
-      for (const [cat, queries] of byCategory) {
-        lines.push(`### ${cat}`);
-        lines.push("");
-        for (const q of queries) lines.push(`- ${q}`);
-        lines.push("");
-      }
     }
   }
 
-  // ── Trailing meta ──
   lines.push("---");
   lines.push("");
   lines.push(`*Generated by [SEOSH.AI](https://seosh.aijam.pro) on ${new Date().toISOString().slice(0, 10)}.*`);
@@ -117,13 +152,14 @@ export async function buildLlmsTxt(projectId: string): Promise<string> {
   return lines.join("\n");
 }
 
-function buildTagline(cp: { description: string | null; usp: string | null; industry: string | null; geography: string | null } | null, url: string | null): string {
-  if (!cp) return url ? `Website: ${url}` : "";
+function buildTagline(data: ProjectDataForLlms): string {
+  const { company } = data;
   const bits: string[] = [];
-  if (cp.description) bits.push(cp.description.trim());
-  if (cp.usp) bits.push(cp.usp.trim());
-  const meta = [cp.industry, cp.geography].filter(Boolean).join(", ");
+  if (company.description) bits.push(company.description.trim());
+  if (company.usp) bits.push(company.usp.trim());
+  const meta = [company.industry, company.geography].filter(Boolean).join(", ");
   if (meta && bits.length === 0) bits.push(meta);
+  if (bits.length === 0 && data.url) bits.push(`Website: ${data.url}`);
   return bits.join(" ");
 }
 
@@ -142,7 +178,7 @@ function flattenStructure(node: SiteStructureNode | null, prefix = ""): string[]
   return out;
 }
 
-/** Generate and persist llms.txt for a project. Returns the new text. */
+/** Generate (deterministic) and persist llms.txt for a project. */
 export async function regenerateProjectLlmsTxt(projectId: string): Promise<string> {
   const text = await buildLlmsTxt(projectId);
   await prisma.project.update({
@@ -150,4 +186,107 @@ export async function regenerateProjectLlmsTxt(projectId: string): Promise<strin
     data: { llmsTxt: text, llmsTxtUpdatedAt: new Date() },
   });
   return text;
+}
+
+// ─── AI path ────────────────────────────────────────────────────────────────
+
+interface AIGenerateResult {
+  text: string;
+  deducted: number;
+  newBalance: number;
+}
+
+/** Generate llms.txt via LLM, charge the user, persist. */
+export async function generateLlmsTxtWithAI(
+  projectId: string,
+  modelId: string,
+  userId: string,
+): Promise<AIGenerateResult> {
+  const data = await gatherProjectData(projectId);
+  const prompt = buildAIPrompt(data);
+
+  const config = getAIConfig(modelId);
+  if (!config.apiKey) throw new Error("OpenRouter API key is not configured");
+
+  const { text, costUsd } = await callOpenRouterWithCost(config, prompt, false);
+
+  const cleaned = stripCodeFences(text).trim();
+  if (cleaned.length < 50) {
+    throw new Error("Model returned an empty or too-short response");
+  }
+
+  const { deducted, newBalance } = await deductByCost(
+    userId,
+    costUsd,
+    "llms.txt generation",
+    `project=${projectId} model=${modelId}`,
+  );
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { llmsTxt: cleaned, llmsTxtUpdatedAt: new Date() },
+  });
+
+  return { text: cleaned, deducted, newBalance };
+}
+
+function buildAIPrompt(data: ProjectDataForLlms): string {
+  const { company, products, siteStructure, sitemapPages, queriesByCategory } = data;
+
+  const productsBlock = products.length
+    ? products.map(p => `- ${p.name}${p.description ? `: ${p.description}` : ""}${p.priceRange ? ` (${p.priceRange})` : ""}`).join("\n")
+    : "(none provided)";
+
+  const structureBlock = flattenStructure(siteStructure).join("\n") || "(none provided)";
+  const sitemapBlock = sitemapPages
+    .slice(0, 20)
+    .map(p => `- ${p.url} — ${p.title || p.h1 || ""}`)
+    .join("\n") || "(none crawled yet)";
+
+  const queriesBlock = queriesByCategory.size
+    ? Array.from(queriesByCategory.entries())
+        .map(([cat, qs]) => `${cat}: ${qs.join(", ")}`)
+        .join("\n")
+    : "(none provided)";
+
+  return `You are writing an llms.txt file — a single-page markdown summary at the root of a website that helps LLM crawlers (ChatGPT, Perplexity, Claude) understand the site in one fetch.
+
+Follow the mintlify llms.txt convention strictly:
+- H1 with the site/company name
+- A single blockquote (one line, starting with >) that describes what the site does in 1-2 sentences
+- H2 sections grouping related items (Products & Services, Site Structure, Key Topics, etc.)
+- Under each H2, bulleted lists with descriptive link titles and one-line context where helpful
+- Keep the total file under 1500 words. Prioritize the 80/20 — what answers the most likely user questions first.
+- Output the markdown directly. No code fences, no explanations, no "Here is the llms.txt:" preamble.
+- Match the language of the source data (if the project is in Russian, write in Russian).
+
+Project data:
+
+Company name: ${company.name}
+Industry: ${company.industry || "(not set)"}
+Geography: ${company.geography || "(not set)"}
+USP: ${company.usp || "(not set)"}
+Description: ${company.description || "(not set)"}
+Website: ${data.url || "(not set)"}
+
+Products / Services:
+${productsBlock}
+
+Approved site structure:
+${structureBlock}
+
+Crawled sitemap pages (top 20):
+${sitemapBlock}
+
+Top search queries by category:
+${queriesBlock}
+
+Now produce the llms.txt:`;
+}
+
+function stripCodeFences(text: string): string {
+  // Models sometimes wrap output in ```markdown ... ``` despite being told not to.
+  const fence = /^```(?:\w+)?\n([\s\S]*?)\n```\s*$/;
+  const m = text.trim().match(fence);
+  return m ? m[1] : text;
 }

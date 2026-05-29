@@ -7,7 +7,7 @@ import { router, protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { prisma } from "../db";
 import { TRPCError } from "@trpc/server";
-import { regenerateProjectLlmsTxt } from "../services/llms-txt/build";
+import { regenerateProjectLlmsTxt, generateLlmsTxtWithAI } from "../services/llms-txt/build";
 
 // Best-effort: don't block onboarding if llms.txt build fails for any reason
 // (no semantic core yet, malformed siteStructure, etc.) — user can always
@@ -342,12 +342,29 @@ export const projectsRouter = router({
       };
     }),
 
-  /** Regenerate llms.txt from the current CompanyProfile + SemanticCore + sitemap */
+  /**
+   * Regenerate llms.txt from the current CompanyProfile + SemanticCore + sitemap.
+   * If modelId is provided, run through the AI generator (charges tokens).
+   * Otherwise use the free deterministic builder.
+   */
   regenerateLlmsTxt: protectedProcedure
-    .input(z.object({ projectId: z.string() }))
+    .input(z.object({
+      projectId: z.string(),
+      modelId: z.string().optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
       await ensureProjectOwner(input.projectId, ctx.user.id);
+      if (input.modelId) {
+        const result = await generateLlmsTxtWithAI(input.projectId, input.modelId, ctx.user.id);
+        return {
+          text: result.text,
+          updatedAt: new Date(),
+          ai: true,
+          deducted: result.deducted,
+          newBalance: result.newBalance,
+        };
+      }
       const text = await regenerateProjectLlmsTxt(input.projectId);
-      return { text, updatedAt: new Date() };
+      return { text, updatedAt: new Date(), ai: false };
     }),
 });

@@ -13,6 +13,8 @@ import { router, protectedProcedure, superadminProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { prisma } from "../db";
 import { encrypt, maskApiKey } from "../lib/encryption";
+import { callOpenRouterWithCost, getAIConfig } from "../services/ai";
+import { deductByCost } from "../services/tokenService";
 
 // ─── Model Catalog ─────────────────────────────────────────────────────────
 // Pricing sourced from OpenRouter API. Sorted by cost within each group.
@@ -165,6 +167,55 @@ export const aiRouter = router({
       });
     }),
 
+  /**
+   * Fetch the given URL, scrape title + meta description + og tags + first H1,
+   * then ask the picked model to produce companyName / industry / description /
+   * geography as JSON. Charges tokens. Used by the onboarding "AI Auto-Fill"
+   * button on Step 1 (Company).
+   */
+  autoFillCompany: protectedProcedure
+    .input(z.object({
+      url: z.string().refine(v => /^https?:\/\/.+/.test(v), {
+        message: "URL must start with http:// or https://",
+      }),
+      modelId: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const scraped = await scrapeSiteForCompanyHints(input.url);
+      const prompt = buildAutoFillPrompt(input.url, scraped);
+
+      const config = getAIConfig(input.modelId);
+      if (!config.apiKey) throw new Error("OpenRouter API key is not configured");
+
+      const { text, costUsd } = await callOpenRouterWithCost(config, prompt, true);
+
+      let parsed: { companyName?: string; industry?: string; description?: string; geography?: string };
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        // Some models still wrap JSON despite response_format. Try to extract.
+        const m = text.match(/\{[\s\S]*\}/);
+        if (!m) throw new Error("Model did not return valid JSON");
+        parsed = JSON.parse(m[0]);
+      }
+
+      const { deducted, newBalance } = await deductByCost(
+        ctx.user.id,
+        costUsd,
+        "onboarding auto-fill",
+        `url=${input.url} model=${input.modelId}`,
+      );
+
+      return {
+        companyName: parsed.companyName?.trim() || "",
+        industry: parsed.industry?.trim() || "",
+        description: parsed.description?.trim() || "",
+        geography: parsed.geography?.trim() || "",
+        deducted,
+        newBalance,
+      };
+    }),
+
   /** SUPERADMIN: List all configured providers (API keys masked). */
   listProviders: superadminProcedure.query(async () => {
     const rows = await prisma.aIProviderConfig.findMany({ orderBy: { provider: "asc" } });
@@ -180,3 +231,104 @@ export const aiRouter = router({
     }));
   }),
 });
+
+// ─── autoFillCompany helpers ─────────────────────────────────────────────────
+
+interface ScrapedHints {
+  title: string | null;
+  metaDescription: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogLocale: string | null;
+  firstH1: string | null;
+  hostHint: string | null;
+  htmlLang: string | null;
+}
+
+async function scrapeSiteForCompanyHints(url: string): Promise<ScrapedHints> {
+  const empty: ScrapedHints = {
+    title: null,
+    metaDescription: null,
+    ogTitle: null,
+    ogDescription: null,
+    ogLocale: null,
+    firstH1: null,
+    hostHint: null,
+    htmlLang: null,
+  };
+
+  let host: string | null = null;
+  try { host = new URL(url).host; } catch { /* keep null */ }
+  empty.hostHint = host;
+
+  let html: string;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "SEOSH.AI bot (https://seosh.aijam.pro)" },
+      redirect: "follow",
+    });
+    clearTimeout(timer);
+    if (!res.ok) return empty;
+    // Cap the body so we don't OOM on huge pages.
+    const buf = await res.arrayBuffer();
+    html = new TextDecoder("utf-8", { fatal: false }).decode(buf.slice(0, 200_000));
+  } catch {
+    return empty;
+  }
+
+  const pick = (re: RegExp): string | null => {
+    const m = html.match(re);
+    return m ? decodeEntities(m[1].trim()) : null;
+  };
+
+  return {
+    title:           pick(/<title[^>]*>([\s\S]*?)<\/title>/i),
+    metaDescription: pick(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i),
+    ogTitle:         pick(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i),
+    ogDescription:   pick(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i),
+    ogLocale:        pick(/<meta[^>]+property=["']og:locale["'][^>]+content=["']([^"']+)["']/i),
+    firstH1:         pick(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.replace(/<[^>]+>/g, "").trim() ?? null,
+    hostHint:        host,
+    htmlLang:        pick(/<html[^>]+lang=["']([^"']+)["']/i),
+  };
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
+function buildAutoFillPrompt(url: string, hints: ScrapedHints): string {
+  const lines = [
+    `URL: ${url}`,
+    hints.hostHint ? `Host: ${hints.hostHint}` : null,
+    hints.title ? `<title>: ${hints.title}` : null,
+    hints.metaDescription ? `<meta description>: ${hints.metaDescription}` : null,
+    hints.ogTitle ? `og:title: ${hints.ogTitle}` : null,
+    hints.ogDescription ? `og:description: ${hints.ogDescription}` : null,
+    hints.firstH1 ? `<h1>: ${hints.firstH1}` : null,
+    hints.htmlLang || hints.ogLocale ? `Locale: ${hints.htmlLang ?? hints.ogLocale}` : null,
+  ].filter(Boolean).join("\n");
+
+  return `Based on the website signals below, extract company info to pre-fill an onboarding form. Return STRICT JSON with exactly these keys: companyName, industry, description, geography.
+
+Rules:
+- companyName: brand/company name as it would appear in marketing (NOT the domain).
+- industry: one short category (e.g. "E-commerce", "SaaS", "Local Services", "Healthcare").
+- description: 1-2 sentences about what they do and for whom. Match the source language (Russian if the site is in Russian).
+- geography: target market (country/region/city), or "Global" if unclear.
+- If a field is genuinely unknowable from the signals, use an empty string. Do NOT invent specifics.
+
+Signals:
+${lines || "(no signals could be scraped — infer cautiously from the URL alone)"}
+
+JSON only:`;
+}

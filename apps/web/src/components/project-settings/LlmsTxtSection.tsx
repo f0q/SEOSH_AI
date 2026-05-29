@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { FileText, Download, RefreshCw, Loader2, Check, Copy } from "lucide-react";
+import { FileText, Download, RefreshCw, Loader2, Check, Copy, Sparkles, Zap, AlertCircle } from "lucide-react";
 import { trpc } from "@/trpc/client";
+import { AIModelSelector } from "@/components/ui/AIModelSelector";
 
 export default function LlmsTxtSection({ projectId }: { projectId: string }) {
   const t = useTranslations("projectSettings.llmsTxt");
   const utils = trpc.useUtils();
   const [copied, setCopied] = useState(false);
+  const [modelId, setModelId] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [lastDeducted, setLastDeducted] = useState<number | null>(null);
 
   const { data, isLoading } = trpc.projects.getLlmsTxt.useQuery(
     { projectId },
@@ -16,8 +20,14 @@ export default function LlmsTxtSection({ projectId }: { projectId: string }) {
   );
 
   const regenerate = trpc.projects.regenerateLlmsTxt.useMutation({
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setError(null);
+      setLastDeducted(result.ai && "deducted" in result ? (result.deducted ?? null) : null);
       utils.projects.getLlmsTxt.invalidate({ projectId });
+    },
+    onError: (err) => {
+      setError(err.message);
+      setLastDeducted(null);
     },
   });
 
@@ -48,11 +58,66 @@ export default function LlmsTxtSection({ projectId }: { projectId: string }) {
           {t("description")}
         </p>
 
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="sm:max-w-xs flex-1">
+            <AIModelSelector
+              selectedModelId={modelId}
+              onModelSelect={setModelId}
+              estimatedPromptTokens={800}
+              expectedOutputTokens={1200}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => regenerate.mutate({ projectId, modelId })}
+              disabled={regenerate.isPending || !modelId}
+              className="btn-primary gap-2 text-sm"
+            >
+              {regenerate.isPending && regenerate.variables?.modelId ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              {data?.text ? t("regenerateAi") : t("generateAi")}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => regenerate.mutate({ projectId })}
+              disabled={regenerate.isPending}
+              className="btn-secondary gap-2 text-sm"
+              title={t("quickHint")}
+            >
+              {regenerate.isPending && !regenerate.variables?.modelId ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Zap className="w-4 h-4" />
+              )}
+              {t("quick")}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="flex items-start gap-2 p-3 rounded-md border border-red-500/30 bg-red-500/10 text-sm text-red-300">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {lastDeducted != null && (
+          <div className="text-xs text-emerald-400">
+            {t("deducted", { tokens: lastDeducted })}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           <a
             href={downloadUrl}
             download="llms.txt"
-            className="btn-primary gap-2 text-sm"
+            className="btn-secondary gap-2 text-sm"
             aria-disabled={!data?.text || undefined}
             onClick={e => {
               if (!data?.text) e.preventDefault();
@@ -61,20 +126,6 @@ export default function LlmsTxtSection({ projectId }: { projectId: string }) {
             <Download className="w-4 h-4" />
             {t("download")}
           </a>
-
-          <button
-            type="button"
-            onClick={() => regenerate.mutate({ projectId })}
-            disabled={regenerate.isPending}
-            className="btn-secondary gap-2 text-sm"
-          >
-            {regenerate.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            {data?.text ? t("regenerate") : t("generate")}
-          </button>
 
           {data?.text && (
             <button
