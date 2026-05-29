@@ -202,8 +202,8 @@ export const aiRouter = router({
       const { deducted, newBalance } = await deductByCost(
         ctx.user.id,
         costUsd,
-        "onboarding auto-fill",
-        `url=${input.url} model=${input.modelId}`,
+        "AI_CLASSIFY",
+        `onboarding auto-fill url=${input.url} model=${input.modelId}`,
       );
 
       return {

@@ -218,8 +218,8 @@ export async function generateLlmsTxtWithAI(
   const { deducted, newBalance } = await deductByCost(
     userId,
     costUsd,
-    "llms.txt generation",
-    `project=${projectId} model=${modelId}`,
+    "AI_CONTENT_GENERATE",
+    `llms.txt generation project=${projectId} model=${modelId}`,
   );
 
   await prisma.project.update({
