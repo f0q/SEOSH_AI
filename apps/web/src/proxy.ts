@@ -26,7 +26,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Public: landing, auth flows, share/invite, payment webhook entry point.
-    '/((?!api|_next/static|_next/image|favicon.ico|landing|legal|login|register|forgot-password|reset-password|invite|content-plan/shared).*)',
+    // Public: landing, auth flows, share/invite, payment webhook entry point,
+    // and root-level static files (llms.txt, robots.txt, sitemap.xml).
+    '/((?!api|_next/static|_next/image|favicon.ico|llms.txt|robots.txt|sitemap.xml|landing|legal|login|register|forgot-password|reset-password|invite|content-plan/shared).*)',
   ],
 };
