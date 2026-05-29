@@ -1381,6 +1381,18 @@
       "wpUsernameHint": "Тот, для кого создан Application Password",
       "wpPassword": "Application Password",
       "wpPasswordHint": "WP → Users → Profile → Application Passwords"
+    },
+    "llmsTxt": {
+      "title": "llms.txt для вашего сайта",
+      "description": "Один файл-описание сайта для AI-краулеров (ChatGPT, Perplexity, Claude). Скачайте и положите в корень своего домена как /llms.txt — это помогает LLM понять структуру и тематику без полного обхода сайта.",
+      "updated": "Обновлено: {when}",
+      "download": "Скачать llms.txt",
+      "regenerate": "Пересобрать",
+      "generate": "Сгенерировать",
+      "copy": "Копировать",
+      "copied": "Скопировано",
+      "empty": "Файл ещё не сгенерирован. Нажмите «Сгенерировать», чтобы собрать его из данных проекта.",
+      "howto": "Как использовать: загрузите файл по FTP/панели хостинга в корень сайта, чтобы он был доступен по адресу https://ваш-сайт/llms.txt. Пересобирайте после крупных изменений в продуктах, структуре или семантическом ядре."
     }
   },
   "autopilotPage": {

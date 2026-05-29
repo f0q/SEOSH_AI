@@ -7,6 +7,18 @@ import { router, protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { prisma } from "../db";
 import { TRPCError } from "@trpc/server";
+import { regenerateProjectLlmsTxt } from "../services/llms-txt/build";
+
+// Best-effort: don't block onboarding if llms.txt build fails for any reason
+// (no semantic core yet, malformed siteStructure, etc.) — user can always
+// hit the Regenerate button on /project-settings later.
+async function tryBuildLlmsTxt(projectId: string): Promise<void> {
+  try {
+    await regenerateProjectLlmsTxt(projectId);
+  } catch (err) {
+    console.error(`[projects] failed to build llms.txt for ${projectId}:`, err);
+  }
+}
 
 /** Verify the user is the project owner (not just a team member) */
 async function ensureProjectOwner(projectId: string, userId: string) {
@@ -133,9 +145,11 @@ export const projectsRouter = router({
         });
       }
 
+      await tryBuildLlmsTxt(project.id);
+
       return { projectId: project.id };
     }),
-    
+
   upsertOnboarding: protectedProcedure
     .input(
       z.object({
@@ -248,6 +262,8 @@ export const projectsRouter = router({
         }
       }
 
+      await tryBuildLlmsTxt(project.id);
+
       return { projectId: project.id };
     }),
 
@@ -309,5 +325,29 @@ export const projectsRouter = router({
       });
 
       return { success: true };
+    }),
+
+  /** Read the stored llms.txt for a project (owner only) */
+  getLlmsTxt: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      await ensureProjectOwner(input.projectId, ctx.user.id);
+      const project = await prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { llmsTxt: true, llmsTxtUpdatedAt: true },
+      });
+      return {
+        text: project?.llmsTxt ?? null,
+        updatedAt: project?.llmsTxtUpdatedAt ?? null,
+      };
+    }),
+
+  /** Regenerate llms.txt from the current CompanyProfile + SemanticCore + sitemap */
+  regenerateLlmsTxt: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      await ensureProjectOwner(input.projectId, ctx.user.id);
+      const text = await regenerateProjectLlmsTxt(input.projectId);
+      return { text, updatedAt: new Date() };
     }),
 });

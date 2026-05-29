@@ -158,6 +158,10 @@ model Project {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
+  // Generated llms.txt for the client's domain — markdown, regenerated on demand
+  llmsTxt          String?   @db.Text
+  llmsTxtUpdatedAt DateTime?
+
   // Relations
   companyProfile CompanyProfile?
   dataSources    DataSource[]

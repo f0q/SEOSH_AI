@@ -1381,6 +1381,18 @@
       "wpUsernameHint": "User who owns the Application Password",
       "wpPassword": "Application Password",
       "wpPasswordHint": "WP → Users → Profile → Application Passwords"
+    },
+    "llmsTxt": {
+      "title": "llms.txt for your site",
+      "description": "A single-file site description for AI crawlers (ChatGPT, Perplexity, Claude). Download it and host at the root of your domain as /llms.txt so LLMs can understand your structure and topics without crawling the whole site.",
+      "updated": "Updated: {when}",
+      "download": "Download llms.txt",
+      "regenerate": "Regenerate",
+      "generate": "Generate",
+      "copy": "Copy",
+      "copied": "Copied",
+      "empty": "Not generated yet. Click Generate to build it from your project data.",
+      "howto": "How to use: upload the file via FTP or your hosting panel to the root of your site so it's reachable at https://your-site/llms.txt. Regenerate after major changes to products, structure or semantic core."
     }
   },
   "autopilotPage": {

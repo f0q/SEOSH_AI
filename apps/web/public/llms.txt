@@ -1,0 +1,41 @@
+# SEOSH.AI
+
+> AI-powered SEO automation platform for Russian-speaking markets — turns keyword research into published, optimized content on autopilot. Built for SMB owners, agencies, and SEO specialists who want a single tool covering the full workflow from semantic core to scheduled publication.
+
+## Product
+
+- [SEOSH.AI Landing](https://seosh.aijam.pro/landing): Overview of the platform, core features, and use cases.
+- [Get Started — Sign Up](https://seosh.aijam.pro/landing#cta): Create an account and onboard your first project in under 5 minutes.
+- [Try the Demo](https://seosh.aijam.pro/landing): One-click demo mode with a pre-filled SEO project (no signup required).
+
+## Features
+
+- **Semantic Core**: Bulk keyword research, automatic lexical grouping (clustering), and category-based organization. Imports keywords from CSV or generates from a seed list using AI.
+- **Content Planner**: Visual editorial calendar mapping keywords to content items, with status workflow (Draft → Generated → Optimized → Review → Scheduled → Published) and team collaboration.
+- **AI Content Editor**: Built-in markdown editor with on-demand AI generation, SEO scoring, readability analysis, and one-click optimization powered by OpenRouter.
+- **Autopilot**: Auto-approve or Telegram-bot approval flow for ready content. Schedules publishing at custom intervals (1/day, 3/week, 1/week, 2/week) and publishes via connected CMS.
+- **WordPress Publisher**: Direct REST API integration. Connect any WP site via Application Password and publish drafts or live posts on schedule.
+- **Multi-Project Workspace**: Manage multiple SEO projects in a single account with team invites and role-based access (Owner, Editor, Viewer).
+
+## Pricing
+
+- [Billing & Plans](https://seosh.aijam.pro/billing): Pay-as-you-go token packages via YooKassa. No subscriptions — buy AI generation credits as you need them.
+
+## Legal
+
+- [Public Offer Agreement](https://seosh.aijam.pro/legal/offer): Terms of service (RU).
+- [Privacy Policy](https://seosh.aijam.pro/legal/privacy): How user data is collected, stored, and processed.
+- [Payment Terms](https://seosh.aijam.pro/legal/payment): Payment processing and billing rules.
+- [Refund Policy](https://seosh.aijam.pro/legal/refund): Conditions and procedures for refunds.
+
+## Documentation
+
+- *(Coming soon — public docs and integration guides for WordPress, Telegram bot setup, and the Publisher API.)*
+
+## Blog
+
+- *(Coming soon — articles on SEO automation, AI content workflows, and Russian-language SEO best practices.)*
+
+---
+
+*Last updated: 2026-05-29. SEOSH.AI is operated from Russia and serves primarily Russian-speaking SMBs and agencies.*

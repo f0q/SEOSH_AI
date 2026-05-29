@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import ConnectorsSection from "@/components/project-settings/ConnectorsSection";
+import LlmsTxtSection from "@/components/project-settings/LlmsTxtSection";
 
 export default function ProjectSettingsPage() {
   const t = useTranslations("projectSettings");
@@ -406,6 +407,12 @@ export default function ProjectSettingsPage() {
             {projectId && (
               <div className="lg:col-span-3">
                 <ConnectorsSection projectId={projectId} />
+              </div>
+            )}
+
+            {projectId && (
+              <div className="lg:col-span-3">
+                <LlmsTxtSection projectId={projectId} />
               </div>
             )}
 
